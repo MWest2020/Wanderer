@@ -1,0 +1,30 @@
+# Binaries
+/bin/
+/dist/
+wanderer
+wanderer.exe
+
+# Test / coverage
+*.test
+*.out
+coverage.*
+
+# Go workspace
+go.work
+go.work.sum
+
+# IDE / OS
+.idea/
+.vscode/
+.DS_Store
+
+# Local config / secrets
+.env
+.env.*
+!.env.example
+config.local.yaml
+
+# Runtime
+/data/
+*.db
+*.sqlite

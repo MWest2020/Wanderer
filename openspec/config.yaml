@@ -1,0 +1,43 @@
+schema: spec-driven
+
+context: |
+  Wanderer observes the externally visible digital footprint of a public-sector
+  organisation (DNS, MX, TLS, HTTP, IP/ASN) and scores it against the DICTU
+  Toetsingsinstrument Soevereiniteit Clouddiensten.
+
+  Stack: Go 1.22, standard library first. net, crypto/tls, net/http, context.
+  Persistence: SQLite via modernc.org/sqlite (pure Go, no CGo) for the MVP;
+  PostgreSQL-compatible schema so we can swap later.
+  HTTP: chi for routing, stdlib net/http everywhere else.
+  Config: YAML, parsed with gopkg.in/yaml.v3. Env-var overrides via envconfig.
+  Testing: stdlib testing + testify/require for assertions. Table-driven tests.
+  Logging: log/slog (stdlib) with JSON handler in production.
+  Tracing/metrics: OpenTelemetry, Prometheus exporter.
+
+  Conventions:
+  - Boring and auditable. Standard library over clever libraries. No magic
+    reflection, no code generation unless the alternative is measurably worse.
+  - Every probe returns structured Findings with a stable schema, not free-form
+    text. Scoring runs off Findings, never off probe internals.
+  - Passive observation only. No brute-force, no credential-grabbing, no
+    exploitation. If it could show up in an abuse complaint, it's out of scope.
+  - Each probe is isolated: a failing DNS probe must never cascade to the TLS
+    probe. Use context with timeouts, propagate errors, don't panic.
+  - Scans are idempotent and resumable. A partial scan must be a first-class
+    state, not an error.
+
+rules:
+  proposal:
+    - State explicitly which DICTU dimension(s) the change informs (Juridisch,
+      Data & AI, Technologie, Operationeel, Mens) — or justify why none.
+    - Declare the passive/active boundary. New probes must argue they are
+      passive; anything that could trigger abuse complaints requires design.md
+      discussion.
+  specs:
+    - Use Given/When/Then scenarios. Include at least one failure-mode scenario
+      (timeout, malformed response, rate-limit) per requirement.
+    - Reference the DICTU criterium ID where applicable.
+  design:
+    - Name the external systems the component talks to and the failure mode for
+      each (timeout, auth, rate-limit, data-shape change).
+    - Call out the "clever valkuil" if one is tempting here.

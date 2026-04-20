@@ -1,0 +1,21 @@
+run:
+  timeout: 5m
+
+linters:
+  disable-all: true
+  enable:
+    - errcheck
+    - govet
+    - ineffassign
+    - staticcheck
+    - unused
+    - gofumpt
+    - goimports
+    - misspell
+    - revive
+    - gosec
+
+linters-settings:
+  gosec:
+    excludes:
+      - G304 # file-path from variable is fine for CLI flags
