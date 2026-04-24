@@ -133,3 +133,87 @@ func TestPostScanMissingDomain(t *testing.T) {
 		t.Errorf("status = %d, want 400", resp.StatusCode)
 	}
 }
+
+// TestAssessmentLifecycle drives POST /scans → POST /scans/{id}/assessments
+// → GET /assessments/{id} end-to-end against the stub probe.
+func TestAssessmentLifecycle(t *testing.T) {
+	srv, _ := newTestServer(t)
+
+	// First create a scan so we have an ID to assess.
+	resp, err := http.Post(srv.URL+"/scans", "application/json", strings.NewReader(`{"domain":"example.nl"}`))
+	if err != nil {
+		t.Fatalf("scan post: %v", err)
+	}
+	var scan models.Scan
+	if err := json.NewDecoder(resp.Body).Decode(&scan); err != nil {
+		t.Fatalf("decode scan: %v", err)
+	}
+	resp.Body.Close()
+	if scan.ID == "" {
+		t.Fatal("empty scan ID")
+	}
+
+	// Request an assessment.
+	aresp, err := http.Post(srv.URL+"/scans/"+scan.ID+"/assessments", "application/json", strings.NewReader(``))
+	if err != nil {
+		t.Fatalf("assess post: %v", err)
+	}
+	defer aresp.Body.Close()
+	if aresp.StatusCode != 201 {
+		t.Fatalf("status = %d, want 201", aresp.StatusCode)
+	}
+	var a models.Assessment
+	if err := json.NewDecoder(aresp.Body).Decode(&a); err != nil {
+		t.Fatalf("decode assessment: %v", err)
+	}
+	if a.ID == "" {
+		t.Fatal("empty assessment ID")
+	}
+	if len(a.Dimensions) != 5 {
+		t.Errorf("want 5 dimensions, got %d", len(a.Dimensions))
+	}
+	if a.Report == "" {
+		t.Error("markdown report missing")
+	}
+
+	// Retrieve the persisted assessment.
+	gresp, err := http.Get(srv.URL + "/assessments/" + a.ID)
+	if err != nil {
+		t.Fatalf("get: %v", err)
+	}
+	defer gresp.Body.Close()
+	if gresp.StatusCode != 200 {
+		t.Fatalf("get status = %d", gresp.StatusCode)
+	}
+	var got models.Assessment
+	if err := json.NewDecoder(gresp.Body).Decode(&got); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if got.ID != a.ID || got.ScanID != a.ScanID {
+		t.Errorf("round trip diverged: %+v vs %+v", got, a)
+	}
+}
+
+func TestPostAssessmentMissingScan(t *testing.T) {
+	srv, _ := newTestServer(t)
+	resp, err := http.Post(srv.URL+"/scans/s_missing/assessments", "application/json", strings.NewReader(``))
+	if err != nil {
+		t.Fatalf("post: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != 404 {
+		t.Errorf("status = %d, want 404", resp.StatusCode)
+	}
+}
+
+func TestGetAssessmentNotFound(t *testing.T) {
+	srv, _ := newTestServer(t)
+	resp, err := http.Get(srv.URL + "/assessments/a_missing")
+	if err != nil {
+		t.Fatalf("get: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != 404 {
+		t.Errorf("status = %d, want 404", resp.StatusCode)
+	}
+}

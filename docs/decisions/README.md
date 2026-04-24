@@ -30,3 +30,4 @@ do not delete old ADRs; supersede them.
 | 0001 | [OpenSpec workflow](0001-openspec-workflow.md)            | accepted |
 | 0002 | [API stability classes](0002-api-stability-classes.md)    | accepted |
 | 0003 | [Dependency policy](0003-dependency-policy.md)            | accepted |
+| 0004 | [Assessor rule engine](0004-assessor-rule-engine.md)      | accepted |

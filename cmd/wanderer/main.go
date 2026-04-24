@@ -1,9 +1,10 @@
 // Command wanderer is the CLI and API server for the Wanderer digital
 // sovereignty monitor. Subcommands:
 //
-//	wanderer scan <domain>   — run a scan and print a human-readable summary
-//	wanderer serve           — start the HTTP API
-//	wanderer version         — print the build version
+//	wanderer scan <domain>      — run a scan and print a human-readable summary
+//	wanderer assess <scan-id>   — score a scan against the DICTU rule set
+//	wanderer serve              — start the HTTP API
+//	wanderer version            — print the build version
 package main
 
 import (
@@ -26,6 +27,8 @@ func main() {
 		fmt.Println(Version)
 	case "scan":
 		os.Exit(runScan(args))
+	case "assess":
+		os.Exit(runAssess(args))
 	case "serve":
 		os.Exit(runServe(args))
 	case "help", "-h", "--help":
@@ -38,9 +41,10 @@ func main() {
 }
 
 func usage(w *os.File) {
-	fmt.Fprintln(w, "usage: wanderer <scan|serve|version> [args...]")
+	fmt.Fprintln(w, "usage: wanderer <scan|assess|serve|version> [args...]")
 	fmt.Fprintln(w, "")
-	fmt.Fprintln(w, "  scan <domain>   Run a scan and print the findings")
-	fmt.Fprintln(w, "  serve           Start the HTTP API")
-	fmt.Fprintln(w, "  version         Print the build version")
+	fmt.Fprintln(w, "  scan <domain>      Run a scan and print the findings")
+	fmt.Fprintln(w, "  assess <scan-id>   Score a scan against the DICTU rule set")
+	fmt.Fprintln(w, "  serve              Start the HTTP API")
+	fmt.Fprintln(w, "  version            Print the build version")
 }

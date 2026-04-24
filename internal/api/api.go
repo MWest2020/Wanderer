@@ -11,6 +11,8 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/MWest2020/wanderer/internal/assessor"
+	"github.com/MWest2020/wanderer/internal/assessor/dictu"
 	"github.com/MWest2020/wanderer/internal/metrics"
 	"github.com/MWest2020/wanderer/internal/scanner"
 	"github.com/MWest2020/wanderer/internal/store"
@@ -76,7 +78,72 @@ func Router(st *store.Store, sc *scanner.Scanner, logger *slog.Logger) http.Hand
 		writeJSON(w, http.StatusOK, scan)
 	})
 
+	r.Post("/scans/{id}/assessments", func(w http.ResponseWriter, r *http.Request) {
+		id := chi.URLParam(r, "id")
+		scan, err := st.GetScan(r.Context(), id)
+		if err != nil {
+			if errors.Is(err, store.ErrNotFound) {
+				writeError(w, http.StatusNotFound, "not_found", "scan not found")
+				return
+			}
+			writeError(w, http.StatusInternalServerError, "store_error", err.Error())
+			return
+		}
+		rules := dictu.DefaultRules()
+		a := &models.Assessment{
+			ScanID:     scan.ID,
+			Framework:  "dictu",
+			Dimensions: assessor.Assess(scan.Findings, rules),
+		}
+		var buf strBuf
+		subject := subjectForScan(r.Context(), st, scan)
+		if err := assessor.RenderMarkdown(&buf, a, assessor.Rules(rules), subject); err != nil {
+			writeError(w, http.StatusInternalServerError, "render_failed", err.Error())
+			return
+		}
+		a.Report = buf.String()
+		if err := st.CreateAssessment(r.Context(), a); err != nil {
+			writeError(w, http.StatusInternalServerError, "persist_failed", err.Error())
+			return
+		}
+		writeJSON(w, http.StatusCreated, a)
+	})
+
+	r.Get("/assessments/{id}", func(w http.ResponseWriter, r *http.Request) {
+		id := chi.URLParam(r, "id")
+		a, err := st.GetAssessment(r.Context(), id)
+		if err != nil {
+			if errors.Is(err, store.ErrNotFound) {
+				writeError(w, http.StatusNotFound, "not_found", "assessment not found")
+				return
+			}
+			writeError(w, http.StatusInternalServerError, "store_error", err.Error())
+			return
+		}
+		writeJSON(w, http.StatusOK, a)
+	})
+
 	return r
+}
+
+// strBuf is an in-package minimal io.Writer-backed string builder.
+type strBuf struct{ data []byte }
+
+func (b *strBuf) Write(p []byte) (int, error) {
+	b.data = append(b.data, p...)
+	return len(p), nil
+}
+func (b *strBuf) String() string { return string(b.data) }
+
+// subjectForScan returns the human-readable label (domain) for an
+// Assessment report, falling back to the scan ID.
+func subjectForScan(ctx context.Context, st *store.Store, scan *models.Scan) string {
+	row := st.DB().QueryRowContext(ctx, `SELECT domain FROM targets WHERE id = ?`, scan.TargetID)
+	var domain string
+	if err := row.Scan(&domain); err == nil && domain != "" {
+		return domain
+	}
+	return scan.ID
 }
 
 func writeJSON(w http.ResponseWriter, status int, v any) {

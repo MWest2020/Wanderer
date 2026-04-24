@@ -11,6 +11,17 @@ once a first release is cut. Until then every entry lives under
 
 ### Added
 
+- Assessor: `pkg/models.Assessment` and its supporting types
+  (`Score`, `Completeness`, `DimensionScore`, `Rationale`), the
+  `internal/assessor` rule engine, the DICTU MVP rule set under
+  `internal/assessor/dictu/` (10 rules across four dimensions),
+  markdown/JSON/text report renderers, the `wanderer assess` CLI
+  subcommand, and `POST /scans/{id}/assessments` +
+  `GET /assessments/{id}` on the HTTP API. Assessments are persisted
+  in a new `assessments` table via `store.CreateAssessment`,
+  `store.GetAssessment`, and `store.ListAssessmentsForScan`. ADR-0004
+  records why rules are Go functions rather than a DSL.
+  (`openspec/changes/add-assessor`)
 - Maintainability baseline: `CHANGELOG.md`, `CODEOWNERS`, the
   `docs/decisions/` ADR folder with seed records for the OpenSpec
   workflow, API stability classes, and dependency policy, plus

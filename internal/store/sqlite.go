@@ -89,6 +89,17 @@ CREATE TABLE IF NOT EXISTS findings (
 
 CREATE INDEX IF NOT EXISTS idx_findings_scan  ON findings(scan_id);
 CREATE INDEX IF NOT EXISTS idx_findings_probe ON findings(probe_id);
+
+CREATE TABLE IF NOT EXISTS assessments (
+  id         TEXT PRIMARY KEY,
+  scan_id    TEXT NOT NULL REFERENCES scans(id),
+  framework  TEXT NOT NULL,
+  dimensions TEXT NOT NULL,
+  report     TEXT NOT NULL DEFAULT '',
+  created_at DATETIME NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_assessments_scan ON assessments(scan_id);
 `
 
 func (s *Store) migrate(ctx context.Context) error {
