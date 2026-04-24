@@ -50,9 +50,31 @@ chains — and walk the graph outward until the picture is complete. Then score.
 
 ## Status
 
-Greenfield. The OpenSpec change [`init-mvp-scanners`](openspec/changes/init-mvp-scanners/)
-defines the MVP: DNS/MX scanners, TLS + certificate transparency, IP→ASN→
-jurisdiction resolution, and HTTP header / third-party resource discovery.
+MVP landed. The OpenSpec change [`init-mvp-scanners`](openspec/changes/init-mvp-scanners/)
+delivered the first walkable scanner suite: DNS (A/AAAA/MX/NS/CNAME/TXT/CAA),
+TLS + certificate transparency via crt.sh, IP→ASN→country via a local
+GeoLite2 database, and HTTP header / third-party resource discovery.
+Findings persist to SQLite and are retrievable via a JSON HTTP API.
+
+The assessor (mapping findings to DICTU dimensions and levels) is the
+next change to propose; the MVP produces the raw findings that feed it.
+
+## Quickstart
+
+```sh
+make build
+./bin/wanderer scan example.nl --geoip /path/to/GeoLite2-ASN.mmdb
+```
+
+The database is an ordinary SQLite file (`./wanderer.db` by default).
+See [`docs/operator.md`](docs/operator.md) for the full operator guide.
+
+To run the HTTP API:
+
+```sh
+./bin/wanderer serve --addr :8080 --geoip /path/to/GeoLite2-ASN.mmdb
+curl -X POST http://localhost:8080/scans -d '{"domain":"example.nl"}'
+```
 
 ## Layout
 
