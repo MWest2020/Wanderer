@@ -1,0 +1,81 @@
+package main
+
+import (
+	"context"
+	"errors"
+	"flag"
+	"fmt"
+	"log/slog"
+	"net/http"
+	"os"
+	"os/signal"
+	"path/filepath"
+	"syscall"
+	"time"
+
+	"github.com/MWest2020/wanderer/internal/api"
+	"github.com/MWest2020/wanderer/internal/probe"
+	"github.com/MWest2020/wanderer/internal/scanner"
+	"github.com/MWest2020/wanderer/internal/store"
+)
+
+// runServe starts the HTTP API.
+func runServe(args []string) int {
+	fs := flag.NewFlagSet("serve", flag.ContinueOnError)
+	addr := fs.String("addr", envOr("WANDERER_LISTEN", ":8080"), "HTTP listen address")
+	dbPath := fs.String("db", envOr("WANDERER_DB", "wanderer.db"), "Path to SQLite database")
+	geoipPath := fs.String("geoip", envOr("WANDERER_GEOIP_ASN", ""), "Path to GeoLite2-ASN mmdb")
+	geoipCountry := fs.String("geoip-country", envOr("WANDERER_GEOIP_COUNTRY", ""), "Optional GeoLite2-Country mmdb")
+	perProbe := fs.Duration("per-probe-timeout", scanner.DefaultPerProbeTimeout, "Per-probe timeout")
+	globalTO := fs.Duration("budget", scanner.DefaultGlobalBudget, "Global scan timeout budget")
+	ua := fs.String("user-agent", "Wanderer/0.x", "User-Agent for HTTP probes")
+	if err := fs.Parse(args); err != nil {
+		return 2
+	}
+	logger := newLogger(true)
+	slog.SetDefault(logger)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	st, err := store.Open(ctx, "file:"+filepath.Clean(*dbPath))
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "wanderer: open store: %v\n", err)
+		return 1
+	}
+	defer st.Close()
+
+	probes, err := buildProbes(*geoipPath, *geoipCountry)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "wanderer: %v\n", err)
+		return 1
+	}
+	sc := scanner.New(st, probes, probe.Config{PerProbeTimeout: *perProbe, UserAgent: *ua})
+	sc.Logger = logger
+	sc.GlobalBudget = *globalTO
+
+	srv := &http.Server{
+		Addr:              *addr,
+		Handler:           api.Router(st, sc, logger),
+		ReadHeaderTimeout: 5 * time.Second,
+	}
+	sig := make(chan os.Signal, 1)
+	signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)
+
+	go func() {
+		logger.Info("serve.start", "addr", *addr)
+		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			logger.Error("serve.error", "err", err)
+			cancel()
+		}
+	}()
+	select {
+	case <-sig:
+		logger.Info("serve.stop", "reason", "signal")
+	case <-ctx.Done():
+		logger.Info("serve.stop", "reason", "ctx")
+	}
+	shutdownCtx, scancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer scancel()
+	_ = srv.Shutdown(shutdownCtx)
+	return 0
+}

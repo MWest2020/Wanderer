@@ -1,8 +1,8 @@
 # Binaries
 /bin/
 /dist/
-wanderer
-wanderer.exe
+/wanderer
+/wanderer.exe
 
 # Test / coverage
 *.test
