@@ -17,6 +17,14 @@ Reference:
 - [**Observability**](observability.md) — logs, Prometheus metrics,
   OpenTelemetry (deferred).
 
+Contributing:
+
+- [**Maintainability**](maintainability.md) — single entry point for
+  contributors: CHANGELOG, ADRs, API stability, testing baseline,
+  dependency policy, commit style.
+- [**Architecture Decision Records**](decisions/README.md) — the
+  decisions that shape the project, append-only.
+
 The project-level [`README`](../README.md) covers what Wanderer is and
 why it exists. Spec-driven change proposals live in
 [`openspec/`](../openspec/).
