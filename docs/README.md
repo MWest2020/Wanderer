@@ -14,6 +14,8 @@ Reference:
   code that consumes findings.
 - [**Assessor**](assessor.md) — how DICTU scores are produced from
   findings, how to read an Assessment, and how to extend the rule set.
+- [**Exporters**](exporters.md) — CSV and JSONL export from the local
+  store, with composable selectors.
 - [**Architecture**](architecture.md) — how the components fit
   together, key design decisions, how to add a probe.
 - [**Observability**](observability.md) — logs, Prometheus metrics,

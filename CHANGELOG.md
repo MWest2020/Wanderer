@@ -11,6 +11,14 @@ once a first release is cut. Until then every entry lives under
 
 ### Added
 
+- Exporters: `wanderer export <findings|scans|assessments>` subcommand
+  with `--format csv|jsonl`, file or stdout output, and composable
+  `--scan`, `--probe`, `--dimension`, `--since`, `--until` selectors
+  pushed down to the SQL query. Adds `internal/export/` writers,
+  `store.ListFindings` / `ListScans` / `ListAssessments` query
+  helpers (with a `Selectors` type), and `docs/exporters.md` for
+  recipes (Excel, jq, Grafana, diff).
+  (`openspec/changes/add-exporters`)
 - Assessor: `pkg/models.Assessment` and its supporting types
   (`Score`, `Completeness`, `DimensionScore`, `Rationale`), the
   `internal/assessor` rule engine, the DICTU MVP rule set under
