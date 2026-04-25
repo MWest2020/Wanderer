@@ -11,6 +11,15 @@ once a first release is cut. Until then every entry lives under
 
 ### Added
 
+- MCP server: `wanderer mcp` subcommand speaks the Model Context
+  Protocol over stdio (line-delimited JSON-RPC 2.0). Exposes five
+  tools (`scan_domain`, `get_scan`, `list_scans`, `assess_scan`,
+  `get_assessment`) and the `wanderer://` resource family for
+  reading scans and assessments. Hand-rolled dispatcher in
+  `internal/mcp/`; no new dependencies. ADR-0005 records the
+  transport choice. `docs/mcp.md` carries the install snippet for
+  Claude Desktop / Claude Code.
+  (`openspec/changes/add-mcp-server`)
 - Exporters: `wanderer export <findings|scans|assessments>` subcommand
   with `--format csv|jsonl`, file or stdout output, and composable
   `--scan`, `--probe`, `--dimension`, `--since`, `--until` selectors

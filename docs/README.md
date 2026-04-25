@@ -16,6 +16,8 @@ Reference:
   findings, how to read an Assessment, and how to extend the rule set.
 - [**Exporters**](exporters.md) — CSV and JSONL export from the local
   store, with composable selectors.
+- [**MCP server**](mcp.md) — drive scans and read findings from
+  Claude Code or Claude Desktop via the Model Context Protocol.
 - [**Architecture**](architecture.md) — how the components fit
   together, key design decisions, how to add a probe.
 - [**Observability**](observability.md) — logs, Prometheus metrics,
