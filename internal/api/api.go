@@ -123,6 +123,25 @@ func Router(st *store.Store, sc *scanner.Scanner, logger *slog.Logger) http.Hand
 		writeJSON(w, http.StatusOK, a)
 	})
 
+	r.Get("/targets/{id}/drift", func(w http.ResponseWriter, r *http.Request) {
+		id := chi.URLParam(r, "id")
+		var since time.Time
+		if s := r.URL.Query().Get("since"); s != "" {
+			t, err := time.Parse(time.RFC3339, s)
+			if err != nil {
+				writeError(w, http.StatusBadRequest, "invalid_since", err.Error())
+				return
+			}
+			since = t
+		}
+		findings, err := st.ListDriftForTarget(r.Context(), id, since)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "store_error", err.Error())
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"target_id": id, "findings": findings})
+	})
+
 	return r
 }
 

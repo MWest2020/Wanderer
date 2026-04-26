@@ -18,6 +18,10 @@ Reference:
   store, with composable selectors.
 - [**MCP server**](mcp.md) — drive scans and read findings from
   Claude Code or Claude Desktop via the Model Context Protocol.
+- [**Scheduling**](scheduling.md) — cron-driven scans inside
+  `wanderer serve`, schedules file format, SIGHUP semantics.
+- [**Drift**](drift.md) — what counts as posture drift between two
+  scans, the rule set, the `wanderer diff` CLI.
 - [**Architecture**](architecture.md) — how the components fit
   together, key design decisions, how to add a probe.
 - [**Observability**](observability.md) — logs, Prometheus metrics,

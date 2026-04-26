@@ -282,3 +282,9 @@ func (s *Store) GetScan(ctx context.Context, scanID string) (*models.Scan, error
 
 // ErrNotFound is returned when a requested record does not exist.
 var ErrNotFound = errors.New("store: not found")
+
+// jsonUnmarshalString decodes raw into v. Wraps json.Unmarshal so
+// callers do not have to allocate a []byte() for short-lived strings.
+func jsonUnmarshalString(raw string, v any) error {
+	return json.Unmarshal([]byte(raw), v)
+}

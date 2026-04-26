@@ -217,3 +217,40 @@ func TestGetAssessmentNotFound(t *testing.T) {
 		t.Errorf("status = %d, want 404", resp.StatusCode)
 	}
 }
+
+func TestGetTargetDrift_EmptyAndBadSince(t *testing.T) {
+	srv, _ := newTestServer(t)
+
+	// Bad since: 400.
+	resp, err := http.Get(srv.URL + "/targets/t_anything/drift?since=garbage")
+	if err != nil {
+		t.Fatalf("get: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != 400 {
+		t.Errorf("status = %d, want 400", resp.StatusCode)
+	}
+
+	// Unknown target with no since: 200 with empty findings.
+	resp2, err := http.Get(srv.URL + "/targets/t_missing/drift")
+	if err != nil {
+		t.Fatalf("get: %v", err)
+	}
+	defer resp2.Body.Close()
+	if resp2.StatusCode != 200 {
+		t.Errorf("status = %d, want 200", resp2.StatusCode)
+	}
+	var body struct {
+		TargetID string `json:"target_id"`
+		Findings []any  `json:"findings"`
+	}
+	if err := json.NewDecoder(resp2.Body).Decode(&body); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if body.TargetID != "t_missing" {
+		t.Errorf("target_id = %q", body.TargetID)
+	}
+	if len(body.Findings) != 0 {
+		t.Errorf("want 0 findings, got %d", len(body.Findings))
+	}
+}

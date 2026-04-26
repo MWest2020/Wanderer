@@ -11,6 +11,18 @@ once a first release is cut. Until then every entry lives under
 
 ### Added
 
+- Scheduling + drift: an in-process cron scheduler runs alongside
+  `wanderer serve` (via `--schedules <file>`), invoking
+  `scanner.Scan` per tick and feeding each new scan to the drift
+  engine. New `internal/drift/` engine compares consecutive scans of
+  the same target and emits `drift.*` Findings (TLS issuer, days
+  left, MX/NS sets, IP country, HTTP third parties). New
+  `wanderer diff <scan-a> <scan-b>` CLI prints would-be drift as
+  markdown without touching the store. New `GET
+  /targets/{id}/drift?since=<RFC3339>` HTTP endpoint. ADR-0006
+  records why the scheduler is in-process rather than a Kubernetes
+  CronJob.
+  (`openspec/changes/add-scheduling`)
 - MCP server: `wanderer mcp` subcommand speaks the Model Context
   Protocol over stdio (line-delimited JSON-RPC 2.0). Exposes five
   tools (`scan_domain`, `get_scan`, `list_scans`, `assess_scan`,
