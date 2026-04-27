@@ -11,6 +11,20 @@ once a first release is cut. Until then every entry lives under
 
 ### Added
 
+- Egress probe: agent-side observation of where data goes when it
+  leaves the host. New `internal/probe/egress/` walks configured
+  config files (`.env`, `.yaml`, `.yml`, `.toml`, `.ini`, `.conf`,
+  `.json`), `/proc/<pid>/environ`, and systemd unit files, then
+  classifies discovered URLs and hosts into nine categories
+  (`object_storage`, `database`, `smtp`, `oidc`, `log_shipper`,
+  `webhook`, plus `unknown` / `unconfigured` / `error`). Findings
+  are tagged with `SourceModus = "egress"` and carry a
+  `classifier_rule` attribute. Optional GeoLite2 annotation adds
+  ASN/organisation/country per host. The redactor runs in front of
+  every value emission path; ADR-0008 documents the contract and
+  test discipline. Symlinks pointing outside the configured root
+  are not followed. `docs/egress.md` is the operator guide.
+  (`openspec/changes/add-egress-probe`)
 - Inventory probe + agent: new `wanderer agent` subcommand running
   host-side inspectors (systemd, dpkg, rpm; nextcloud opt-in;
   docker as graceful-unavailable placeholder pending a follow-up).

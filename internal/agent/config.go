@@ -20,6 +20,43 @@ type Config struct {
 	Core       CoreConfig              `yaml:"core"`
 	Scan       ScanConfig              `yaml:"scan"`
 	Inspectors map[string]InspectorCfg `yaml:"inspectors"`
+	Egress     EgressConfig            `yaml:"egress"`
+	GeoIP      GeoIPConfig             `yaml:"geoip"`
+}
+
+// EgressConfig groups the egress probe scanners. Each toggle is
+// opt-in (default false) so a freshly-installed agent emits no
+// egress findings until the operator names what it should look at.
+type EgressConfig struct {
+	ConfigFiles EgressConfigFiles `yaml:"configfiles"`
+	ProcEnv     EgressProcEnv     `yaml:"procenv"`
+	Systemd     EgressSystemd     `yaml:"systemd"`
+}
+
+// EgressConfigFiles enumerates the directories the configfiles
+// scanner walks.
+type EgressConfigFiles struct {
+	Enabled bool     `yaml:"enabled"`
+	Paths   []string `yaml:"paths,omitempty"`
+}
+
+// EgressProcEnv toggles /proc/<pid>/environ scanning.
+type EgressProcEnv struct {
+	Enabled bool `yaml:"enabled"`
+}
+
+// EgressSystemd toggles unit-file scanning.
+type EgressSystemd struct {
+	Enabled bool     `yaml:"enabled"`
+	Dirs    []string `yaml:"dirs,omitempty"`
+}
+
+// GeoIPConfig points at the same GeoLite2 mmdb files the perimeter
+// IP probe uses. When set, the egress probe annotates each Finding
+// with ASN/country information.
+type GeoIPConfig struct {
+	ASN     string `yaml:"asn,omitempty"`
+	Country string `yaml:"country,omitempty"`
 }
 
 // CoreConfig is where the agent ships its findings.

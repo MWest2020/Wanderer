@@ -128,6 +128,71 @@ corrupt. It does not degrade silently.
 is the external host, not the scanned domain. Use `source_domain` in
 Attributes to link it back.
 
+## Drift Findings
+
+Drift Findings are produced by the scheduler when a new scan differs
+from the previous scan of the same target. Their `ProbeID` starts
+with `drift.`; their `Attributes` always contain
+`source_modus: "drift"`, `prev_scan_id`, and `curr_scan_id`.
+
+| ProbeID                              | severity     | dimension       | attributes                                                  |
+| ------------------------------------ | ------------ | --------------- | ----------------------------------------------------------- |
+| `drift.baseline_established`         | info         | —               | (first scan for a target — no comparison possible)          |
+| `drift.no_changes`                   | info         | —               | (two scans identical modulo IDs/timestamps)                 |
+| `drift.tls.issuer_changed`           | finding      | `juridisch`     | `prev_issuer_cn`, `curr_issuer_cn`                          |
+| `drift.tls.days_left_dropped`        | concern      | `operationeel`  | `prev_days_left`, `curr_days_left` (fired on crossing 30d)  |
+| `drift.dns.mx_set_changed`           | observation  | `data_ai`       | `added: []`, `removed: []`                                  |
+| `drift.dns.ns_set_changed`           | observation  | `operationeel`  | `added: []`, `removed: []`                                  |
+| `drift.ip.country_changed`           | finding      | `juridisch`     | `prev_country`, `curr_country` (per host)                   |
+| `drift.http.third_party_added`       | observation  | `technologie`   | `hosts: []` — newly seen subjects                           |
+| `drift.http.third_party_removed`     | info         | `technologie`   | `hosts: []` — subjects that disappeared                     |
+
+See [`drift.md`](drift.md) for the rule semantics and how the
+assessor consumes drift Findings.
+
+## Inventory Findings
+
+Inventory Findings are produced by `wanderer agent` running on a
+host. They carry `SourceModus = "inventory"` (top-level field on
+`Finding` since the inventory probe landed) so the assessor's
+completeness calculation can distinguish them from perimeter data.
+
+| ProbeID                          | severity      | dimension       | attributes                                                       |
+| -------------------------------- | ------------- | --------------- | ---------------------------------------------------------------- |
+| `inventory.systemd.service`      | info          | `operationeel`  | `load_state`, `active_state`, `sub_state`, `description`        |
+| `inventory.packages.dpkg`        | info / observation | `operationeel`  | `version`, `arch`, `status` (observation when EOL)         |
+| `inventory.packages.rpm`         | info / observation | `operationeel`  | `version`, `arch`                                          |
+| `inventory.nextcloud.app`        | info          | `technologie`   | `version`, `enabled`                                            |
+| `inventory.<id>.unavailable`     | info          | —               | `reason` — inspector could not run on this host                 |
+| `inventory.<id>.error`           | info          | —               | `error` — inspector ran but failed mid-run                      |
+
+See [`agent.md`](agent.md) for how to run `wanderer agent` and how
+inventory data raises a dimension's Completeness from `partial` to
+`complete`.
+
+## Egress Findings
+
+Egress Findings are produced by the `wanderer agent`'s egress probe
+when it identifies an external endpoint in a config file, a process
+environment, or a systemd unit. They carry `SourceModus = "egress"`.
+Every non-`unknown` Finding includes a `classifier_rule` attribute
+naming the rule that fired. Secrets are redacted before any value
+reaches Attributes or Evidence — see [`egress.md`](egress.md) and
+ADR-0008 for the redaction contract.
+
+| ProbeID                              | severity      | dimension       | attributes (in addition to `config_source`, `config_key`, `value`, `classifier_rule`, `confidence`) |
+| ------------------------------------ | ------------- | --------------- | ----- |
+| `egress.object_storage`              | observation   | `juridisch`     | `provider` (aws/gcs/azure/generic), `region` (best-effort), `asn`/`organisation`/`country` when GeoLite2 is wired |
+| `egress.database`                    | observation   | `juridisch`     | `provider` (postgres/mysql/…), `port`                                                              |
+| `egress.smtp`                        | observation   | `data_ai`       | `port`                                                                                              |
+| `egress.oidc`                        | observation   | `data_ai`       | (host only)                                                                                         |
+| `egress.log_shipper`                 | observation   | `operationeel`  | (host only)                                                                                         |
+| `egress.webhook`                     | observation   | `technologie`   | (host only)                                                                                         |
+| `egress.unknown`                     | info          | —               | URL-shaped value the classifier could not bucket                                                    |
+| `egress.<scanner>.unconfigured`      | info          | —               | scanner enabled but no paths/sources to read                                                        |
+| `egress.<scanner>.error`             | info          | —               | scanner ran but failed mid-run                                                                      |
+| `egress.host_resolution.unavailable` | info          | —               | emitted at most once per run when no GeoLite2 DB is wired                                           |
+
 ## Reading tips
 
 - Group by `ProbeID`'s first segment for a per-probe view (the CLI

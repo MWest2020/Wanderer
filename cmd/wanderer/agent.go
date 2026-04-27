@@ -13,18 +13,22 @@ import (
 	"time"
 
 	"github.com/MWest2020/wanderer/internal/agent"
+	"github.com/MWest2020/wanderer/internal/probe/egress"
+	egressscanners "github.com/MWest2020/wanderer/internal/probe/egress/scanners"
 	"github.com/MWest2020/wanderer/internal/probe/inventory"
 	"github.com/MWest2020/wanderer/internal/probe/inventory/docker"
 	"github.com/MWest2020/wanderer/internal/probe/inventory/nextcloud"
 	"github.com/MWest2020/wanderer/internal/probe/inventory/packages"
 	"github.com/MWest2020/wanderer/internal/probe/inventory/systemd"
+	ipprobe "github.com/MWest2020/wanderer/internal/probe/ip"
 	"github.com/MWest2020/wanderer/internal/store"
 	"github.com/MWest2020/wanderer/pkg/models"
 )
 
 // runAgent executes `wanderer agent --config <file>`. It runs the
-// inventory inspectors on a loop and ships findings either to a
-// local SQLite store or to a remote core over HMAC-signed HTTPS.
+// inventory inspectors and the egress probe on a loop and ships
+// findings either to a local SQLite store or to a remote core over
+// HMAC-signed HTTPS.
 func runAgent(args []string) int {
 	fs := flag.NewFlagSet("agent", flag.ContinueOnError)
 	cfgPath := fs.String("config", envOr("WANDERER_AGENT_CONFIG", "wanderer-agent.yaml"), "Path to wanderer-agent.yaml")
@@ -43,6 +47,7 @@ func runAgent(args []string) int {
 	}
 
 	inspectors := buildInspectors(cfg)
+	egressProbe := buildEgressProbe(cfg, logger)
 	timeout := cfg.Scan.Timeout
 	if timeout == 0 {
 		timeout = 5 * time.Minute
@@ -54,12 +59,39 @@ func runAgent(args []string) int {
 
 	switch cfg.Core.Mode {
 	case "local":
-		return runAgentLocal(logger, cfg, inspectors, timeout, interval)
+		return runAgentLocal(logger, cfg, inspectors, egressProbe, timeout, interval)
 	case "remote":
-		return runAgentRemote(logger, cfg, inspectors, timeout, interval)
+		return runAgentRemote(logger, cfg, inspectors, egressProbe, timeout, interval)
 	}
 	fmt.Fprintf(os.Stderr, "wanderer agent: unknown core.mode %q\n", cfg.Core.Mode)
 	return 1
+}
+
+// buildEgressProbe wires the egress probe according to cfg. When no
+// egress scanners are enabled the returned Probe has zero scanners
+// and Inspect returns no findings — the agent simply emits no
+// egress findings until the operator opts in.
+func buildEgressProbe(cfg *agent.Config, logger *slog.Logger) egress.Probe {
+	var scs []egressscanners.Scanner
+	if cfg.Egress.ConfigFiles.Enabled {
+		scs = append(scs, egressscanners.ConfigFiles{Paths: cfg.Egress.ConfigFiles.Paths})
+	}
+	if cfg.Egress.ProcEnv.Enabled {
+		scs = append(scs, egressscanners.ProcEnv{})
+	}
+	if cfg.Egress.Systemd.Enabled {
+		scs = append(scs, egressscanners.Systemd{UnitDirs: cfg.Egress.Systemd.Dirs})
+	}
+	var resolver egress.HostResolver
+	if cfg.GeoIP.ASN != "" {
+		ip, err := ipprobe.Open(cfg.GeoIP.ASN, cfg.GeoIP.Country)
+		if err != nil {
+			logger.Warn("agent.geoip", "err", err)
+		} else {
+			resolver = egress.IPResolver{IP: ip}
+		}
+	}
+	return egress.Probe{Scanners: scs, Resolver: resolver}
 }
 
 func buildInspectors(cfg *agent.Config) []inventory.Inspector {
@@ -90,7 +122,7 @@ func buildInspectors(cfg *agent.Config) []inventory.Inspector {
 	return out
 }
 
-func runAgentLocal(logger *slog.Logger, cfg *agent.Config, inspectors []inventory.Inspector, timeout, interval time.Duration) int {
+func runAgentLocal(logger *slog.Logger, cfg *agent.Config, inspectors []inventory.Inspector, egressProbe egress.Probe, timeout, interval time.Duration) int {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	st, err := store.Open(ctx, "file:"+filepath.Clean(cfg.Core.DB))
@@ -115,6 +147,7 @@ func runAgentLocal(logger *slog.Logger, cfg *agent.Config, inspectors []inventor
 			return
 		}
 		findings := inventory.Inspect(runCtx, inspectors)
+		findings = append(findings, egressProbe.Inspect(runCtx)...)
 		if err := st.AppendFindings(runCtx, scan.ID, findings); err != nil {
 			logger.Error("agent.persist", "err", err)
 		}
@@ -125,7 +158,7 @@ func runAgentLocal(logger *slog.Logger, cfg *agent.Config, inspectors []inventor
 	})
 }
 
-func runAgentRemote(logger *slog.Logger, cfg *agent.Config, inspectors []inventory.Inspector, timeout, interval time.Duration) int {
+func runAgentRemote(logger *slog.Logger, cfg *agent.Config, inspectors []inventory.Inspector, egressProbe egress.Probe, timeout, interval time.Duration) int {
 	secret, err := os.ReadFile(cfg.Core.HMACSecretFile)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "wanderer agent: read hmac secret: %v\n", err)
@@ -140,6 +173,7 @@ func runAgentRemote(logger *slog.Logger, cfg *agent.Config, inspectors []invento
 		ctx, cancel := context.WithTimeout(context.Background(), timeout)
 		defer cancel()
 		findings := inventory.Inspect(ctx, inspectors)
+		findings = append(findings, egressProbe.Inspect(ctx)...)
 		if err := r.Send(ctx, cfg.Core.TargetID, findings); err != nil {
 			logger.Error("agent.send", "err", err)
 		} else {

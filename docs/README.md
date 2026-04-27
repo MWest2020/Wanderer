@@ -24,6 +24,8 @@ Reference:
   scans, the rule set, the `wanderer diff` CLI.
 - [**Agent**](agent.md) — `wanderer agent` host-side inspectors,
   config, least-privilege user setup, HMAC remote transport.
+- [**Egress**](egress.md) — what the egress probe catches and
+  misses, the redaction guarantee, classifier rules.
 - [**Architecture**](architecture.md) — how the components fit
   together, key design decisions, how to add a probe.
 - [**Observability**](observability.md) — logs, Prometheus metrics,
