@@ -1,6 +1,7 @@
 package api_test
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"log/slog"
@@ -8,7 +9,9 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/MWest2020/wanderer/internal/agent"
 	"github.com/MWest2020/wanderer/internal/api"
 	"github.com/MWest2020/wanderer/internal/probe"
 	"github.com/MWest2020/wanderer/internal/scanner"
@@ -215,6 +218,122 @@ func TestGetAssessmentNotFound(t *testing.T) {
 	defer resp.Body.Close()
 	if resp.StatusCode != 404 {
 		t.Errorf("status = %d, want 404", resp.StatusCode)
+	}
+}
+
+// findingsIngestServer wires a router with a single registered
+// agent secret for the test cases below.
+func findingsIngestServer(t *testing.T) (*httptest.Server, *store.Store, []byte) {
+	t.Helper()
+	st, err := store.Open(context.Background(), "file::memory:?cache=shared")
+	if err != nil {
+		t.Fatalf("open: %v", err)
+	}
+	t.Cleanup(func() { _ = st.Close() })
+	secret := []byte("agent-secret-fixture")
+	secrets := api.NewStaticAgentSecrets(map[string][]byte{"webapp-01": secret})
+	sc := scanner.New(st, []probe.Probe{stubProbe{}}, probe.Config{})
+	sc.Logger = slog.New(slog.NewTextHandler(nopWriter{}, nil))
+	srv := httptest.NewServer(api.RouterWithSecrets(st, sc, sc.Logger, secrets))
+	t.Cleanup(srv.Close)
+	return srv, st, secret
+}
+
+func seedScan(t *testing.T, st *store.Store) string {
+	t.Helper()
+	tgt := &models.Target{Domain: "example.nl"}
+	if err := st.UpsertTarget(context.Background(), tgt); err != nil {
+		t.Fatalf("upsert: %v", err)
+	}
+	scan, err := st.CreateScan(context.Background(), tgt.ID)
+	if err != nil {
+		t.Fatalf("scan: %v", err)
+	}
+	return scan.ID
+}
+
+func TestFindingsIngest_HappyPath(t *testing.T) {
+	srv, st, secret := findingsIngestServer(t)
+	scanID := seedScan(t, st)
+	body := []byte(`{"findings":[{"probe_id":"inventory.systemd.service","subject":"sshd.service","severity":"info","attributes":{"active_state":"active"}}]}`)
+	ts, sig := agent.Sign(secret, body, time.Now().UTC())
+	req, _ := http.NewRequest(http.MethodPost, srv.URL+"/scans/"+scanID+"/findings", bytes.NewReader(body))
+	req.Header.Set(agent.HeaderHostname, "webapp-01")
+	req.Header.Set(agent.HeaderTimestamp, ts)
+	req.Header.Set(agent.HeaderSignature, sig)
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("post: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("status = %d, want 201", resp.StatusCode)
+	}
+	scan, err := st.GetScan(context.Background(), scanID)
+	if err != nil {
+		t.Fatalf("get scan: %v", err)
+	}
+	if len(scan.Findings) != 1 {
+		t.Fatalf("want 1 persisted finding, got %d", len(scan.Findings))
+	}
+	if scan.Findings[0].SourceModus != models.SourceModusInventory {
+		t.Errorf("source_modus = %s, want inventory", scan.Findings[0].SourceModus)
+	}
+}
+
+func TestFindingsIngest_Replay(t *testing.T) {
+	srv, st, secret := findingsIngestServer(t)
+	scanID := seedScan(t, st)
+	body := []byte(`{"findings":[]}`)
+	ts, sig := agent.Sign(secret, body, time.Now().UTC().Add(-10*time.Minute))
+	req, _ := http.NewRequest(http.MethodPost, srv.URL+"/scans/"+scanID+"/findings", bytes.NewReader(body))
+	req.Header.Set(agent.HeaderHostname, "webapp-01")
+	req.Header.Set(agent.HeaderTimestamp, ts)
+	req.Header.Set(agent.HeaderSignature, sig)
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("post: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusUnauthorized {
+		t.Errorf("replay accepted; status = %d", resp.StatusCode)
+	}
+}
+
+func TestFindingsIngest_WrongSecret(t *testing.T) {
+	srv, _, _ := findingsIngestServer(t)
+	scanID := "anything"
+	body := []byte(`{"findings":[]}`)
+	ts, sig := agent.Sign([]byte("wrong"), body, time.Now().UTC())
+	req, _ := http.NewRequest(http.MethodPost, srv.URL+"/scans/"+scanID+"/findings", bytes.NewReader(body))
+	req.Header.Set(agent.HeaderHostname, "webapp-01")
+	req.Header.Set(agent.HeaderTimestamp, ts)
+	req.Header.Set(agent.HeaderSignature, sig)
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("post: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusUnauthorized {
+		t.Errorf("status = %d, want 401", resp.StatusCode)
+	}
+}
+
+func TestFindingsIngest_UnknownHostname(t *testing.T) {
+	srv, _, secret := findingsIngestServer(t)
+	body := []byte(`{}`)
+	ts, sig := agent.Sign(secret, body, time.Now().UTC())
+	req, _ := http.NewRequest(http.MethodPost, srv.URL+"/scans/something/findings", bytes.NewReader(body))
+	req.Header.Set(agent.HeaderHostname, "stranger-host")
+	req.Header.Set(agent.HeaderTimestamp, ts)
+	req.Header.Set(agent.HeaderSignature, sig)
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("post: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusUnauthorized {
+		t.Errorf("status = %d, want 401", resp.StatusCode)
 	}
 }
 

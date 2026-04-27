@@ -11,6 +11,21 @@ once a first release is cut. Until then every entry lives under
 
 ### Added
 
+- Inventory probe + agent: new `wanderer agent` subcommand running
+  host-side inspectors (systemd, dpkg, rpm; nextcloud opt-in;
+  docker as graceful-unavailable placeholder pending a follow-up).
+  New `pkg/models.SourceModus` field tags every Finding with its
+  origin (perimeter / inventory / egress / drift) so the assessor's
+  completeness calculation can distinguish them; the `findings`
+  table gains a `source_modus` column with idempotent migration.
+  New `POST /scans/{id}/findings` endpoint authenticates agents via
+  HMAC-SHA256 over `<timestamp>\n<body>` with a ±5-minute replay
+  window (constant-time compare; single 401 surface). Agent config
+  in YAML covers local-mode (writes to a shared SQLite file) and
+  remote-mode (HMAC-signed HTTPS to a central core). ADR-0007
+  records the trust-model rationale; `docs/agent.md` is the
+  operator guide.
+  (`openspec/changes/add-inventory-probe`)
 - Scheduling + drift: an in-process cron scheduler runs alongside
   `wanderer serve` (via `--schedules <file>`), invoking
   `scanner.Scan` per tick and feeding each new scan to the drift

@@ -33,3 +33,4 @@ do not delete old ADRs; supersede them.
 | 0004 | [Assessor rule engine](0004-assessor-rule-engine.md)      | accepted |
 | 0005 | [MCP transport](0005-mcp-transport.md)                    | accepted |
 | 0006 | [In-process scheduler](0006-in-process-scheduler.md)      | accepted |
+| 0007 | [Agent trust model](0007-agent-trust-model.md)            | accepted |

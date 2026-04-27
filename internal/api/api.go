@@ -23,9 +23,17 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
-// Router builds the HTTP router. It does NOT start the server — that is
-// the caller's responsibility.
+// Router builds the HTTP router using a default (nil) AgentSecrets,
+// which leaves the agent-ingest endpoint registered but rejecting
+// every request. Use RouterWithSecrets to enable agent ingestion.
 func Router(st *store.Store, sc *scanner.Scanner, logger *slog.Logger) http.Handler {
+	return RouterWithSecrets(st, sc, logger, nil)
+}
+
+// RouterWithSecrets is Router but with a per-hostname agent secret
+// resolver attached. Pass a *StaticAgentSecrets for simple
+// configurations.
+func RouterWithSecrets(st *store.Store, sc *scanner.Scanner, logger *slog.Logger, secrets AgentSecrets) http.Handler {
 	r := chi.NewRouter()
 	r.Use(middleware.RequestID)
 	r.Use(middleware.RealIP)
@@ -122,6 +130,8 @@ func Router(st *store.Store, sc *scanner.Scanner, logger *slog.Logger) http.Hand
 		}
 		writeJSON(w, http.StatusOK, a)
 	})
+
+	r.Method(http.MethodPost, "/scans/{id}/findings", FindingsIngestHandler(st, secrets))
 
 	r.Get("/targets/{id}/drift", func(w http.ResponseWriter, r *http.Request) {
 		id := chi.URLParam(r, "id")

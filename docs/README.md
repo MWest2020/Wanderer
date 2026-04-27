@@ -22,6 +22,8 @@ Reference:
   `wanderer serve`, schedules file format, SIGHUP semantics.
 - [**Drift**](drift.md) — what counts as posture drift between two
   scans, the rule set, the `wanderer diff` CLI.
+- [**Agent**](agent.md) — `wanderer agent` host-side inspectors,
+  config, least-privilege user setup, HMAC remote transport.
 - [**Architecture**](architecture.md) — how the components fit
   together, key design decisions, how to add a probe.
 - [**Observability**](observability.md) — logs, Prometheus metrics,

@@ -1,0 +1,100 @@
+package packages
+
+import (
+	"context"
+	"strings"
+	"testing"
+)
+
+func TestParseDpkg(t *testing.T) {
+	raw := `bash 5.2.21-1 amd64 install ok installed
+systemd 252.22-1ubuntu3 amd64 install ok installed
+half-installed-pkg 1.0 amd64 deinstall ok config-files
+`
+	got := parseDpkg(raw)
+	if len(got) != 2 {
+		t.Fatalf("want 2, got %d (third should be skipped)", len(got))
+	}
+	for _, f := range got {
+		if f.ProbeID != "inventory.packages.dpkg" {
+			t.Errorf("probe = %s", f.ProbeID)
+		}
+	}
+}
+
+func TestParseDpkg_EOLFlagged(t *testing.T) {
+	raw := "php 7.4.30 amd64 install ok installed\n"
+	got := parseDpkg(raw)
+	if len(got) != 1 {
+		t.Fatalf("want 1, got %d", len(got))
+	}
+	if string(got[0].Severity) != "observation" {
+		t.Errorf("EOL php should be observation, got %s", got[0].Severity)
+	}
+}
+
+func TestParseRpm(t *testing.T) {
+	raw := "bash 5.1.16-12.el9 x86_64\nphp 7.4.30-1.el9 x86_64\n"
+	got := parseRpm(raw)
+	if len(got) != 2 {
+		t.Fatalf("want 2, got %d", len(got))
+	}
+	if got[1].Subject != "php" || string(got[1].Severity) != "observation" {
+		t.Errorf("expected EOL php from rpm, got %+v", got[1])
+	}
+}
+
+func TestDpkgInspector_AvailableViaInjectedFunc(t *testing.T) {
+	d := Dpkg{
+		QueryFunc: func(_ context.Context) (string, error) {
+			return "curl 7.88.1-10 amd64 install ok installed\n", nil
+		},
+	}
+	ok, _ := d.Available()
+	if !ok {
+		t.Fatalf("want available with injected func")
+	}
+	got, err := d.Inspect(context.Background())
+	if err != nil {
+		t.Fatalf("inspect: %v", err)
+	}
+	if len(got) != 1 || got[0].Subject != "curl" {
+		t.Errorf("unexpected: %+v", got)
+	}
+}
+
+func TestVersionLess(t *testing.T) {
+	cases := []struct {
+		a, b string
+		want bool
+	}{
+		{"7.4", "8.1", true},
+		{"8.1", "8.1", false},
+		{"8.2", "8.1", false},
+		{"3.0.1", "3.0.2", true},
+		{"7.4.30", "8.1", true},
+	}
+	for _, c := range cases {
+		if got := versionLess(c.a, c.b); got != c.want {
+			t.Errorf("versionLess(%q, %q) = %v, want %v", c.a, c.b, got, c.want)
+		}
+	}
+}
+
+func TestParseDpkg_HandlesShortLines(t *testing.T) {
+	raw := "incomplete line\n"
+	got := parseDpkg(raw)
+	if len(got) != 0 {
+		t.Errorf("want 0 from short line, got %d", len(got))
+	}
+	// Ensure not panic on empty/whitespace.
+	got = parseDpkg("\n\n   \n")
+	if len(got) != 0 {
+		t.Errorf("want 0 from whitespace, got %d", len(got))
+	}
+	// Exercise the trim path.
+	got = parseDpkg(strings.Repeat("\n", 5))
+	if len(got) != 0 {
+		t.Errorf("want 0, got %d", len(got))
+	}
+}

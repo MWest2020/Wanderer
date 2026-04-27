@@ -12,6 +12,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"crypto/rand"
@@ -78,6 +79,7 @@ CREATE TABLE IF NOT EXISTS findings (
   id             TEXT PRIMARY KEY,
   scan_id        TEXT NOT NULL REFERENCES scans(id),
   probe_id       TEXT NOT NULL,
+  source_modus   TEXT NOT NULL DEFAULT 'perimeter',
   dimension_hint TEXT,
   criterium_hint TEXT,
   subject        TEXT NOT NULL,
@@ -89,6 +91,7 @@ CREATE TABLE IF NOT EXISTS findings (
 
 CREATE INDEX IF NOT EXISTS idx_findings_scan  ON findings(scan_id);
 CREATE INDEX IF NOT EXISTS idx_findings_probe ON findings(probe_id);
+CREATE INDEX IF NOT EXISTS idx_findings_modus ON findings(source_modus);
 
 CREATE TABLE IF NOT EXISTS assessments (
   id         TEXT PRIMARY KEY,
@@ -105,6 +108,14 @@ CREATE INDEX IF NOT EXISTS idx_assessments_scan ON assessments(scan_id);
 func (s *Store) migrate(ctx context.Context) error {
 	if _, err := s.db.ExecContext(ctx, schema); err != nil {
 		return fmt.Errorf("store: migrate: %w", err)
+	}
+	// Idempotent column add for databases created before source_modus
+	// existed. SQLite has no IF NOT EXISTS for ADD COLUMN; the error
+	// "duplicate column name" is the expected no-op signal.
+	if _, err := s.db.ExecContext(ctx, `ALTER TABLE findings ADD COLUMN source_modus TEXT NOT NULL DEFAULT 'perimeter'`); err != nil {
+		if !strings.Contains(err.Error(), "duplicate column name") {
+			return fmt.Errorf("store: add source_modus: %w", err)
+		}
 	}
 	return nil
 }
@@ -197,8 +208,8 @@ func (s *Store) AppendFindings(ctx context.Context, scanID string, findings []mo
 	}
 	defer func() { _ = tx.Rollback() }()
 	stmt, err := tx.PrepareContext(ctx,
-		`INSERT INTO findings (id, scan_id, probe_id, dimension_hint, criterium_hint, subject, severity, attributes, evidence, created_at)
-		 VALUES (?,?,?,?,?,?,?,?,?,?)`)
+		`INSERT INTO findings (id, scan_id, probe_id, source_modus, dimension_hint, criterium_hint, subject, severity, attributes, evidence, created_at)
+		 VALUES (?,?,?,?,?,?,?,?,?,?,?)`)
 	if err != nil {
 		return fmt.Errorf("store: prepare: %w", err)
 	}
@@ -218,8 +229,12 @@ func (s *Store) AppendFindings(ctx context.Context, scanID string, findings []mo
 		if err != nil {
 			return fmt.Errorf("store: marshal attributes: %w", err)
 		}
+		modus := f.SourceModus
+		if modus == "" {
+			modus = models.SourceModusPerimeter
+		}
 		_, err = stmt.ExecContext(ctx,
-			f.ID, f.ScanID, f.ProbeID,
+			f.ID, f.ScanID, f.ProbeID, string(modus),
 			string(f.DimensionHint), f.CriteriumHint,
 			f.Subject, string(f.Severity),
 			string(attrs), f.Evidence, f.CreatedAt)
@@ -252,7 +267,8 @@ func (s *Store) GetScan(ctx context.Context, scanID string) (*models.Scan, error
 		sc.EndedAt = &t
 	}
 	rows, err := s.db.QueryContext(ctx,
-		`SELECT id, probe_id, COALESCE(dimension_hint,''), COALESCE(criterium_hint,''),
+		`SELECT id, probe_id, COALESCE(source_modus,'perimeter'),
+		        COALESCE(dimension_hint,''), COALESCE(criterium_hint,''),
 		        subject, severity, attributes, evidence, created_at
 		 FROM findings WHERE scan_id = ? ORDER BY rowid`, scanID)
 	if err != nil {
@@ -261,11 +277,12 @@ func (s *Store) GetScan(ctx context.Context, scanID string) (*models.Scan, error
 	defer rows.Close()
 	for rows.Next() {
 		var f models.Finding
-		var dim, crit, sev, attrs string
-		if err := rows.Scan(&f.ID, &f.ProbeID, &dim, &crit, &f.Subject, &sev, &attrs, &f.Evidence, &f.CreatedAt); err != nil {
+		var modus, dim, crit, sev, attrs string
+		if err := rows.Scan(&f.ID, &f.ProbeID, &modus, &dim, &crit, &f.Subject, &sev, &attrs, &f.Evidence, &f.CreatedAt); err != nil {
 			return nil, fmt.Errorf("store: scan finding: %w", err)
 		}
 		f.ScanID = scanID
+		f.SourceModus = models.SourceModus(modus)
 		f.DimensionHint = models.DimensionHint(dim)
 		f.CriteriumHint = crit
 		f.Severity = models.Severity(sev)

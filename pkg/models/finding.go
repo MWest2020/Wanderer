@@ -65,6 +65,28 @@ func (d DimensionHint) Valid() bool {
 	return false
 }
 
+// SourceModus identifies which class of probe produced a Finding.
+// "perimeter" is the default for legacy findings predating the
+// inventory/egress probes.
+type SourceModus string
+
+const (
+	SourceModusPerimeter SourceModus = "perimeter"
+	SourceModusInventory SourceModus = "inventory"
+	SourceModusEgress    SourceModus = "egress"
+	SourceModusDrift     SourceModus = "drift"
+)
+
+// Valid reports whether m is one of the defined source modi. The
+// empty value is also accepted: it means "default to perimeter".
+func (m SourceModus) Valid() bool {
+	switch m {
+	case "", SourceModusPerimeter, SourceModusInventory, SourceModusEgress, SourceModusDrift:
+		return true
+	}
+	return false
+}
+
 // Finding is the single output type every probe produces. The scanner
 // collects these; the store serialises them; the assessor (future) reads
 // them. No probe-specific structure is allowed past this boundary:
@@ -80,6 +102,12 @@ type Finding struct {
 	// ProbeID identifies which probe produced this Finding. Stable string,
 	// e.g. "dns.mx", "tls.issuer", "http.third_party".
 	ProbeID string `json:"probe_id"`
+
+	// SourceModus tags which class of probe produced this Finding —
+	// perimeter (DNS/TLS/IP/HTTP), inventory (host-side inspectors),
+	// egress (egress probe), or drift (computed from previous scans).
+	// Empty is treated as "perimeter" for backwards compatibility.
+	SourceModus SourceModus `json:"source_modus,omitempty"`
 
 	// DimensionHint is the DICTU dimension this Finding informs, if any.
 	DimensionHint DimensionHint `json:"dimension_hint,omitempty"`
@@ -119,6 +147,9 @@ func (f *Finding) Validate() error {
 	}
 	if !f.DimensionHint.Valid() {
 		return errors.New("finding: DimensionHint is invalid")
+	}
+	if !f.SourceModus.Valid() {
+		return errors.New("finding: SourceModus is invalid")
 	}
 	if f.Attributes == nil {
 		f.Attributes = map[string]any{}
