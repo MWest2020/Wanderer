@@ -10,6 +10,8 @@ import (
 	"fmt"
 	"log/slog"
 	"runtime/debug"
+	"sort"
+	"strings"
 	"time"
 
 	"github.com/MWest2020/wanderer/internal/metrics"
@@ -81,7 +83,17 @@ func (s *Scanner) Scan(ctx context.Context, target models.Target) (*models.Scan,
 	allFailed := true
 	for _, p := range s.Probes {
 		probeLogger := logger.With("probe", p.ID())
-		findings, err := s.runOne(rootCtx, p, target, probeLogger)
+		// The IP probe correlates juridisch and technologie rules across
+		// MX hosts and HTTP third parties. Those hosts are only known
+		// after the DNS and HTTP probes have run, so for the IP probe we
+		// pass an enriched Target whose Related list includes them.
+		// Other probes see the original Target. See ADR-0009 (or the
+		// CHANGELOG entry adding two-pass scanning) for rationale.
+		runTarget := target
+		if p.ID() == "ip" {
+			runTarget = expandRelatedFromFindings(target, scan.Findings)
+		}
+		findings, err := s.runOne(rootCtx, p, runTarget, probeLogger)
 		if err != nil {
 			anyFailed = true
 			findings = append(findings, models.Finding{
@@ -125,6 +137,52 @@ func (s *Scanner) Scan(ctx context.Context, target models.Target) (*models.Scan,
 
 	logger.Info("scan.end", "status", status, "findings", len(scan.Findings))
 	return scan, nil
+}
+
+// expandRelatedFromFindings returns a copy of target with hosts
+// discovered by previously-run probes (MX hosts from dns.mx, third-party
+// hosts from http.third_party) appended to Related. Hosts already
+// present in target.Domain or target.Related are skipped. The expansion
+// is what lets the IP probe correlate jurisdiction across mail vendors
+// and front-end third parties — without it, three of the ten DICTU
+// rules silently return Onbekend.
+func expandRelatedFromFindings(target models.Target, findings []models.Finding) models.Target {
+	seen := map[string]bool{}
+	norm := func(h string) string {
+		return strings.ToLower(strings.TrimSuffix(strings.TrimSpace(h), "."))
+	}
+	if d := norm(target.Domain); d != "" {
+		seen[d] = true
+	}
+	for _, r := range target.Related {
+		if h := norm(r); h != "" {
+			seen[h] = true
+		}
+	}
+	var extra []string
+	for _, f := range findings {
+		var host string
+		switch f.ProbeID {
+		case "dns.mx":
+			if h, ok := f.Attributes["host"].(string); ok {
+				host = norm(h)
+			}
+		case "http.third_party":
+			host = norm(f.Subject)
+		}
+		if host == "" || seen[host] {
+			continue
+		}
+		seen[host] = true
+		extra = append(extra, host)
+	}
+	if len(extra) == 0 {
+		return target
+	}
+	sort.Strings(extra)
+	out := target
+	out.Related = append(append([]string{}, target.Related...), extra...)
+	return out
 }
 
 // runOne runs a single probe with its own timeout and a panic recover.

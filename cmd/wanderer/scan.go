@@ -95,11 +95,14 @@ func buildProbes(geoipPath, geoipCountry string) ([]probe.Probe, error) {
 		// output rather than silently missing.
 		ipp = &ipprobe.Probe{}
 	}
+	// Order matters: the IP probe runs last so the scanner can enrich
+	// its target with hosts discovered by DNS (MX) and HTTP (third
+	// parties). See scanner.expandRelatedFromFindings.
 	return []probe.Probe{
 		dnsprobe.New(),
 		tlsprobe.New(),
-		ipp,
 		httpprobe.New(),
+		ipp,
 	}, nil
 }
 

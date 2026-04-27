@@ -9,8 +9,40 @@ once a first release is cut. Until then every entry lives under
 
 ## [Unreleased]
 
+### Fixed
+
+- DICTU rule `dictu.juridisch.apex_ip_eea` looked for `ProbeID == "dns.A"`
+  / `"dns.AAAA"` while the DNS probe emits the lowercase variants
+  documented in `docs/findings.md`. The unit test agreed with the rule
+  (also using uppercase) so the bug was invisible in CI but caused
+  every real scan to return Onbekend for the apex jurisdiction. Rule
+  and unit test are now both lowercase, with a comment pinning the
+  invariant. (`internal/assessor/dictu/rules.go`,
+  `internal/assessor/dictu/rules_test.go`)
+- Scanner now feeds DNS- and HTTP-discovered hosts into the IP probe
+  before it runs. Previously the IP probe only resolved `target.Domain`
+  and the operator-provided `target.Related`; MX hosts (`dns.mx`) and
+  third-party hosts (`http.third_party`) found by other probes were
+  never looked up, so `dictu.juridisch.mx_vendor_jurisdiction`,
+  `dictu.technologie.third_parties_eea`, and the third-party half of
+  `dictu.technologie.no_us_hyperscaler` silently returned Onbekend on
+  every real scan. New `expandRelatedFromFindings` helper builds an
+  enriched target only for the IP probe (other probes still see the
+  original target). `buildProbes` now orders the IP probe last so the
+  HTTP probe has had a chance to discover third parties.
+  (`internal/scanner/scanner.go`, `cmd/wanderer/scan.go`)
+
 ### Added
 
+- End-to-end integration tests in `internal/assessor/dictu/integration_test.go`
+  that drive the real DNS probe through the real DICTU rules. Pins the
+  probe-ID/assessor-ID contract for `apex_ip_eea`,
+  `mx_vendor_jurisdiction`, and `third_parties_eea` so future drift on
+  either side breaks the build instead of silently returning Onbekend.
+- Scanner unit test `TestIPProbeReceivesDiscoveredHosts` pins the
+  fan-out invariant: the IP probe sees discovered hosts in
+  `target.Related`, while other probes continue to see the original
+  target.
 - Egress probe: agent-side observation of where data goes when it
   leaves the host. New `internal/probe/egress/` walks configured
   config files (`.env`, `.yaml`, `.yml`, `.toml`, `.ini`, `.conf`,

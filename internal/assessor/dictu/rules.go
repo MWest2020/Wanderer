@@ -110,7 +110,10 @@ func apexIPInEEA() assessor.Rule {
 		Match: func(findings []models.Finding) assessor.RuleResult {
 			var apex string
 			for _, f := range findings {
-				if f.ProbeID == "dns.A" || f.ProbeID == "dns.AAAA" {
+				// DNS probe emits lowercase ProbeIDs ("dns.a", "dns.aaaa");
+				// matching uppercase here used to silently skip every real
+				// scan and return Onbekend.
+				if f.ProbeID == "dns.a" || f.ProbeID == "dns.aaaa" {
 					apex = f.Subject
 					break
 				}

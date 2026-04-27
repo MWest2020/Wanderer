@@ -3,6 +3,7 @@ package scanner_test
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
 	"time"
 
@@ -18,10 +19,13 @@ type stubProbe struct {
 	err      error
 	panic    bool
 	sleep    time.Duration
+
+	gotTarget models.Target // last target seen on Run
 }
 
 func (s *stubProbe) ID() string { return s.id }
-func (s *stubProbe) Run(ctx context.Context, _ models.Target, _ probe.Config) ([]models.Finding, error) {
+func (s *stubProbe) Run(ctx context.Context, t models.Target, _ probe.Config) ([]models.Finding, error) {
+	s.gotTarget = t
 	if s.panic {
 		panic("stub panic")
 	}
@@ -162,6 +166,92 @@ func TestScanTimeoutIsNotFatal(t *testing.T) {
 	if !sawTimeout {
 		t.Error("timeout did not produce a .timeout finding")
 	}
+}
+
+// TestIPProbeReceivesDiscoveredHosts pins the contract that drives the
+// juridisch correlation rules: hosts discovered by DNS (MX) and HTTP
+// (third parties) MUST be appended to target.Related before the IP
+// probe runs. Without this, mx_vendor_jurisdiction / third_parties_eea
+// silently return Onbekend on real scans even though the unit tests
+// pass.
+func TestIPProbeReceivesDiscoveredHosts(t *testing.T) {
+	s := newStore(t)
+	dns := &stubProbe{
+		id: "dns",
+		findings: []models.Finding{
+			{
+				ProbeID:    "dns.mx",
+				Subject:    "example.nl",
+				Severity:   models.SeverityObservation,
+				Attributes: map[string]any{"host": "mail.fastmail.com."},
+			},
+		},
+	}
+	http := &stubProbe{
+		id: "http",
+		findings: []models.Finding{
+			{
+				ProbeID:  "http.third_party",
+				Subject:  "tracker.example.com",
+				Severity: models.SeverityObservation,
+			},
+			{
+				ProbeID:  "http.third_party",
+				Subject:  "MAIL.FASTMAIL.COM", // duplicate of MX host with different casing
+				Severity: models.SeverityObservation,
+			},
+		},
+	}
+	ip := &stubProbe{id: "ip"}
+	other := &stubProbe{id: "tls"}
+
+	sc := scanner.New(s, []probe.Probe{dns, other, http, ip}, probe.Config{PerProbeTimeout: time.Second})
+	if _, err := sc.Scan(context.Background(), models.Target{Domain: "example.nl"}); err != nil {
+		t.Fatalf("scan: %v", err)
+	}
+
+	want := []string{"mail.fastmail.com", "tracker.example.com"}
+	if diff := relatedDiff(ip.gotTarget.Related, want); diff != "" {
+		t.Errorf("IP probe Related: %s", diff)
+	}
+	// Probes other than IP must NOT see the enriched Related list — we
+	// only enrich for the probe that needs it. (Otherwise DNS would
+	// resolve every third party as if it were the target, which is not
+	// what those probes are for.)
+	if len(other.gotTarget.Related) != 0 {
+		t.Errorf("non-IP probe should see original Related (got %v)", other.gotTarget.Related)
+	}
+	if len(dns.gotTarget.Related) != 0 {
+		t.Errorf("DNS probe should see original Related (got %v)", dns.gotTarget.Related)
+	}
+}
+
+// relatedDiff returns a non-empty string describing how got differs
+// from want (order-independent), or "" if they match as multisets.
+func relatedDiff(got, want []string) string {
+	gotSet := map[string]bool{}
+	for _, h := range got {
+		gotSet[h] = true
+	}
+	wantSet := map[string]bool{}
+	for _, h := range want {
+		wantSet[h] = true
+	}
+	var missing, extra []string
+	for h := range wantSet {
+		if !gotSet[h] {
+			missing = append(missing, h)
+		}
+	}
+	for h := range gotSet {
+		if !wantSet[h] {
+			extra = append(extra, h)
+		}
+	}
+	if len(missing) == 0 && len(extra) == 0 {
+		return ""
+	}
+	return "missing=" + fmt.Sprint(missing) + " extra=" + fmt.Sprint(extra)
 }
 
 func TestScanInvalidDomain(t *testing.T) {

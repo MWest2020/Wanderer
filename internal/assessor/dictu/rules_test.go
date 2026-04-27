@@ -97,7 +97,7 @@ func TestCertIssuerEEA(t *testing.T) {
 func TestApexIPInEEA(t *testing.T) {
 	r := ruleByID(t, "dictu.juridisch.apex_ip_eea")
 	got := r.Match([]models.Finding{
-		f("d1", "dns.A", map[string]any{"_subject": "example.nl", "address": "1.2.3.4"}),
+		f("d1", "dns.a", map[string]any{"_subject": "example.nl", "address": "1.2.3.4"}),
 		f("a1", "ip.asn", map[string]any{"_subject": "example.nl", "country": "NL", "organisation": "TransIP"}),
 	})
 	if got.Score != models.ScoreSoeverein {
@@ -105,7 +105,7 @@ func TestApexIPInEEA(t *testing.T) {
 	}
 
 	got = r.Match([]models.Finding{
-		f("d1", "dns.A", map[string]any{"_subject": "example.com", "address": "5.6.7.8"}),
+		f("d1", "dns.a", map[string]any{"_subject": "example.com", "address": "5.6.7.8"}),
 		f("a1", "ip.asn", map[string]any{"_subject": "example.com", "country": "US", "organisation": "Amazon"}),
 	})
 	if got.Score != models.ScoreAfhankelijk {
@@ -113,7 +113,7 @@ func TestApexIPInEEA(t *testing.T) {
 	}
 
 	got = r.Match([]models.Finding{
-		f("d1", "dns.A", map[string]any{"_subject": "example.nl", "address": "1.2.3.4"}),
+		f("d1", "dns.a", map[string]any{"_subject": "example.nl", "address": "1.2.3.4"}),
 	})
 	if got.Score != models.ScoreOnbekend {
 		t.Errorf("no ip.asn: score = %s, want onbekend", got.Score)
