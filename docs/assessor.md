@@ -13,9 +13,12 @@ how to extend the DICTU rule set.
 From the CLI:
 
 ```sh
-wanderer assess <scan-id> [--format text|markdown|json] [--db wanderer.db] [--persist=false]
+wanderer assess <scan-id> [--framework dictu|eucsf|both] [--format text|markdown|json] [--db wanderer.db] [--persist=false]
 ```
 
+- `--framework` defaults to `dictu`. `eucsf` runs the EU Cybersecurity
+  Framework / SEAL pack instead; `both` runs both packs and persists
+  one Assessment record per framework, tagged on `Assessment.Framework`.
 - `--format` defaults to `text`. Markdown is the intended operator-
   facing format; JSON is for tooling.
 - `--persist=false` suppresses the side-effect of writing the
@@ -85,6 +88,48 @@ coverage the dimension is waiting on.
 The `mens` dimension has no rules. It appears in the output as
 `onbekend (n/a)`. This is explicit, not an omission: the MVP scanner
 observes perimeter posture, not human processes.
+
+## EU CSF / SEAL framework
+
+`internal/assessor/eucsf` ships the SEAL pack — a five-level
+sovereignty scale (SEAL0–SEAL4) over the same Findings the DICTU pack
+consumes. The two packs share no rule code; `--framework both` runs
+each independently and persists one Assessment per framework.
+
+| Level   | Meaning                                                            |
+| ------- | ------------------------------------------------------------------ |
+| SEAL0   | No evidence-backed verdict could be produced (no relevant Findings). |
+| SEAL1   | Verdict that fails the framework outright — clear non-EU exposure. |
+| SEAL2   | Verdict with notable dependence on a non-EU party.                 |
+| SEAL3   | Verdict that is adequate — minor or low-impact dependencies only.  |
+| SEAL4   | Full sovereignty — every checked surface is EU-resident.           |
+
+The MVP rules are intentionally narrow:
+
+| Rule ID                              | What it checks                                                                                       |
+| ------------------------------------ | ---------------------------------------------------------------------------------------------------- |
+| `eucsf.sov2.cert_issuer_eu`          | The leaf certificate's issuer country is in the EEA (uses `tls.issuer.issuer_country`).              |
+| `eucsf.sov2.apex_jurisdiction`       | The apex domain's resolved IPs sit in EEA jurisdictions (uses `ip.asn.country` joined to `dns.a/aaaa`). |
+| `eucsf.sov3.mx_jurisdiction`         | All MX hosts resolve to EEA jurisdictions (uses `dns.mx` + `ip.asn`).                                |
+| `eucsf.sov4.operational_eu`          | DNS authority and TLS termination are operated from EEA-resident infrastructure.                     |
+| `eucsf.sov6.no_us_hyperscaler`       | Apex and discovered third parties are not hosted on a US hyperscaler (AWS / GCP / Azure / Cloudflare). |
+
+The SEAL level for a dimension is the **worst** rule outcome that
+contributed to it; absent evidence collapses to SEAL0 rather than
+silently inflating the score. This mirrors the DICTU "worst wins"
+collapse — a reader who sees SEAL3 knows every rule is at SEAL3 or
+better, not "on average".
+
+A rule that consults Findings the scanner did not produce returns
+SEAL0 with a `Verdict` naming what was missing. Operators who want
+to lift a SEAL0 verdict to a real one need to look at the missing
+ProbeID rather than re-running the assessor.
+
+[ADR-0009](decisions/0009-dual-framework-assessor.md) records the
+DICTU/SEAL dual-framework choice; the rationale is that the two
+stakeholder groups (DICTU toets and EU CSF reviewers) ask the same
+evidence questions but want different answer shapes, and we prefer
+to ship the second shape rather than translate at read time.
 
 ## Evidence and auditability
 

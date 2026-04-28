@@ -4,6 +4,15 @@ Every probe produces `models.Finding` records with a shared shape. This
 document is the catalogue: which ProbeIDs exist, what they mean, which
 attributes they carry, and which DICTU dimension they inform.
 
+> **Probe-ID / rule-ID drift is build-breaking.** Each ProbeID listed
+> here is referenced by string from at least one assessor rule
+> (`internal/assessor/dictu`, `internal/assessor/eucsf`). The DICTU
+> integration tests in `internal/assessor/dictu/integration_test.go`
+> drive real probes through real rules; renaming a ProbeID without
+> updating the matching rule fails CI immediately rather than silently
+> returning Onbekend on every real scan. Treat this catalogue as the
+> contract — not a description.
+
 ## Finding shape
 
 ```go
@@ -72,6 +81,16 @@ These are produced by the orchestrator, not by any individual probe.
 | `dns.txt.dmarc`  | observation   | `data_ai`     | `record`, `kind: "dmarc"`                          |
 | `dns.txt.other`  | info          | `data_ai`     | `record`, `kind: "other"`                          |
 | `dns.caa`        | observation   | `operationeel`| `flag`, `tag`, `value`                             |
+| `dns.subdomain`  | observation   | —             | `apex_domain`, `source: "ct_log" \| "prefix_probe"`, `addresses` (prefix_probe only) |
+| `dns.subdomain.wildcard` | info  | —             | `apex_domain`, `source: "prefix_probe"`, `hit_count`, `ips` |
+
+**Subdomain sources.** `dns.subdomain` Findings come from two passive
+sources: SubjectAlternativeName entries on the apex certificate
+(`source: "ct_log"`) and a small fixed prefix sweep
+(`internal/probe/dns/subdomains.go`, `source: "prefix_probe"`). When
+every prefix resolves to the same IP set the probe collapses the noise
+into a single `dns.subdomain.wildcard` Finding rather than 18 spurious
+hits.
 
 **Failure variants.** For `dns.a`, `dns.mx`, `dns.ns`, `dns.txt`,
 `dns.caa`, a lookup that fails produces a finding of severity `info`
@@ -127,6 +146,22 @@ corrupt. It does not degrade silently.
 `http.third_party` has one Finding **per external host**. The `Subject`
 is the external host, not the scanned domain. Use `source_domain` in
 Attributes to link it back.
+
+## WHOIS / RDAP probe — `internal/probe/whois`
+
+Issues `GET https://rdap.org/domain/<domain>` with a 5-second
+timeout and walks the returned vCard array per RFC 7483. Stdlib
+`net/http` only — no WHOIS-43 socket, no third-party SDK.
+
+| ProbeID            | Severity | Dimension   | Attributes                                  |
+| ------------------ | -------- | ----------- | ------------------------------------------- |
+| `whois.registrant` | finding  | `juridisch` | `country` (ISO 3166-1 alpha-2, uppercase)   |
+| `whois.registrar`  | info     | —           | `name` (registrar organisation)             |
+| `whois.unavailable`| info     | —           | `reason` — emitted on any network error, non-2xx, parse error, or response with no registrant/registrar entities, so the rest of the scan continues |
+
+Consumed by `dictu.juridisch.registrar_jurisdiction`, which maps
+EEA registrant countries to soeverein, anything outside the EEA to
+afhankelijk, and absence (`whois.unavailable`) to onbekend.
 
 ## Drift Findings
 

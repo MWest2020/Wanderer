@@ -72,6 +72,35 @@ default). You can inspect them with any SQLite client:
 sqlite3 wanderer.db "SELECT probe_id, severity, subject FROM findings ORDER BY created_at DESC LIMIT 20;"
 ```
 
+### Pair with Amass for richer subdomain coverage
+
+Wanderer's built-in subdomain discovery is intentionally light: SAN
+mining from the apex certificate plus a fixed prefix sweep. For a
+broader picture without bolting an active enumerator into the scanner
+itself, run [`amass`](https://github.com/owasp-amass/amass) once and
+feed the result in:
+
+```sh
+amass enum -passive -d example.nl -json amass.json
+wanderer scan example.nl \
+  --geoip /var/lib/wanderer/GeoLite2-ASN.mmdb \
+  --amass amass.json \
+  --db ./wanderer.db
+```
+
+`internal/scanner/amass.go` parses the JSONL produced by `amass enum
+-json` and merges the FQDNs into `target.Related` so the IP probe
+resolves them in pass 2 and the assessor sees them as third parties.
+The same mechanism is available over the API: `POST /scans` accepts an
+`amass_json` field carrying a server-local file path (the serve
+endpoint refuses inline file bodies — keep the file on the box).
+
+CLI failures during Amass parsing are fatal at startup, not silent.
+A malformed JSON file aborts before the scan begins; a missing path
+errors immediately. This is deliberate — silent fallthrough on a
+flag that names a file is the kind of thing that makes a scan look
+fine while being effectively unenriched.
+
 ## Interpret the output
 
 Every finding carries:

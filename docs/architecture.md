@@ -88,6 +88,68 @@ usable findings.
 No port scanning, no subdomain enumeration beyond what DNS and CT logs
 volunteer, nothing credential-adjacent. This is not a pentest tool.
 
+### Two-pass scanning
+
+The scanner runs every scan in two passes:
+
+1. **Pass 1** runs DNS, TLS, HTTP and (when configured) the WHOIS
+   probe concurrently via `errgroup.WithContext`. Each probe sees the
+   original `Target` (apex domain plus any operator-supplied
+   `Related` hosts). A per-probe `defer recover()` converts panics
+   into `nil`-from-the-group errors so one misbehaving probe cannot
+   poison the whole scan.
+2. **Pass 2** runs only the IP probe. Between the passes,
+   `expandRelatedFromFindings` walks the pass-1 Findings and harvests
+   subjects from `dns.mx`, `http.third_party` and `dns.subdomain`
+   into a copy of the Target's `Related` slice. The IP probe receives
+   that enriched Target so MX hosts and third-party hostnames get
+   ASN/country lookups. Other probes still see the original Target;
+   the enrichment is local to the IP probe.
+
+`buildProbes` in `cmd/wanderer/scan.go` enforces the ordering by
+returning the IP probe last. The whole scan still runs under one
+`context.WithTimeout` so the global budget remains a single dial.
+`TestIPProbeReceivesDiscoveredHosts` in `internal/scanner` pins the
+fan-out invariant. Without this two-pass shape, the rules
+`dictu.juridisch.mx_vendor_jurisdiction`,
+`dictu.technologie.third_parties_eea` and the third-party half of
+`dictu.technologie.no_us_hyperscaler` silently returned Onbekend on
+every real scan.
+
+### SSRF guard
+
+`internal/probe/ssrf.go` wraps the dialers used by the HTTP and TLS
+probes. A static `*net.IPNet` table covers IPv4 loopback, link-local,
+RFC1918, CGNAT, and the cloud-metadata IPs (169.254.169.254,
+fd00:ec2::254), plus IPv6 ULA and link-local. Any resolved address
+that lands in one of those nets is refused at dial time. Operators
+who do need to scan a private host pass `--allow-private-targets`
+on `wanderer scan` or `wanderer serve`; default is on (private
+blocked). The `POST /scans` handler refuses requests whose domain
+resolves only to private addresses unless the flag was set at
+server start, so an authenticated API client cannot turn the scanner
+into an internal-network probe.
+
+### Framework selection
+
+The assessor supports two rule packs side-by-side:
+
+- **DICTU** — Dutch government sovereignty toets. Maps Findings into
+  five dimensions (`juridisch`, `operationeel`, `technologie`,
+  `data_ai`, `mens`) and four levels (`onbekend`/`afhankelijk`/
+  `gedeeld`/`soeverein`). Lives in `internal/assessor/dictu`.
+- **EU CSF (SEAL)** — five SEAL levels (SEAL0–SEAL4) over the same
+  Findings. Lives in `internal/assessor/eucsf`. SEAL0 = no evidence,
+  SEAL4 = full sovereignty.
+
+Both packs read the same `[]models.Finding` slice and emit
+`models.Assessment` records. `wanderer assess --framework
+dictu|eucsf|both` selects which pack(s) run; the persistence layer
+keeps assessments tagged with `Framework`. The two packs share no
+code beyond the Finding shape — adding a third pack means adding a
+new package, not modifying either of the existing two.
+`docs/assessor.md` is the operator-facing reference.
+
 ### Read-only operator UI
 
 `internal/ui` ships a minimal web UI mounted on `wanderer serve` under

@@ -23,6 +23,10 @@ go.work.sum
 .env.*
 !.env.example
 config.local.yaml
+*.pem
+*.key
+*_rsa
+*.crt
 
 # Runtime
 /data/

@@ -35,3 +35,4 @@ do not delete old ADRs; supersede them.
 | 0006 | [In-process scheduler](0006-in-process-scheduler.md)      | accepted |
 | 0007 | [Agent trust model](0007-agent-trust-model.md)            | accepted |
 | 0008 | [Egress redaction](0008-egress-redaction.md)              | accepted |
+| 0009 | [Dual framework assessor](0009-dual-framework-assessor.md) | accepted |

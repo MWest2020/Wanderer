@@ -50,14 +50,37 @@ chains — and walk the graph outward until the picture is complete. Then score.
 
 ## Status
 
-MVP landed. The OpenSpec change [`init-mvp-scanners`](openspec/changes/init-mvp-scanners/)
-delivered the first walkable scanner suite: DNS (A/AAAA/MX/NS/CNAME/TXT/CAA),
-TLS + certificate transparency via crt.sh, IP→ASN→country via a local
-GeoLite2 database, and HTTP header / third-party resource discovery.
-Findings persist to SQLite and are retrievable via a JSON HTTP API.
+Wanderer covers three observation modi end-to-end:
 
-The assessor (mapping findings to DICTU dimensions and levels) is the
-next change to propose; the MVP produces the raw findings that feed it.
+- **Perimeter** — DNS (A/AAAA/MX/NS/CNAME/TXT/CAA), TLS + Certificate
+  Transparency via crt.sh, passive subdomain discovery (CT-log SANs +
+  prefix sweep + optional Amass import), IP→ASN→country via a local
+  GeoLite2 database, HTTP header / third-party resource discovery,
+  and RDAP/WHOIS for registrant + registrar jurisdiction. The
+  scanner runs in two passes (concurrent fan-out for pass 1, IP
+  probe in pass 2 with hosts discovered by the others) under a
+  single global timeout, with an SSRF guard that refuses private and
+  cloud-metadata addresses unless explicitly allowed.
+- **Inventory** — `wanderer agent` reports host-side findings
+  (systemd, dpkg/rpm, Nextcloud opt-in, Docker placeholder) to a
+  central core via HMAC-signed HTTPS, or writes them straight into a
+  shared SQLite file in local mode.
+- **Egress** — agent-side classification of where data leaves the
+  host: configured config files, `/proc/<pid>/environ`, and systemd
+  unit files are scanned for object-storage / database / SMTP /
+  OIDC / log-shipper / webhook destinations, with optional GeoLite2
+  jurisdiction annotation and a redactor in front of every value
+  emission.
+
+Findings persist to SQLite and are retrievable via a JSON HTTP API
+or a read-only HTML UI (`wanderer serve --ui`, htpasswd-protected).
+
+Two assessor packs ship in the same binary:
+
+- **DICTU** — Dutch government sovereignty toets, four levels over
+  five dimensions. See [`docs/assessor.md`](docs/assessor.md).
+- **EU CSF / SEAL** — five SEAL levels (SEAL0–SEAL4) over the same
+  Findings; selected via `wanderer assess --framework eucsf|both`.
 
 ## Quickstart
 
