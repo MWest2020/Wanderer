@@ -12,7 +12,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"strings"
 	"time"
 
 	"crypto/rand"
@@ -58,66 +57,10 @@ func (s *Store) Close() error { return s.db.Close() }
 // methods on Store.
 func (s *Store) DB() *sql.DB { return s.db }
 
-const schema = `
-CREATE TABLE IF NOT EXISTS targets (
-  id         TEXT PRIMARY KEY,
-  domain     TEXT NOT NULL UNIQUE,
-  related    TEXT NOT NULL DEFAULT '[]',
-  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE TABLE IF NOT EXISTS scans (
-  id         TEXT PRIMARY KEY,
-  target_id  TEXT NOT NULL REFERENCES targets(id),
-  started_at DATETIME NOT NULL,
-  ended_at   DATETIME,
-  status     TEXT NOT NULL,
-  error      TEXT
-);
-
-CREATE TABLE IF NOT EXISTS findings (
-  id             TEXT PRIMARY KEY,
-  scan_id        TEXT NOT NULL REFERENCES scans(id),
-  probe_id       TEXT NOT NULL,
-  source_modus   TEXT NOT NULL DEFAULT 'perimeter',
-  dimension_hint TEXT,
-  criterium_hint TEXT,
-  subject        TEXT NOT NULL,
-  severity       TEXT NOT NULL,
-  attributes     TEXT NOT NULL,
-  evidence       BLOB,
-  created_at     DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE INDEX IF NOT EXISTS idx_findings_scan  ON findings(scan_id);
-CREATE INDEX IF NOT EXISTS idx_findings_probe ON findings(probe_id);
-CREATE INDEX IF NOT EXISTS idx_findings_modus ON findings(source_modus);
-
-CREATE TABLE IF NOT EXISTS assessments (
-  id         TEXT PRIMARY KEY,
-  scan_id    TEXT NOT NULL REFERENCES scans(id),
-  framework  TEXT NOT NULL,
-  dimensions TEXT NOT NULL,
-  report     TEXT NOT NULL DEFAULT '',
-  created_at DATETIME NOT NULL
-);
-
-CREATE INDEX IF NOT EXISTS idx_assessments_scan ON assessments(scan_id);
-`
-
+// migrate dispatches to the numbered migration runner. The schema
+// itself lives in migrations.go.
 func (s *Store) migrate(ctx context.Context) error {
-	if _, err := s.db.ExecContext(ctx, schema); err != nil {
-		return fmt.Errorf("store: migrate: %w", err)
-	}
-	// Idempotent column add for databases created before source_modus
-	// existed. SQLite has no IF NOT EXISTS for ADD COLUMN; the error
-	// "duplicate column name" is the expected no-op signal.
-	if _, err := s.db.ExecContext(ctx, `ALTER TABLE findings ADD COLUMN source_modus TEXT NOT NULL DEFAULT 'perimeter'`); err != nil {
-		if !strings.Contains(err.Error(), "duplicate column name") {
-			return fmt.Errorf("store: add source_modus: %w", err)
-		}
-	}
-	return nil
+	return s.runMigrations(ctx)
 }
 
 // newID returns a time-sortable identifier. We use a simplified scheme
