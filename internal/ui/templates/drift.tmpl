@@ -1,0 +1,48 @@
+{{define "drift.tmpl"}}<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Wanderer — drift for {{.TargetID}}</title>
+<link rel="stylesheet" href="/ui/static/main.css">
+</head>
+<body>
+<header>
+  <h1>Drift for target {{.TargetID}}</h1>
+  <form method="get">
+    <label>Since (RFC 3339): <input type="text" name="since" value="{{.Since}}" placeholder="2026-04-01T00:00:00Z"></label>
+    <button type="submit">Filter</button>
+  </form>
+  <p><a href="/ui/">← all targets</a></p>
+</header>
+<main>
+{{if .Findings}}
+<table>
+  <thead>
+    <tr>
+      <th>Probe</th>
+      <th>Subject</th>
+      <th>Severity</th>
+      <th>Dimension</th>
+      <th>Attributes</th>
+    </tr>
+  </thead>
+  <tbody>
+    {{range .Findings}}
+    <tr class="severity-{{.Severity}}">
+      <td>{{.ProbeID}}</td>
+      <td>{{.Subject}}</td>
+      <td>{{.Severity}}</td>
+      <td>{{.DimensionHint}}</td>
+      <td><code>{{.Attributes}}</code></td>
+    </tr>
+    {{end}}
+  </tbody>
+</table>
+{{else}}
+<p class="muted">No drift findings since {{.Since}}.</p>
+{{end}}
+</main>
+</body>
+</html>
+{{end}}

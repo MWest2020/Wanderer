@@ -34,6 +34,25 @@ once a first release is cut. Until then every entry lives under
 
 ### Added
 
+- Read-only operator UI on `wanderer serve` (`--ui`). Mounts at
+  `/ui/` with three GET-only routes: `/` (target overview with
+  latest scan and worst-dimension framework score per target),
+  `/scans/{id}` (findings grouped by probe prefix), and
+  `/targets/{id}/drift` (drift findings since `?since=<RFC3339>`).
+  Templates and CSS are embedded via `go:embed`; no JavaScript, no
+  external assets. Authentication is HTTP Basic against an htpasswd
+  file (`--ui-htpasswd <path>` or `WANDERER_UI_HTPASSWD`). Only
+  bcrypt entries (`$2a$`/`$2b$`/`$2y$`) are accepted; `$apr1$` MD5,
+  `{SHA}` SHA-1, `$5$` and `$6$` crypt entries are rejected at
+  startup with an explicit "use bcrypt (`htpasswd -B`)" error — one
+  algorithm = one battle-tested verification path. The htpasswd
+  file is re-read on every request so credentials can rotate without
+  restarting. `ui_test.go` includes a static-analysis check that
+  greps the package source for `r.Post|Patch|Delete|Put` and fails
+  the build if any mutating handler appears, locking in the
+  read-only invariant. Default is off; the JSON API and existing
+  flags are unchanged. (`internal/ui/`, `cmd/wanderer/serve.go`,
+  `openspec/changes/fill-mvp-gaps` goal #7)
 - End-to-end integration tests in `internal/assessor/dictu/integration_test.go`
   that drive the real DNS probe through the real DICTU rules. Pins the
   probe-ID/assessor-ID contract for `apex_ip_eea`,

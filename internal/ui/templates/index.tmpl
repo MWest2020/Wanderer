@@ -1,0 +1,51 @@
+{{define "index.tmpl"}}<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Wanderer — targets</title>
+<link rel="stylesheet" href="/ui/static/main.css">
+</head>
+<body>
+<header>
+  <h1>Wanderer targets</h1>
+  <p class="meta">Generated {{.GeneratedAt}}</p>
+</header>
+<main>
+{{if .Rows}}
+<table>
+  <thead>
+    <tr>
+      <th>Target</th>
+      <th>Last scan</th>
+      <th>Status</th>
+      <th>Frameworks</th>
+    </tr>
+  </thead>
+  <tbody>
+    {{range .Rows}}
+    <tr>
+      <td>{{.Domain}}</td>
+      <td><a href="/ui/scans/{{.LastScanID}}">{{.LastScanTime}}</a></td>
+      <td class="status-{{.LastStatus}}">{{.LastStatus}}</td>
+      <td>
+        {{range .FrameworkRows}}
+          <span class="badge score-{{.Score}}">{{.Framework}}: {{.Score}}</span>
+        {{else}}
+          <span class="muted">no assessment</span>
+        {{end}}
+        <div class="links">
+          <a href="/ui/targets/{{.ID}}/drift">drift</a>
+        </div>
+      </td>
+    </tr>
+    {{end}}
+  </tbody>
+</table>
+{{else}}
+<p class="muted">No scans persisted yet.</p>
+{{end}}
+</main>
+</body>
+</html>
+{{end}}

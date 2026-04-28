@@ -48,13 +48,13 @@
 
 ## 7. Read-only web UI (goal #7)
 
-- [ ] 7.1 `internal/ui/ui.go` with `html/template`, three handlers (index / scan / drift)
-- [ ] 7.2 `internal/ui/templates/{index,scan,drift}.tmpl` — vanilla HTML, vanilla CSS
-- [ ] 7.3 `internal/ui/static/main.css`
-- [ ] 7.4 HTTP Basic via `--ui-htpasswd <file>`; bcrypt + SHA-512 supported, MD5 rejected
-- [ ] 7.5 Mount under `--ui` flag on the existing `wanderer serve` chi router
-- [ ] 7.6 `internal/ui/ui_test.go` hits each route with a fake store; asserts 200 + key strings
-- [ ] 7.7 Static-analysis test in the same file greps for any `r.Post|Patch|Delete|Put` in the package and fails the build
+- [x] 7.1 `internal/ui/ui.go` with `html/template`, three handlers (index / scan / drift)
+- [x] 7.2 `internal/ui/templates/{index,scan,drift}.tmpl` — vanilla HTML, vanilla CSS
+- [x] 7.3 `internal/ui/static/main.css`
+- [x] 7.4 HTTP Basic via `--ui-htpasswd <file>`; bcrypt-only (every other algorithm — `$apr1$` MD5, `{SHA}` SHA-1, `$5$`/`$6$` crypt — rejected at startup with an explicit "use bcrypt" error)
+- [x] 7.5 Mount under `--ui` flag on the existing `wanderer serve` router
+- [x] 7.6 `internal/ui/ui_test.go` hits each route with a fake store; asserts 200 + key strings
+- [x] 7.7 Static-analysis test in the same file greps for any `r.Post|Patch|Delete|Put` in the package and fails the build
 
 ## 8. Concurrent probe execution (goal #8)
 

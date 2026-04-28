@@ -88,6 +88,30 @@ usable findings.
 No port scanning, no subdomain enumeration beyond what DNS and CT logs
 volunteer, nothing credential-adjacent. This is not a pentest tool.
 
+### Read-only operator UI
+
+`internal/ui` ships a minimal web UI mounted on `wanderer serve` under
+`--ui` (default off). Three GET-only routes — `/ui/`, `/ui/scans/{id}`,
+`/ui/targets/{id}/drift` — render `html/template` pages backed by
+embedded templates and a single CSS file (`go:embed`). The package
+contains zero mutating handlers; `ui_test.go` greps the package source
+for `r.Post|Patch|Delete|Put` and fails the build if any appear, so
+the read-only invariant cannot be bypassed by accident in a future
+patch.
+
+Authentication is HTTP Basic against an htpasswd file
+(`--ui-htpasswd <path>` or `WANDERER_UI_HTPASSWD`). Only bcrypt
+entries (`$2a$`/`$2b$`/`$2y$`) are accepted; `$apr1$` MD5, `{SHA}`
+SHA-1, `$5$` SHA-256 crypt and `$6$` SHA-512 crypt are rejected at
+startup with an explicit "use bcrypt (`htpasswd -B`)" error. One
+algorithm = one battle-tested verification path; an operator who
+copies a legacy file gets a hard failure instead of a silent
+always-deny. The htpasswd file is re-read on every request so
+operators can rotate credentials without restarting.
+
+The UI is intentionally a thin observation surface: no session state,
+no JWT, no OAuth. Anything fancier belongs behind a reverse proxy.
+
 ### External systems and their failure modes
 
 | System              | Used by     | Failure handling |
@@ -117,8 +141,12 @@ That's the whole integration surface. No framework, no registry.
 
 - Assessor (Finding → DICTU dimension/level) — ships as its own change.
 - Scheduling + diffing between scans — one scan at a time, on command.
-- Authentication — MVP is single-tenant, trusted-network.
-- Web UI — JSON out only.
+- Multi-tenant authentication — `wanderer serve` is single-tenant; the
+  optional `/ui/` surface uses HTTP Basic via htpasswd, and the JSON
+  API itself remains trusted-network.
+- Rich web UI — `/ui/` is intentionally a thin read-only HTML surface;
+  anything richer (mutations, dashboards, multi-user) belongs behind
+  a reverse proxy or in a separate frontend.
 - JavaScript rendering for HTTP third-party extraction — static HTML
   only. A headless-browser probe is a plausible future change when the
   complexity/value ratio is right.

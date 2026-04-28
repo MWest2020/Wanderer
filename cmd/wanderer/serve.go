@@ -18,6 +18,7 @@ import (
 	"github.com/MWest2020/wanderer/internal/scanner"
 	"github.com/MWest2020/wanderer/internal/scheduler"
 	"github.com/MWest2020/wanderer/internal/store"
+	"github.com/MWest2020/wanderer/internal/ui"
 )
 
 // runServe starts the HTTP API and (optionally) the cron scheduler.
@@ -32,6 +33,8 @@ func runServe(args []string) int {
 	ua := fs.String("user-agent", "Wanderer/0.x", "User-Agent for HTTP probes")
 	allowPrivate := fs.Bool("allow-private-targets", false, "Allow scanning RFC1918 / loopback / cloud-metadata addresses (default off)")
 	schedulesPath := fs.String("schedules", envOr("WANDERER_SCHEDULES", ""), "Optional cron schedules YAML file")
+	uiEnabled := fs.Bool("ui", false, "Mount the read-only UI at /ui/ (default off)")
+	uiHtpasswd := fs.String("ui-htpasswd", envOr("WANDERER_UI_HTPASSWD", ""), "Path to an htpasswd file (bcrypt entries) protecting /ui/")
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}
@@ -74,9 +77,20 @@ func runServe(args []string) int {
 		defer sched.Stop(context.Background())
 	}
 
+	root := http.NewServeMux()
+	root.Handle("/", api.Router(st, sc, logger))
+	if *uiEnabled {
+		uiHandler, err := ui.Handler(st, *uiHtpasswd)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "wanderer: ui: %v\n", err)
+			return 1
+		}
+		root.Handle("/ui/", http.StripPrefix("/ui", uiHandler))
+		logger.Info("ui.mounted", "htpasswd", *uiHtpasswd != "")
+	}
 	srv := &http.Server{
 		Addr:              *addr,
-		Handler:           api.Router(st, sc, logger),
+		Handler:           root,
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 

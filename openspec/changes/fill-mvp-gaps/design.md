@@ -140,7 +140,7 @@ r.Route("/ui", func(r chi.Router) {
 
 Templates are `internal/ui/templates/{index,scan,drift}.tmpl`, parsed once at server start (no hot-reload). Static assets (`internal/ui/static/main.css`) served via `http.FileServer` under `/ui/static/`. The package contains zero HTTP method handlers other than GET; a static-analysis check in `ui_test.go` greps the package for `r.Post|Patch|Delete|Put` and fails the build if any are present.
 
-The `basicAuth` middleware reads htpasswd entries lazily (re-read every request) so an operator can rotate without restarting. Bcrypt and SHA-512 entries supported; plain MD5 is rejected.
+The `basicAuth` middleware reads htpasswd entries lazily (re-read every request) so an operator can rotate without restarting. Only bcrypt (`$2a$`/`$2b$`/`$2y$`) entries are accepted; every other algorithm — `$apr1$` MD5, `{SHA}` SHA-1, `$5$` SHA-256 crypt, `$6$` SHA-512 crypt — is rejected at startup with an explicit error pointing the operator at `htpasswd -B`. One algorithm = one battle-tested code path; an operator who copies an old apr1 file gets a startup failure instead of a silent always-deny.
 
 ## RDAP / WHOIS probe
 

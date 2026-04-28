@@ -1,0 +1,52 @@
+{{define "scan.tmpl"}}<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Wanderer — scan {{.ID}}</title>
+<link rel="stylesheet" href="/ui/static/main.css">
+</head>
+<body>
+<header>
+  <h1>Scan {{.ID}}</h1>
+  <p class="meta">
+    Started {{.StartedAt}}
+    {{if .EndedAt}}· Ended {{.EndedAt}}{{end}}
+    · Status <span class="status-{{.Status}}">{{.Status}}</span>
+  </p>
+  <p><a href="/ui/">← all targets</a></p>
+</header>
+<main>
+{{range .Probes}}
+<section class="probe-group">
+  <h2>{{.Prefix}}</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Probe</th>
+        <th>Subject</th>
+        <th>Severity</th>
+        <th>Dimension</th>
+        <th>Attributes</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{range .Findings}}
+      <tr class="severity-{{.Severity}}">
+        <td>{{.ProbeID}}</td>
+        <td>{{.Subject}}</td>
+        <td>{{.Severity}}</td>
+        <td>{{.DimensionHint}}</td>
+        <td><code>{{.Attributes}}</code></td>
+      </tr>
+      {{end}}
+    </tbody>
+  </table>
+</section>
+{{else}}
+<p class="muted">No findings persisted for this scan.</p>
+{{end}}
+</main>
+</body>
+</html>
+{{end}}

@@ -1,0 +1,99 @@
+:root {
+  --bg: #fff;
+  --fg: #1a1a1a;
+  --muted: #666;
+  --border: #ddd;
+  --accent: #1a73e8;
+  --info: #6c757d;
+  --observation: #ffc107;
+  --concern: #fd7e14;
+  --finding: #d9534f;
+  --soeverein: #198754;
+  --voldoende: #84cc16;
+  --afhankelijk: #d9534f;
+  --onbekend: #6c757d;
+}
+
+* { box-sizing: border-box; }
+body {
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  background: var(--bg);
+  color: var(--fg);
+  margin: 0;
+  padding: 1rem 2rem;
+  line-height: 1.5;
+}
+header { border-bottom: 1px solid var(--border); margin-bottom: 1rem; }
+header h1 { margin-bottom: 0.25rem; }
+.meta { color: var(--muted); font-size: 0.875rem; margin-top: 0; }
+.muted { color: var(--muted); }
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1rem 0;
+}
+th, td {
+  text-align: left;
+  padding: 0.5rem;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+th { font-weight: 600; background: #fafafa; }
+
+.probe-group { margin-bottom: 2rem; }
+.probe-group h2 {
+  font-size: 1.1rem;
+  text-transform: lowercase;
+  font-family: ui-monospace, monospace;
+  margin-bottom: 0;
+}
+
+code {
+  font-family: ui-monospace, "SFMono-Regular", monospace;
+  font-size: 0.85rem;
+  word-break: break-all;
+}
+
+.status-complete { color: var(--soeverein); }
+.status-partial  { color: var(--observation); }
+.status-failed   { color: var(--finding); }
+.status-running  { color: var(--info); }
+
+.severity-info        { background: rgba(108, 117, 125, 0.05); }
+.severity-observation { background: rgba(255, 193, 7, 0.07); }
+.severity-concern     { background: rgba(253, 126, 20, 0.07); }
+.severity-finding     { background: rgba(217, 83, 79, 0.07); }
+
+.badge {
+  display: inline-block;
+  padding: 0.1rem 0.5rem;
+  border-radius: 0.25rem;
+  font-size: 0.85rem;
+  background: #eef;
+  margin-right: 0.25rem;
+}
+.score-soeverein   { background: rgba(25, 135, 84, 0.12); color: var(--soeverein); }
+.score-voldoende   { background: rgba(132, 204, 22, 0.12); color: var(--voldoende); }
+.score-afhankelijk { background: rgba(217, 83, 79, 0.12); color: var(--afhankelijk); }
+.score-onbekend    { background: rgba(108, 117, 125, 0.12); color: var(--onbekend); }
+
+.links a { font-size: 0.875rem; }
+
+form { margin: 0.5rem 0; }
+input[type="text"] {
+  padding: 0.25rem 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 0.25rem;
+  font-family: inherit;
+}
+button {
+  padding: 0.25rem 0.75rem;
+  border: 1px solid var(--accent);
+  background: var(--accent);
+  color: #fff;
+  border-radius: 0.25rem;
+  cursor: pointer;
+}
