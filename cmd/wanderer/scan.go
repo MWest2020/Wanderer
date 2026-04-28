@@ -31,6 +31,7 @@ func runScan(args []string) int {
 	globalTO := fs.Duration("budget", scanner.DefaultGlobalBudget, "Global scan timeout budget")
 	ua := fs.String("user-agent", "Wanderer/0.x", "User-Agent for HTTP probes")
 	allowPrivate := fs.Bool("allow-private-targets", false, "Allow scanning RFC1918 / loopback / cloud-metadata addresses (default off)")
+	amassPath := fs.String("amass", "", "Optional path to an Amass `enum -json` output file; FQDNs are merged into target.Related")
 	jsonLogs := fs.Bool("json-logs", false, "Emit logs as JSON (default text)")
 	positional, err := parseFlagsInterspersed(fs, args)
 	if err != nil {
@@ -69,7 +70,12 @@ func runScan(args []string) int {
 	sc.Logger = logger
 	sc.GlobalBudget = *globalTO
 
-	scan, err := sc.Scan(ctx, models.Target{Domain: domain})
+	related, err := scanner.LoadAmassFQDNs(*amassPath, logger)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "wanderer: %v\n", err)
+		return 1
+	}
+	scan, err := sc.Scan(ctx, models.Target{Domain: domain, Related: related})
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "wanderer: scan: %v\n", err)
 		return 1
