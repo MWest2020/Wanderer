@@ -12,6 +12,7 @@ import (
 	"runtime/debug"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/MWest2020/wanderer/internal/metrics"
@@ -78,43 +79,31 @@ func (s *Scanner) Scan(ctx context.Context, target models.Target) (*models.Scan,
 	rootCtx, cancel := context.WithTimeout(ctx, s.GlobalBudget)
 	defer cancel()
 
-	anyCompleted := false
-	anyFailed := false
-	allFailed := true
+	// Two-pass execution. Pass 1 (every probe except `ip`) runs
+	// concurrently with errgroup; pass 2 (the `ip` probe) sees a
+	// Target enriched with hosts the pass-1 probes discovered.
+	var pass1, pass2 []probe.Probe
 	for _, p := range s.Probes {
-		probeLogger := logger.With("probe", p.ID())
-		// The IP probe correlates juridisch and technologie rules across
-		// MX hosts and HTTP third parties. Those hosts are only known
-		// after the DNS and HTTP probes have run, so for the IP probe we
-		// pass an enriched Target whose Related list includes them.
-		// Other probes see the original Target. See ADR-0009 (or the
-		// CHANGELOG entry adding two-pass scanning) for rationale.
-		runTarget := target
 		if p.ID() == "ip" {
-			runTarget = expandRelatedFromFindings(target, scan.Findings)
-		}
-		findings, err := s.runOne(rootCtx, p, runTarget, probeLogger)
-		if err != nil {
-			anyFailed = true
-			findings = append(findings, models.Finding{
-				ProbeID:    p.ID() + ".error",
-				Subject:    target.Domain,
-				Severity:   models.SeverityConcern,
-				Attributes: map[string]any{"error": err.Error()},
-			})
+			pass2 = append(pass2, p)
 		} else {
-			anyCompleted = true
-			allFailed = false
-		}
-		if len(findings) > 0 {
-			if err := s.Store.AppendFindings(rootCtx, scan.ID, findings); err != nil {
-				probeLogger.Error("scan.persist_failed", "err", err)
-				// Continue; persistence failure on one probe must not
-				// take down the scan.
-			}
-			scan.Findings = append(scan.Findings, findings...)
+			pass1 = append(pass1, p)
 		}
 	}
+
+	pass1Findings, pass1Failed := s.runPassConcurrent(rootCtx, pass1, target, scan.ID, logger)
+	scan.Findings = append(scan.Findings, pass1Findings...)
+
+	enriched := expandRelatedFromFindings(target, scan.Findings)
+	pass2Findings, pass2Failed := s.runPassConcurrent(rootCtx, pass2, enriched, scan.ID, logger)
+	scan.Findings = append(scan.Findings, pass2Findings...)
+
+	totalProbes := len(pass1) + len(pass2)
+	failed := pass1Failed + pass2Failed
+	completed := totalProbes - failed
+	anyCompleted := completed > 0
+	anyFailed := failed > 0
+	allFailed := completed == 0
 
 	status := models.ScanStatusComplete
 	var scanErr string
@@ -137,6 +126,61 @@ func (s *Scanner) Scan(ctx context.Context, target models.Target) (*models.Scan,
 
 	logger.Info("scan.end", "status", status, "findings", len(scan.Findings))
 	return scan, nil
+}
+
+// runPassConcurrent runs every probe in `probes` concurrently against
+// target, persisting findings as they arrive. It returns the
+// aggregated findings and the number of probes whose Run errored.
+// Panics inside a probe are converted by runOne into errors so a
+// single faulty probe cannot abort the pass.
+func (s *Scanner) runPassConcurrent(ctx context.Context, probes []probe.Probe, target models.Target, scanID string, logger *slog.Logger) ([]models.Finding, int) {
+	if len(probes) == 0 {
+		return nil, 0
+	}
+	type result struct {
+		findings []models.Finding
+		failed   bool
+	}
+	results := make([]result, len(probes))
+	var wg sync.WaitGroup
+	for i, p := range probes {
+		i, p := i, p
+		probeLogger := logger.With("probe", p.ID())
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			findings, err := s.runOne(ctx, p, target, probeLogger)
+			if err != nil {
+				results[i] = result{
+					failed: true,
+					findings: append(findings, models.Finding{
+						ProbeID:    p.ID() + ".error",
+						Subject:    target.Domain,
+						Severity:   models.SeverityConcern,
+						Attributes: map[string]any{"error": err.Error()},
+					}),
+				}
+				return
+			}
+			results[i] = result{findings: findings}
+		}()
+	}
+	wg.Wait()
+
+	var all []models.Finding
+	failedCount := 0
+	for _, r := range results {
+		if r.failed {
+			failedCount++
+		}
+		if len(r.findings) > 0 {
+			if err := s.Store.AppendFindings(ctx, scanID, r.findings); err != nil {
+				logger.Error("scan.persist_failed", "err", err)
+			}
+			all = append(all, r.findings...)
+		}
+	}
+	return all, failedCount
 }
 
 // expandRelatedFromFindings returns a copy of target with hosts
