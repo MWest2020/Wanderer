@@ -30,6 +30,7 @@ func runScan(args []string) int {
 	perProbe := fs.Duration("per-probe-timeout", scanner.DefaultPerProbeTimeout, "Per-probe timeout")
 	globalTO := fs.Duration("budget", scanner.DefaultGlobalBudget, "Global scan timeout budget")
 	ua := fs.String("user-agent", "Wanderer/0.x", "User-Agent for HTTP probes")
+	allowPrivate := fs.Bool("allow-private-targets", false, "Allow scanning RFC1918 / loopback / cloud-metadata addresses (default off)")
 	jsonLogs := fs.Bool("json-logs", false, "Emit logs as JSON (default text)")
 	positional, err := parseFlagsInterspersed(fs, args)
 	if err != nil {
@@ -61,8 +62,9 @@ func runScan(args []string) int {
 	}
 
 	sc := scanner.New(st, probes, probe.Config{
-		PerProbeTimeout: *perProbe,
-		UserAgent:       *ua,
+		PerProbeTimeout:     *perProbe,
+		UserAgent:           *ua,
+		AllowPrivateTargets: *allowPrivate,
 	})
 	sc.Logger = logger
 	sc.GlobalBudget = *globalTO

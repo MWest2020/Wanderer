@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/url"
 	"strings"
@@ -44,6 +45,12 @@ func (p *Probe) Run(ctx context.Context, target models.Target, cfg wprobe.Config
 	if client == nil {
 		client = &http.Client{
 			Timeout: 15 * time.Second,
+			Transport: &http.Transport{
+				DialContext: (&wprobe.SafeDialer{
+					Inner:        &net.Dialer{Timeout: 10 * time.Second},
+					AllowPrivate: cfg.AllowPrivateTargets,
+				}).DialContext,
+			},
 			CheckRedirect: func(req *http.Request, via []*http.Request) error {
 				if len(via) >= maxRedirects {
 					return fmt.Errorf("too many redirects (> %d)", maxRedirects)

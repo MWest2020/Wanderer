@@ -30,6 +30,7 @@ func runServe(args []string) int {
 	perProbe := fs.Duration("per-probe-timeout", scanner.DefaultPerProbeTimeout, "Per-probe timeout")
 	globalTO := fs.Duration("budget", scanner.DefaultGlobalBudget, "Global scan timeout budget")
 	ua := fs.String("user-agent", "Wanderer/0.x", "User-Agent for HTTP probes")
+	allowPrivate := fs.Bool("allow-private-targets", false, "Allow scanning RFC1918 / loopback / cloud-metadata addresses (default off)")
 	schedulesPath := fs.String("schedules", envOr("WANDERER_SCHEDULES", ""), "Optional cron schedules YAML file")
 	if err := fs.Parse(args); err != nil {
 		return 2
@@ -51,7 +52,7 @@ func runServe(args []string) int {
 		fmt.Fprintf(os.Stderr, "wanderer: %v\n", err)
 		return 1
 	}
-	sc := scanner.New(st, probes, probe.Config{PerProbeTimeout: *perProbe, UserAgent: *ua})
+	sc := scanner.New(st, probes, probe.Config{PerProbeTimeout: *perProbe, UserAgent: *ua, AllowPrivateTargets: *allowPrivate})
 	sc.Logger = logger
 	sc.GlobalBudget = *globalTO
 

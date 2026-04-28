@@ -45,24 +45,24 @@ func (p *Probe) Run(ctx context.Context, target models.Target, cfg probe.Config)
 	if target.Domain == "" {
 		return nil, errors.New("tls: empty domain")
 	}
-	findings := p.inspect(ctx, target.Domain)
+	findings := p.inspect(ctx, target.Domain, cfg)
 	findings = append(findings, p.crtShLookup(ctx, target.Domain, cfg)...)
 	return findings, nil
 }
 
-func (p *Probe) inspect(ctx context.Context, domain string) []models.Finding {
+func (p *Probe) inspect(ctx context.Context, domain string, cfg probe.Config) []models.Finding {
 	addr := net.JoinHostPort(domain, "443")
-	cfg := &tls.Config{
+	tlsCfg := &tls.Config{
 		ServerName:         domain,
 		InsecureSkipVerify: false, //nolint:gosec // we report verification failures as findings
 	}
-	state, err := p.dial(ctx, addr, cfg)
+	state, err := p.dial(ctx, addr, tlsCfg, cfg.AllowPrivateTargets)
 	if err != nil {
 		// Retry with verification off so we can still inspect a
 		// misissued / expired cert and record it as a Finding.
-		insecureCfg := cfg.Clone()
+		insecureCfg := tlsCfg.Clone()
 		insecureCfg.InsecureSkipVerify = true
-		state, err = p.dial(ctx, addr, insecureCfg)
+		state, err = p.dial(ctx, addr, insecureCfg, cfg.AllowPrivateTargets)
 		if err != nil {
 			return []models.Finding{{
 				ProbeID:       "tls.handshake",
@@ -82,20 +82,22 @@ func (p *Probe) inspect(ctx context.Context, domain string) []models.Finding {
 	return inspectState(domain, state)
 }
 
-func (p *Probe) dial(ctx context.Context, addr string, cfg *tls.Config) (*tls.ConnectionState, error) {
+func (p *Probe) dial(ctx context.Context, addr string, tlsCfg *tls.Config, allowPrivate bool) (*tls.ConnectionState, error) {
 	if p.Dialer != nil {
-		return p.Dialer(ctx, addr, cfg)
+		return p.Dialer(ctx, addr, tlsCfg)
 	}
-	d := &net.Dialer{Timeout: 10 * time.Second}
-	conn, err := tls.DialWithDialer(d, "tcp", addr, cfg)
+	safe := &probe.SafeDialer{
+		Inner:        &net.Dialer{Timeout: 10 * time.Second},
+		AllowPrivate: allowPrivate,
+	}
+	rawConn, err := safe.DialContext(ctx, "tcp", addr)
 	if err != nil {
 		return nil, err
 	}
+	conn := tls.Client(rawConn, tlsCfg)
 	defer conn.Close()
-	// Block on handshake completion with context.
 	if ctx != nil {
-		deadline, ok := ctx.Deadline()
-		if ok {
+		if deadline, ok := ctx.Deadline(); ok {
 			_ = conn.SetDeadline(deadline)
 		}
 	}

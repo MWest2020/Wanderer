@@ -55,4 +55,11 @@ type Config struct {
 	// GeoIPCountryPath optionally overrides the country DB path; if
 	// empty, GeoIPPath is used for both ASN and country.
 	GeoIPCountryPath string
+
+	// AllowPrivateTargets disables the SSRF guard. Default false:
+	// the HTTP and TLS probes refuse to dial RFC1918, CGNAT,
+	// loopback, link-local, IPv6 ULA, and cloud-metadata addresses.
+	// Operators scanning internal infrastructure flip this on with
+	// `--allow-private-targets`.
+	AllowPrivateTargets bool
 }
