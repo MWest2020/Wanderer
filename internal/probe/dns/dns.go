@@ -199,6 +199,8 @@ func (p *Probe) Run(ctx context.Context, target models.Target, _ probe.Config) (
 		}
 	}
 
+	findings = append(findings, p.subdomainSweep(ctx, domain)...)
+
 	return findings, nil
 }
 

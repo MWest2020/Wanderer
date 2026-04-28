@@ -169,6 +169,8 @@ func expandRelatedFromFindings(target models.Target, findings []models.Finding) 
 			}
 		case "http.third_party":
 			host = norm(f.Subject)
+		case "dns.subdomain":
+			host = norm(f.Subject)
 		}
 		if host == "" || seen[host] {
 			continue

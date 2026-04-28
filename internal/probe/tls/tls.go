@@ -17,6 +17,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/MWest2020/wanderer/internal/probe"
@@ -268,10 +269,19 @@ func (p *Probe) crtShLookup(ctx context.Context, domain string, cfg probe.Config
 		return []models.Finding{ctUnavailable(domain, err)}
 	}
 	issuers := map[string]int{}
+	subdomains := map[string]bool{}
 	for _, e := range entries {
 		issuers[e.IssuerName]++
+		for _, name := range strings.Split(e.NameValue, "\n") {
+			name = strings.TrimSpace(strings.ToLower(name))
+			name = strings.TrimPrefix(name, "*.")
+			if name == "" || name == domain || !strings.HasSuffix(name, "."+domain) {
+				continue
+			}
+			subdomains[name] = true
+		}
 	}
-	return []models.Finding{{
+	out := []models.Finding{{
 		ProbeID:       "tls.ct",
 		DimensionHint: models.DimensionJuridisch,
 		Subject:       domain,
@@ -281,6 +291,21 @@ func (p *Probe) crtShLookup(ctx context.Context, domain string, cfg probe.Config
 			"issuer_counts": issuers,
 		},
 	}}
+	// Mine SANs as passive subdomain discovery — no extra HTTP hop,
+	// the data is already in our hand.
+	for sub := range subdomains {
+		out = append(out, models.Finding{
+			ProbeID:       "dns.subdomain",
+			DimensionHint: models.DimensionNone,
+			Subject:       sub,
+			Severity:      models.SeverityObservation,
+			Attributes: map[string]any{
+				"source":      "ct_log",
+				"apex_domain": domain,
+			},
+		})
+	}
+	return out
 }
 
 func ctUnavailable(domain string, err error) models.Finding {
