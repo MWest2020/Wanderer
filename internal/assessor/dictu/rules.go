@@ -51,6 +51,45 @@ func DefaultRules() []assessor.Rule {
 		noUSHyperscaler(),
 		mxPresent(),
 		oidcFederation(),
+		registrarJurisdiction(),
+	}
+}
+
+// registrarJurisdiction scores the registrar / registrant country
+// reported by the WHOIS / RDAP probe. EEA countries score
+// soeverein; outside-EEA scores afhankelijk.
+func registrarJurisdiction() assessor.Rule {
+	return assessor.Rule{
+		ID:          "dictu.juridisch.registrar_jurisdiction",
+		Dimension:   models.DimensionJuridisch,
+		Description: "Domain registrant registered in an EEA jurisdiction.",
+		Match: func(findings []models.Finding) assessor.RuleResult {
+			for _, f := range findings {
+				if f.ProbeID != "whois.registrant" {
+					continue
+				}
+				country := strings.ToUpper(stringFromAttr(f.Attributes, "country"))
+				if country == "" {
+					continue
+				}
+				if eeaCountries[country] {
+					return assessor.RuleResult{
+						Score:    models.ScoreSoeverein,
+						Verdict:  fmt.Sprintf("registrant in %s (EEA)", country),
+						Evidence: []string{f.ID},
+					}
+				}
+				return assessor.RuleResult{
+					Score:    models.ScoreAfhankelijk,
+					Verdict:  fmt.Sprintf("registrant in %s (outside EEA)", country),
+					Evidence: []string{f.ID},
+				}
+			}
+			return assessor.RuleResult{
+				Score:   models.ScoreOnbekend,
+				Verdict: "no whois.registrant finding — RDAP probe did not run or returned no registrant",
+			}
+		},
 	}
 }
 

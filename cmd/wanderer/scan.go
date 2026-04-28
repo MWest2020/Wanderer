@@ -15,6 +15,7 @@ import (
 	httpprobe "github.com/MWest2020/wanderer/internal/probe/http"
 	ipprobe "github.com/MWest2020/wanderer/internal/probe/ip"
 	tlsprobe "github.com/MWest2020/wanderer/internal/probe/tls"
+	whoisprobe "github.com/MWest2020/wanderer/internal/probe/whois"
 	"github.com/MWest2020/wanderer/internal/scanner"
 	"github.com/MWest2020/wanderer/internal/store"
 	"github.com/MWest2020/wanderer/pkg/models"
@@ -110,6 +111,7 @@ func buildProbes(geoipPath, geoipCountry string) ([]probe.Probe, error) {
 		dnsprobe.New(),
 		tlsprobe.New(),
 		httpprobe.New(),
+		whoisprobe.New(),
 		ipp,
 	}, nil
 }
