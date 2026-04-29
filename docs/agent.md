@@ -49,7 +49,9 @@ inspectors:
     managers: [dpkg, rpm]
   docker:
     enabled: true
-    socket: /var/run/docker.sock
+    socket: /var/run/docker.sock  # the inspector lists containers and
+                                  # images via read-only GET calls
+                                  # against the Engine API
   nextcloud:
     enabled: false
     occ_path: /var/www/nextcloud/occ

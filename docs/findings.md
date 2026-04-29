@@ -221,6 +221,8 @@ completeness calculation can distinguish them from perimeter data.
 | `inventory.systemd.service`      | info          | `operationeel`  | `load_state`, `active_state`, `sub_state`, `description`        |
 | `inventory.packages.dpkg`        | info / observation | `operationeel`  | `version`, `arch`, `status` (observation when EOL)         |
 | `inventory.packages.rpm`         | info / observation | `operationeel`  | `version`, `arch`                                          |
+| `inventory.docker.container`     | info          | `operationeel`  | `image`, `image_digest`, `state`, `status`, `created_at`, `labels?` |
+| `inventory.docker.image`         | info          | `technologie`   | `digest`, `repo_tags?`, `size_bytes`, `created_at`              |
 | `inventory.nextcloud.app`        | info          | `technologie`   | `version`, `enabled`                                            |
 | `inventory.<id>.unavailable`     | info          | —               | `reason` — inspector could not run on this host                 |
 | `inventory.<id>.error`           | info          | —               | `error` — inspector ran but failed mid-run                      |

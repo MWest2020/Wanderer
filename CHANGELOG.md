@@ -11,6 +11,24 @@ once a first release is cut. Until then every entry lives under
 
 ### Added
 
+- Docker inventory inspector reports containers and images. The
+  placeholder that emitted only `inventory.docker.unavailable` has
+  been replaced with real Engine API reads via a unix-socket
+  http.Client (stdlib only, no Docker SDK dependency). New
+  ProbeIDs: `inventory.docker.container` (with `image`,
+  `image_digest`, `state`, `status`, `created_at`, `labels`) and
+  `inventory.docker.image` (with `digest`, `repo_tags`,
+  `size_bytes`, `created_at`). Non-2xx Engine responses surface as
+  `inventory.docker.error` with the status code attached;
+  permission-denied / socket-missing branches keep emitting
+  `inventory.docker.unavailable`. Read-only contract enforced: the
+  inspector issues only GET calls to `/v1.41/containers/json` and
+  `/v1.41/images/json`.
+  (`internal/probe/inventory/docker/docker.go`,
+  `internal/probe/inventory/docker/client.go`,
+  `internal/probe/inventory/docker/docker_test.go`,
+  `docs/agent.md`, `docs/findings.md`)
+
 - Remote-mode `wanderer agent` no longer drops findings on a
   transient network outage. New `internal/agent/outbox.go`
   persists any batch that fails to POST after three retries (0s /
