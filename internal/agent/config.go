@@ -66,6 +66,13 @@ type CoreConfig struct {
 	URL            string `yaml:"url,omitempty"`   // mode=remote
 	HMACSecretFile string `yaml:"hmac_secret_file,omitempty"`
 	TargetID       string `yaml:"target_id,omitempty"`
+	// OutboxDir is the directory the remote-mode agent uses to
+	// persist failed batches between ticks. Empty defaults to
+	// `/var/lib/wanderer/agent/outbox`. Mode=local ignores this.
+	OutboxDir string `yaml:"outbox_dir,omitempty"`
+	// OutboxMaxBytes caps the on-disk outbox footprint. Zero defaults
+	// to DefaultOutboxMaxBytes (100 MiB).
+	OutboxMaxBytes int64 `yaml:"outbox_max_bytes,omitempty"`
 }
 
 // ScanConfig controls cadence.

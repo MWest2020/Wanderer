@@ -25,19 +25,38 @@ type Remote struct {
 	Now func() time.Time
 }
 
+// MarshalBatch is the canonical JSON encoding of a batch the core
+// expects on `POST /scans/{id}/findings`. Exported so the outbox can
+// store the same bytes the live POST would have sent.
+func MarshalBatch(findings []models.Finding) ([]byte, error) {
+	body, err := json.Marshal(map[string]any{"findings": findings})
+	if err != nil {
+		return nil, fmt.Errorf("agent: marshal findings: %w", err)
+	}
+	return body, nil
+}
+
 // Send POSTs findings to the configured core, signed with the
 // shared secret. The core's response status determines success.
 func (r *Remote) Send(ctx context.Context, scanID string, findings []models.Finding) error {
+	body, err := MarshalBatch(findings)
+	if err != nil {
+		return err
+	}
+	return r.SendBytes(ctx, scanID, body)
+}
+
+// SendBytes POSTs an already-marshalled batch body. Used by the
+// outbox drain to retry a spooled batch without re-marshalling
+// (preserving the exact bytes signed by the original attempt is not
+// necessary because HMAC is timestamp-based and re-signs every send).
+func (r *Remote) SendBytes(ctx context.Context, scanID string, body []byte) error {
 	if r.HTTP == nil {
 		r.HTTP = &http.Client{Timeout: 30 * time.Second}
 	}
 	now := time.Now
 	if r.Now != nil {
 		now = r.Now
-	}
-	body, err := json.Marshal(map[string]any{"findings": findings})
-	if err != nil {
-		return fmt.Errorf("agent: marshal findings: %w", err)
 	}
 	url := strings.TrimRight(r.BaseURL, "/") + "/scans/" + scanID + "/findings"
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(body))

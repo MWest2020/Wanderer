@@ -11,6 +11,23 @@ once a first release is cut. Until then every entry lives under
 
 ### Added
 
+- Remote-mode `wanderer agent` no longer drops findings on a
+  transient network outage. New `internal/agent/outbox.go`
+  persists any batch that fails to POST after three retries (0s /
+  250ms / 1s with jitter) to a local directory (default
+  `/var/lib/wanderer/agent/outbox`), and drains the directory on
+  the next tick before collecting fresh findings. The outbox is
+  bounded by `core.outbox_max_bytes` (default 100 MiB); a corrupt
+  spool file is renamed `<name>.corrupt` and skipped so it does
+  not block the drain. Configuration knobs `core.outbox_dir` and
+  `core.outbox_max_bytes` are optional. Refactored
+  `agent.Remote.Send` exposes `MarshalBatch` and `SendBytes` so
+  the outbox can re-POST the exact same body without
+  re-marshalling.
+  (`internal/agent/outbox.go`, `internal/agent/outbox_test.go`,
+  `internal/agent/remote.go`, `internal/agent/config.go`,
+  `cmd/wanderer/agent.go`, `docs/agent.md`)
+
 - Egress classifier vendor / region table is now loaded from
   `internal/probe/egress/vendors.yaml` via `//go:embed`, so a
   contributor adding a new log shipper or webhook host edits a YAML

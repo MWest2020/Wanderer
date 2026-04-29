@@ -177,17 +177,73 @@ func runAgentRemote(logger *slog.Logger, cfg *agent.Config, inspectors []invento
 		Secret:   secret,
 		Hostname: cfg.Hostname,
 	}
+	outboxDir := cfg.Core.OutboxDir
+	if outboxDir == "" {
+		outboxDir = "/var/lib/wanderer/agent/outbox"
+	}
+	ob := &agent.Outbox{Dir: outboxDir, MaxBytes: cfg.Core.OutboxMaxBytes}
+	if err := ob.EnsureDir(); err != nil {
+		fmt.Fprintf(os.Stderr, "wanderer agent: outbox: %v\n", err)
+		return 1
+	}
 	return loop(logger, interval, func() {
 		ctx, cancel := context.WithTimeout(context.Background(), timeout)
 		defer cancel()
+
+		// Drain spooled batches first so a backlog clears before new
+		// findings pile on. A persistent failure aborts the drain
+		// which leaves the file for the next tick.
+		if err := ob.Drain(func(scanID string, body []byte) error {
+			return r.SendBytes(ctx, scanID, body)
+		}); err != nil {
+			logger.Warn("agent.drain", "err", err)
+		}
+
 		findings := inventory.Inspect(ctx, inspectors)
 		findings = append(findings, egressProbe.Inspect(ctx)...)
-		if err := r.Send(ctx, cfg.Core.TargetID, findings); err != nil {
-			logger.Error("agent.send", "err", err)
-		} else {
-			logger.Info("agent.tick", "findings", len(findings))
+		body, err := agent.MarshalBatch(findings)
+		if err != nil {
+			logger.Error("agent.marshal", "err", err)
+			return
 		}
+		if err := sendWithRetry(ctx, r, cfg.Core.TargetID, body, 3); err != nil {
+			if spoolErr := ob.Spool(cfg.Core.TargetID, body); spoolErr != nil {
+				logger.Error("agent.spool", "err", spoolErr, "send_err", err)
+				return
+			}
+			logger.Warn("agent.spooled", "send_err", err, "findings", len(findings))
+			return
+		}
+		logger.Info("agent.tick", "findings", len(findings))
 	})
+}
+
+// sendWithRetry attempts up to maxAttempts POSTs with exponential
+// backoff plus jitter. Returns the last error on persistent failure
+// so the caller can spool the batch.
+func sendWithRetry(ctx context.Context, r *agent.Remote, scanID string, body []byte, maxAttempts int) error {
+	delays := []time.Duration{0, 250 * time.Millisecond, time.Second}
+	if maxAttempts > len(delays) {
+		maxAttempts = len(delays)
+	}
+	var lastErr error
+	for i := 0; i < maxAttempts; i++ {
+		d := delays[i]
+		if d > 0 {
+			jitter := time.Duration(int64(d) / 4)
+			select {
+			case <-time.After(d - jitter/2):
+			case <-ctx.Done():
+				return ctx.Err()
+			}
+		}
+		if err := r.SendBytes(ctx, scanID, body); err == nil {
+			return nil
+		} else {
+			lastErr = err
+		}
+	}
+	return lastErr
 }
 
 // loop calls do once when interval is 0, otherwise every interval

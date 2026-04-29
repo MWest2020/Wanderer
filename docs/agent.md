@@ -125,6 +125,39 @@ A failure on any step returns 401. The 401 response body does not
 distinguish which check failed — that prevents an attacker from
 mapping out which hostnames are valid.
 
+### Outbox: surviving a network outage
+
+Remote-mode agents persist any batch the core rejects to a local
+outbox directory (default `/var/lib/wanderer/agent/outbox`) and
+drain it on the next tick before collecting fresh findings.
+
+Behaviour per tick:
+
+1. Drain spooled batches in oldest-first order. A successful POST
+   removes the file; a failure aborts the drain so the file stays
+   for the next tick.
+2. Run inspectors and the egress probe.
+3. POST the new batch with up to three attempts (0s / 250ms / 1s
+   with ±25% jitter).
+4. On persistent failure, write the batch to the outbox.
+
+Configuration:
+
+```yaml
+core:
+  mode: remote
+  url: https://wanderer.example.internal
+  hmac_secret_file: /etc/wanderer/agent.hmac
+  target_id: t_abc
+  outbox_dir: /var/lib/wanderer/agent/outbox  # default shown
+  outbox_max_bytes: 104857600                 # 100 MiB; default
+```
+
+When the on-disk total exceeds `outbox_max_bytes`, the oldest
+spooled batches are pruned before a new one is written. A corrupt
+spool file (invalid JSON envelope) is renamed `<filename>.corrupt`
+and skipped so it does not block the drain forever.
+
 ## Operating tips
 
 - Run as a `systemd` service. SIGTERM stops the agent cleanly between
