@@ -35,3 +35,32 @@ type RuleResult struct {
 	Verdict  string
 	Evidence []string
 }
+
+// IsEvidenceLike reports whether a Finding looks like positive evidence
+// rather than a meta-finding (lookup error, explicit no-answer, probe
+// unavailability). Rules that count or aggregate Findings by ProbeID
+// SHOULD filter through this helper before treating a Finding as
+// evidence; otherwise a non-resolvable domain or a missing probe can
+// produce a positive verdict from rows that carry no real signal.
+//
+// A Finding is treated as meta when any of these attributes is set:
+//   - "error"      (any non-empty value — convention is the error message)
+//   - "no_answer"  (true)
+//   - "unavailable" (true)
+func IsEvidenceLike(f models.Finding) bool {
+	if f.Attributes == nil {
+		return true
+	}
+	if v, ok := f.Attributes["error"]; ok {
+		if s, isStr := v.(string); !isStr || s != "" {
+			return false
+		}
+	}
+	if v, ok := f.Attributes["no_answer"].(bool); ok && v {
+		return false
+	}
+	if v, ok := f.Attributes["unavailable"].(bool); ok && v {
+		return false
+	}
+	return true
+}

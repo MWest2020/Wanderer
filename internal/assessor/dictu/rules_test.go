@@ -259,6 +259,23 @@ func TestMXPresent(t *testing.T) {
 	}
 }
 
+// Regression for the smoke-test bug: a non-resolvable domain emits
+// dns.mx Findings carrying lookup-error metadata. Before the
+// IsEvidenceLike filter these counted as evidence and scored voldoende.
+func TestMXPresent_LookupErrorIsNotEvidence(t *testing.T) {
+	r := ruleByID(t, "dictu.data_ai.mx_present")
+	got := r.Match([]models.Finding{
+		f("m1", "dns.mx", map[string]any{"_subject": "wanderer-test-host.invalid", "error": "no such host", "kind": "nxdomain"}),
+		f("m2", "dns.mx", map[string]any{"_subject": "wanderer-test-host.invalid", "no_answer": true, "reason": "domain returns NXDOMAIN"}),
+	})
+	if got.Score != models.ScoreOnbekend {
+		t.Errorf("nxdomain mx: score = %s, want onbekend", got.Score)
+	}
+	if len(got.Evidence) != 0 {
+		t.Errorf("nxdomain mx: evidence = %v, want empty", got.Evidence)
+	}
+}
+
 func TestOIDCFederation_AlwaysNoEvidence(t *testing.T) {
 	r := ruleByID(t, "dictu.data_ai.oidc_federation")
 	got := r.Match([]models.Finding{

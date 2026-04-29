@@ -67,6 +67,30 @@ These are produced by the orchestrator, not by any individual probe.
 
 `<probe>` is the probe ID: `dns`, `tls`, `ip`, `http`.
 
+### Probe-level meta-finding convention
+
+Individual probes also emit non-evidence rows that share the schema of
+real findings but explicitly mark their meta status. The convention is
+one of three attributes:
+
+- `error` — string error message; the row records *why* the probe could
+  not produce evidence (e.g. NXDOMAIN, timeout). Set on `dns.<rrtype>`,
+  `http.parse_failed`, `tls.ct.unavailable`, etc.
+- `no_answer: true` — the lookup succeeded but returned zero records
+  (e.g. `dns.caa` against a domain with no CAA policy). The row stays
+  observable so absence is auditable.
+- `unavailable: true` — the probe could not run at all on this host
+  (e.g. `ip.unavailable` when no GeoLite2 DB is wired,
+  `inventory.<id>.unavailable` when an inspector requires absent
+  state).
+
+Assessor rules SHALL skip these rows when deciding whether evidence
+backs a verdict — see `assessor.IsEvidenceLike` in
+`internal/assessor/rule.go`. A rule that aggregates by `ProbeID`
+without filtering through this helper risks scoring positively on
+the absence of real signal (e.g. `dictu.data_ai.mx_present` once
+counted lookup-error rows as configured mail exchangers).
+
 ## DNS probe — `internal/probe/dns`
 
 | ProbeID          | Severity      | Dimension     | Attributes (non-exhaustive)                        |

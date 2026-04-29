@@ -11,6 +11,18 @@ once a first release is cut. Until then every entry lives under
 
 ### Fixed
 
+- Assessor rules that count or aggregate Findings by `ProbeID` now skip
+  meta-rows (an `error` attribute, `no_answer: true`, or
+  `unavailable: true`) before treating them as evidence. The
+  `dictu.data_ai.mx_present` smoke test on a `.invalid` domain
+  previously returned `voldoende` because the lookup-error `dns.mx`
+  rows counted as configured mail exchangers; it now returns
+  `onbekend`. New helper `assessor.IsEvidenceLike` plus a regression
+  test pin the invariant. The probe-level meta-finding convention is
+  now documented in `docs/findings.md`.
+  (`internal/assessor/rule.go`, `internal/assessor/rule_test.go`,
+  `internal/assessor/dictu/rules.go`,
+  `internal/assessor/dictu/rules_test.go`, `docs/findings.md`)
 - DICTU rule `dictu.juridisch.apex_ip_eea` looked for `ProbeID == "dns.A"`
   / `"dns.AAAA"` while the DNS probe emits the lowercase variants
   documented in `docs/findings.md`. The unit test agreed with the rule

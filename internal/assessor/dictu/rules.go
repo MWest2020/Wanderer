@@ -534,9 +534,16 @@ func mxPresent() assessor.Rule {
 		Match: func(findings []models.Finding) assessor.RuleResult {
 			var evidence []string
 			for _, f := range findings {
-				if f.ProbeID == "dns.mx" {
-					evidence = append(evidence, f.ID)
+				if f.ProbeID != "dns.mx" {
+					continue
 				}
+				// Skip lookup-error / no-answer rows so a non-resolvable
+				// domain does not score voldoende just because the probe
+				// emitted meta findings.
+				if !assessor.IsEvidenceLike(f) {
+					continue
+				}
+				evidence = append(evidence, f.ID)
 			}
 			if len(evidence) == 0 {
 				return assessor.RuleResult{Score: models.ScoreOnbekend, Verdict: "no dns.mx finding — domain may not accept mail"}
