@@ -31,6 +31,18 @@ type EgressConfig struct {
 	ConfigFiles EgressConfigFiles `yaml:"configfiles"`
 	ProcEnv     EgressProcEnv     `yaml:"procenv"`
 	Systemd     EgressSystemd     `yaml:"systemd"`
+	Flow        EgressFlow        `yaml:"flow"`
+}
+
+// EgressFlow toggles the eBPF-based runtime flow probe. Default off:
+// loading a kernel program needs CAP_BPF / CAP_PERFMON (or root),
+// which an operator must consciously accept. The eBPF kernel object
+// is not yet shipped in this build — see ADR-0010 — so on every
+// host the inspector currently surfaces as
+// inventory.egress.flow.unavailable when enabled.
+type EgressFlow struct {
+	Enabled bool          `yaml:"enabled"`
+	Window  time.Duration `yaml:"window,omitempty"`
 }
 
 // EgressConfigFiles enumerates the directories the configfiles

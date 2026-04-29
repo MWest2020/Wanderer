@@ -129,6 +129,52 @@ assessor can correctly mark the Juridisch dimension as `partial`.
 - Audit the Evidence field on suspicious findings. Evidence is the
   redacted source line; secrets never leak there.
 
+## Runtime flow probe (eBPF, opt-in)
+
+The static egress probe sees only what is *configured* — env vars,
+config files, systemd units. URLs an application assembles at
+runtime are invisible until the request leaves the host.
+
+The flow probe attaches a small eBPF tracepoint program to
+`sys_enter_connect` for a configured sampling window, deduplicates
+the observed destinations by `(ip, port)`, and emits one
+`egress.flow.<category>` Finding per unique pair. The classifier
+and redactor are the same ones the static probe uses, so the wire
+shape is identical.
+
+```yaml
+# wanderer-agent.yaml
+egress:
+  flow:
+    enabled: false  # default — must be explicitly opted in
+    window: 30s     # optional, default 60s
+```
+
+### Capability / kernel matrix
+
+| Host state                                | Behaviour                                                                  |
+| ----------------------------------------- | -------------------------------------------------------------------------- |
+| Kernel < 5.8 / no BTF                     | Inspector emits `egress.flow.unavailable` with reason "kernel BTF missing" |
+| Kernel ≥ 5.8 + BTF + no CAP_BPF / non-root | Inspector emits `egress.flow.unavailable` with reason naming the cap       |
+| Build without bpf2go-generated object     | Inspector emits `egress.flow.unavailable` with reason "loader pending"      |
+| All of the above + enabled: false         | Inspector is not constructed; no `egress.flow.*` finding is emitted        |
+| Kernel ready + CAP_BPF + loader present   | Inspector runs the program for the configured window and emits findings    |
+
+The "loader present" branch is **not yet shipped in this build**:
+the userspace aggregator and Inspector surface are landed but the
+eBPF object compile + attach is deferred. See
+[ADR-0010](decisions/0010-ebpf-flow-probe.md) for the kernel-version
+contract and the deferred-work checklist.
+
+### Opt-in default — why
+
+Loading a kernel program is a privilege escalation an operator must
+consciously accept. The probe defaults to `enabled: false`; with
+the default config the inspector is not constructed at all, so the
+agent emits no `egress.flow.*` Findings (not even `unavailable`).
+That keeps the absence-of-evidence path quiet on hosts where the
+operator never asked for runtime flow observation.
+
 ## Customising the vendor list
 
 The classifier's vendor / region / regex table is loaded from

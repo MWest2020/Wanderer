@@ -9,6 +9,30 @@ once a first release is cut. Until then every entry lives under
 
 ## [Unreleased]
 
+### Added
+
+- Egress runtime flow probe (eBPF) — userspace half landed
+  2026-04-29; kernel attach deferred to a follow-up that needs a
+  clang/llvm toolchain. The new `internal/probe/egress/flow`
+  package ships an Inspector with proper `Available()` detection
+  (kernel BTF + CAP_BPF + loader presence), an Aggregator that
+  dedups by `(destination_ip, destination_port)` and emits one
+  Finding per unique destination through the existing classifier,
+  and a `Run` method the agent invokes only when
+  `egress.flow.enabled: true` is set in the agent config. Default
+  config does not construct the inspector, so the agent emits no
+  `egress.flow.*` findings (not even `unavailable`) until an
+  operator opts in. The CO-RE C source for the
+  `sys_enter_connect` tracepoint program ships at
+  `internal/probe/egress/flow/bpf/connect.bpf.c` for review;
+  ADR-0010 documents the kernel-version contract and the
+  deferred bpf2go integration.
+  (`internal/probe/egress/flow/flow.go`,
+  `internal/probe/egress/flow/flow_test.go`,
+  `internal/probe/egress/flow/bpf/connect.bpf.c`,
+  `internal/agent/config.go`, `cmd/wanderer/agent.go`,
+  `docs/egress.md`, `docs/decisions/0010-ebpf-flow-probe.md`)
+
 ### Changed
 
 - `docs/architecture.md` is rewritten around the three-modi triad

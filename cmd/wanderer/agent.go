@@ -14,6 +14,7 @@ import (
 
 	"github.com/MWest2020/wanderer/internal/agent"
 	"github.com/MWest2020/wanderer/internal/probe/egress"
+	"github.com/MWest2020/wanderer/internal/probe/egress/flow"
 	egressscanners "github.com/MWest2020/wanderer/internal/probe/egress/scanners"
 	"github.com/MWest2020/wanderer/internal/probe/inventory"
 	"github.com/MWest2020/wanderer/internal/probe/inventory/docker"
@@ -56,6 +57,7 @@ func runAgent(args []string) int {
 
 	inspectors := buildInspectors(cfg)
 	egressProbe := buildEgressProbe(cfg, logger)
+	flowProbe := buildFlowProbe(cfg)
 	timeout := cfg.Scan.Timeout
 	if timeout == 0 {
 		timeout = 5 * time.Minute
@@ -67,12 +69,24 @@ func runAgent(args []string) int {
 
 	switch cfg.Core.Mode {
 	case "local":
-		return runAgentLocal(logger, cfg, inspectors, egressProbe, timeout, interval)
+		return runAgentLocal(logger, cfg, inspectors, egressProbe, flowProbe, timeout, interval)
 	case "remote":
-		return runAgentRemote(logger, cfg, inspectors, egressProbe, timeout, interval)
+		return runAgentRemote(logger, cfg, inspectors, egressProbe, flowProbe, timeout, interval)
 	}
 	fmt.Fprintf(os.Stderr, "wanderer agent: unknown core.mode %q\n", cfg.Core.Mode)
 	return 1
+}
+
+// buildFlowProbe constructs the eBPF flow inspector when
+// `egress.flow.enabled` is true. Disabled is the default and yields
+// nil so the agent emits no egress.flow.* findings — matching the
+// "default config does not load the program" scenario in the
+// egress-probe spec.
+func buildFlowProbe(cfg *agent.Config) *flow.Flow {
+	if !cfg.Egress.Flow.Enabled {
+		return nil
+	}
+	return &flow.Flow{Window: cfg.Egress.Flow.Window}
 }
 
 // buildEgressProbe wires the egress probe according to cfg. When no
@@ -130,7 +144,7 @@ func buildInspectors(cfg *agent.Config) []inventory.Inspector {
 	return out
 }
 
-func runAgentLocal(logger *slog.Logger, cfg *agent.Config, inspectors []inventory.Inspector, egressProbe egress.Probe, timeout, interval time.Duration) int {
+func runAgentLocal(logger *slog.Logger, cfg *agent.Config, inspectors []inventory.Inspector, egressProbe egress.Probe, flowProbe *flow.Flow, timeout, interval time.Duration) int {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	st, err := store.Open(ctx, "file:"+filepath.Clean(cfg.Core.DB))
@@ -156,6 +170,9 @@ func runAgentLocal(logger *slog.Logger, cfg *agent.Config, inspectors []inventor
 		}
 		findings := inventory.Inspect(runCtx, inspectors)
 		findings = append(findings, egressProbe.Inspect(runCtx)...)
+		if flowProbe != nil {
+			findings = append(findings, flowProbe.Run(runCtx)...)
+		}
 		if err := st.AppendFindings(runCtx, scan.ID, findings); err != nil {
 			logger.Error("agent.persist", "err", err)
 		}
@@ -166,7 +183,7 @@ func runAgentLocal(logger *slog.Logger, cfg *agent.Config, inspectors []inventor
 	})
 }
 
-func runAgentRemote(logger *slog.Logger, cfg *agent.Config, inspectors []inventory.Inspector, egressProbe egress.Probe, timeout, interval time.Duration) int {
+func runAgentRemote(logger *slog.Logger, cfg *agent.Config, inspectors []inventory.Inspector, egressProbe egress.Probe, flowProbe *flow.Flow, timeout, interval time.Duration) int {
 	secret, err := os.ReadFile(cfg.Core.HMACSecretFile)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "wanderer agent: read hmac secret: %v\n", err)
@@ -201,6 +218,9 @@ func runAgentRemote(logger *slog.Logger, cfg *agent.Config, inspectors []invento
 
 		findings := inventory.Inspect(ctx, inspectors)
 		findings = append(findings, egressProbe.Inspect(ctx)...)
+		if flowProbe != nil {
+			findings = append(findings, flowProbe.Run(ctx)...)
+		}
 		body, err := agent.MarshalBatch(findings)
 		if err != nil {
 			logger.Error("agent.marshal", "err", err)
