@@ -87,6 +87,17 @@ var migrations = []migration{
 ALTER TABLE findings ADD COLUMN source_modus TEXT NOT NULL DEFAULT 'perimeter';
 `,
 	},
+	{
+		Version: 3,
+		Name:    "add_target_kind_column",
+		Up: `-- Adds a Kind column to targets so the agent modus can register
+-- bare-hostname Targets (TargetKindHost) without tripping the
+-- public-domain TLD requirement. Existing rows pre-date the agent
+-- modus and are perimeter scans, so the default 'domain' is
+-- correct for every backfilled row.
+ALTER TABLE targets ADD COLUMN kind TEXT NOT NULL DEFAULT 'domain';
+`,
+	},
 }
 
 // runMigrations applies every migration whose Version is not already

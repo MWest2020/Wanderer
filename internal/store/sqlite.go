@@ -73,7 +73,9 @@ func newID(prefix string) string {
 }
 
 // UpsertTarget inserts a new target or returns the existing one by
-// domain. The domain is normalised by Target.Validate first.
+// domain. The domain is normalised by Target.Validate first; the
+// Kind column round-trips so an existing host-mode Target keeps its
+// kind on subsequent upserts.
 func (s *Store) UpsertTarget(ctx context.Context, t *models.Target) error {
 	if err := t.Validate(); err != nil {
 		return err
@@ -83,16 +85,17 @@ func (s *Store) UpsertTarget(ctx context.Context, t *models.Target) error {
 		return fmt.Errorf("store: marshal related: %w", err)
 	}
 	row := s.db.QueryRowContext(ctx,
-		`SELECT id, created_at FROM targets WHERE domain = ?`, t.Domain)
+		`SELECT id, created_at, kind FROM targets WHERE domain = ?`, t.Domain)
 	var id string
 	var createdAt time.Time
-	switch err := row.Scan(&id, &createdAt); {
+	var kind string
+	switch err := row.Scan(&id, &createdAt, &kind); {
 	case errors.Is(err, sql.ErrNoRows):
 		t.ID = newID("t")
 		t.CreatedAt = time.Now().UTC()
 		_, err := s.db.ExecContext(ctx,
-			`INSERT INTO targets (id, domain, related, created_at) VALUES (?,?,?,?)`,
-			t.ID, t.Domain, string(rel), t.CreatedAt)
+			`INSERT INTO targets (id, domain, related, kind, created_at) VALUES (?,?,?,?,?)`,
+			t.ID, t.Domain, string(rel), string(t.Kind), t.CreatedAt)
 		if err != nil {
 			return fmt.Errorf("store: insert target: %w", err)
 		}
@@ -102,7 +105,31 @@ func (s *Store) UpsertTarget(ctx context.Context, t *models.Target) error {
 	}
 	t.ID = id
 	t.CreatedAt = createdAt
+	t.Kind = models.TargetKind(kind)
 	return nil
+}
+
+// GetTarget returns a Target by its ID. Useful for callers that want
+// the full row, including Kind, without re-deriving it from a domain
+// lookup.
+func (s *Store) GetTarget(ctx context.Context, id string) (*models.Target, error) {
+	row := s.db.QueryRowContext(ctx,
+		`SELECT id, domain, related, COALESCE(kind,'domain'), created_at FROM targets WHERE id = ?`, id)
+	t := &models.Target{}
+	var rel, kind string
+	if err := row.Scan(&t.ID, &t.Domain, &rel, &kind, &t.CreatedAt); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrNotFound
+		}
+		return nil, fmt.Errorf("store: select target: %w", err)
+	}
+	if rel != "" {
+		if err := json.Unmarshal([]byte(rel), &t.Related); err != nil {
+			return nil, fmt.Errorf("store: unmarshal related: %w", err)
+		}
+	}
+	t.Kind = models.TargetKind(kind)
+	return t, nil
 }
 
 // CreateScan records a new scan in the "running" state.

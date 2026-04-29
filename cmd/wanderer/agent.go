@@ -132,7 +132,7 @@ func runAgentLocal(logger *slog.Logger, cfg *agent.Config, inspectors []inventor
 	}
 	defer st.Close()
 
-	tgt := &models.Target{Domain: cfg.Hostname}
+	tgt := &models.Target{Domain: cfg.Hostname, Kind: models.TargetKindHost}
 	if err := st.UpsertTarget(ctx, tgt); err != nil {
 		fmt.Fprintf(os.Stderr, "wanderer agent: upsert target: %v\n", err)
 		return 1

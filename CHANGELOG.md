@@ -9,7 +9,27 @@ once a first release is cut. Until then every entry lives under
 
 ## [Unreleased]
 
+### Added
+
+- `pkg/models.TargetKind` distinguishes a perimeter `domain` Target
+  from an agent `host` Target. Public-domain validation (one dot,
+  printable ASCII) still applies to `domain` Targets; `host` Targets
+  use the new `NormaliseHost` helper which trims and lowercases but
+  drops the TLD requirement so a bare Linux hostname like
+  `webapp-01` round-trips. Migration 003 adds a `kind` column to the
+  `targets` table with a `'domain'` default. New `Store.GetTarget`
+  exposes the row, including Kind, by ID.
+  (`pkg/models/target.go`, `pkg/models/target_test.go`,
+  `internal/store/migrations.go`, `internal/store/sqlite.go`,
+  `internal/store/store_test.go`, `cmd/wanderer/agent.go`,
+  `docs/agent.md`)
+
 ### Fixed
+
+- `wanderer agent` no longer fails with `domain: "<hostname>" has no
+  TLD` on hosts whose `hostname` is a bare label. The agent now sets
+  `Kind: TargetKindHost` on the bootstrap Target, so the validator
+  uses host normalisation rather than the public-domain rules.
 
 - Assessor rules that count or aggregate Findings by `ProbeID` now skip
   meta-rows (an `error` attribute, `no_answer: true`, or

@@ -8,14 +8,30 @@ import (
 	"time"
 )
 
+// TargetKind distinguishes a public-domain Target (the perimeter
+// scanner's input shape) from a host-only Target (the agent modus,
+// where the subject is a Linux hostname that may not carry a TLD).
+type TargetKind string
+
+const (
+	// TargetKindDomain is the default. Domain must be a public domain
+	// with at least one dot (the existing TLD validation).
+	TargetKindDomain TargetKind = "domain"
+	// TargetKindHost relaxes the TLD requirement: bare hostnames like
+	// `webapp-01` are accepted. Used by `wanderer agent` whose
+	// hostname is the host's local identity, not a public domain.
+	TargetKindHost TargetKind = "host"
+)
+
 // Target is the input to a scan: a single apex domain, optionally with
 // related domains that will be treated as part of the same
 // organisational footprint (e.g. the .com variant of a .nl primary).
 type Target struct {
-	ID        string    `json:"id,omitempty"`
-	Domain    string    `json:"domain"`
-	Related   []string  `json:"related,omitempty"`
-	CreatedAt time.Time `json:"created_at,omitempty"`
+	ID        string     `json:"id,omitempty"`
+	Domain    string     `json:"domain"`
+	Related   []string   `json:"related,omitempty"`
+	Kind      TargetKind `json:"kind,omitempty"`
+	CreatedAt time.Time  `json:"created_at,omitempty"`
 }
 
 // NormaliseDomain lower-cases, trims, and strips a leading scheme or
@@ -61,13 +77,54 @@ func NormaliseDomain(in string) (string, error) {
 	return s, nil
 }
 
-// Validate checks that a Target is usable as a scan input.
-func (t *Target) Validate() error {
-	d, err := NormaliseDomain(t.Domain)
-	if err != nil {
-		return err
+// NormaliseHost applies the same lowercase / trim / control-char
+// hygiene as NormaliseDomain but skips the TLD requirement, so a
+// bare Linux hostname (e.g. `webapp-01`) round-trips. URL-like input
+// (a slash, scheme, or port suffix) is rejected — the caller should
+// have a hostname, not a URL.
+func NormaliseHost(in string) (string, error) {
+	s := strings.TrimSpace(in)
+	if s == "" {
+		return "", errors.New("host: empty")
 	}
-	t.Domain = d
+	s = strings.ToLower(s)
+	if strings.ContainsAny(s, "/?#") || strings.Contains(s, "://") {
+		return "", fmt.Errorf("host: %q contains URL syntax", in)
+	}
+	if ip := net.ParseIP(s); ip != nil {
+		return "", fmt.Errorf("host: %q is an IP, not a host name", in)
+	}
+	for _, r := range s {
+		if r <= 0x20 || r == 0x7f {
+			return "", fmt.Errorf("host: %q contains control characters", in)
+		}
+	}
+	return s, nil
+}
+
+// Validate checks that a Target is usable as a scan input. An empty
+// Kind defaults to TargetKindDomain so existing callers (the perimeter
+// scanner, the API) keep their previous behaviour.
+func (t *Target) Validate() error {
+	switch t.Kind {
+	case "":
+		t.Kind = TargetKindDomain
+		fallthrough
+	case TargetKindDomain:
+		d, err := NormaliseDomain(t.Domain)
+		if err != nil {
+			return err
+		}
+		t.Domain = d
+	case TargetKindHost:
+		h, err := NormaliseHost(t.Domain)
+		if err != nil {
+			return err
+		}
+		t.Domain = h
+	default:
+		return fmt.Errorf("target: unknown kind %q", t.Kind)
+	}
 	for i, r := range t.Related {
 		rd, err := NormaliseDomain(r)
 		if err != nil {

@@ -65,6 +65,16 @@ wanderer agent --config /etc/wanderer/agent.yaml
 Pass `--once` to run inspectors a single time and exit (useful for
 cron-driven invocation or one-shot debugging).
 
+### Hostnames without a TLD
+
+The example above uses an FQDN (`webapp-01.example.internal`), but a
+bare Linux hostname (`webapp-01`) is also accepted. The agent
+registers its Target with `Kind: host`, which relaxes the public-
+domain TLD requirement that applies to perimeter scans (`POST /scans`
+still rejects a domain without a TLD). On disk, the Target row
+carries `kind = 'host'` so an operator inspecting the database can
+tell perimeter and agent rows apart.
+
 ## Trust model
 
 Two deployment shapes:

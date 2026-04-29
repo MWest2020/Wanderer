@@ -110,6 +110,43 @@ func TestTargetNormalisation(t *testing.T) {
 	}
 }
 
+func TestUpsertTarget_HostKindRoundTrip(t *testing.T) {
+	ctx := context.Background()
+	s := openTestStore(t)
+
+	tgt := &models.Target{Domain: "wanderer-test-host", Kind: models.TargetKindHost}
+	if err := s.UpsertTarget(ctx, tgt); err != nil {
+		t.Fatalf("upsert host target: %v", err)
+	}
+	if tgt.ID == "" {
+		t.Fatal("host target ID not set")
+	}
+
+	got, err := s.GetTarget(ctx, tgt.ID)
+	if err != nil {
+		t.Fatalf("GetTarget: %v", err)
+	}
+	if got.Kind != models.TargetKindHost {
+		t.Errorf("kind = %q, want host", got.Kind)
+	}
+	if got.Domain != "wanderer-test-host" {
+		t.Errorf("domain = %q", got.Domain)
+	}
+
+	// A second upsert without setting Kind on the input still loads
+	// the persisted host kind.
+	again := &models.Target{Domain: "wanderer-test-host", Kind: models.TargetKindHost}
+	if err := s.UpsertTarget(ctx, again); err != nil {
+		t.Fatalf("re-upsert: %v", err)
+	}
+	if again.Kind != models.TargetKindHost {
+		t.Errorf("re-upsert kind = %q", again.Kind)
+	}
+	if again.ID != tgt.ID {
+		t.Errorf("expected same row, got %s vs %s", again.ID, tgt.ID)
+	}
+}
+
 func TestGetScanNotFound(t *testing.T) {
 	s := openTestStore(t)
 	_, err := s.GetScan(context.Background(), "s_missing")
