@@ -33,12 +33,20 @@ func runAgent(args []string) int {
 	fs := flag.NewFlagSet("agent", flag.ContinueOnError)
 	cfgPath := fs.String("config", envOr("WANDERER_AGENT_CONFIG", "wanderer-agent.yaml"), "Path to wanderer-agent.yaml")
 	once := fs.Bool("once", false, "Run inspectors once and exit")
+	vendorsPath := fs.String("vendors", "", "Path to a custom egress vendors YAML (overrides the embedded list; falls back to WANDERER_VENDORS)")
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}
 
 	logger := newLogger(true)
 	slog.SetDefault(logger)
+
+	if v, err := egress.LoadVendors(*vendorsPath); err != nil {
+		fmt.Fprintf(os.Stderr, "wanderer agent: %v\n", err)
+		return 1
+	} else {
+		egress.Configure(v)
+	}
 
 	cfg, err := agent.LoadConfig(*cfgPath)
 	if err != nil {

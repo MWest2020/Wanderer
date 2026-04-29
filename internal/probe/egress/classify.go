@@ -2,7 +2,6 @@ package egress
 
 import (
 	"net/url"
-	"regexp"
 	"strings"
 
 	"github.com/MWest2020/wanderer/pkg/models"
@@ -58,37 +57,43 @@ type classifierRule struct {
 	classify func(value string) Classification
 }
 
-// rules is the static rule table. Order matters: the first match wins.
-var rules = []classifierRule{
-	awsS3RegionRule(),
-	gcsRule(),
-	azureBlobRule(),
-	minioGenericS3Rule(),
-	oidcIssuerRule(),
-	databaseRule(),
-	smtpRule(),
-	logShipperRule(),
-	webhookRule(),
+// rules is the active rule table populated by Configure on every load
+// of the vendor list. Order matters: the first match wins.
+var rules []classifierRule
+
+// buildRules assembles the rule table from the active Vendors. Called
+// from Configure (vendors.go) so a CLI flag override rebuilds the
+// table without process restart.
+func buildRules() []classifierRule {
+	return []classifierRule{
+		awsS3RegionRule(),
+		gcsRule(),
+		azureBlobRule(),
+		minioGenericS3Rule(),
+		oidcIssuerRule(),
+		databaseRule(),
+		smtpRule(),
+		logShipperRule(),
+		webhookRule(),
+	}
 }
 
 // ----- AWS S3 -----
 
-var awsS3RegionalRE = regexp.MustCompile(`^s3[.\-]([a-z]{2}-[a-z]+-\d)\.amazonaws\.com$`)
-
 func awsS3RegionRule() classifierRule {
 	return classifierRule{
 		id: "aws_s3_region_host",
-		match: func(_ , v string) bool {
+		match: func(_, v string) bool {
 			h := extractHost(v)
 			if strings.HasPrefix(strings.ToLower(v), "s3://") {
 				return true
 			}
-			return awsS3RegionalRE.MatchString(strings.ToLower(h))
+			return activeAWSRE.MatchString(strings.ToLower(h))
 		},
 		classify: func(v string) Classification {
 			h := extractHost(v)
 			region := ""
-			if m := awsS3RegionalRE.FindStringSubmatch(strings.ToLower(h)); len(m) > 1 {
+			if m := activeAWSRE.FindStringSubmatch(strings.ToLower(h)); len(m) > 1 {
 				region = m[1]
 			}
 			return Classification{
@@ -110,7 +115,7 @@ func gcsRule() classifierRule {
 	return classifierRule{
 		id: "gcs_storage_host",
 		match: func(_, v string) bool {
-			return strings.Contains(strings.ToLower(extractHost(v)), "storage.googleapis.com") ||
+			return strings.Contains(strings.ToLower(extractHost(v)), activeVendors.ObjectStorage.GCSHostContains) ||
 				strings.HasPrefix(strings.ToLower(v), "gs://")
 		},
 		classify: func(v string) Classification {
@@ -132,7 +137,7 @@ func azureBlobRule() classifierRule {
 	return classifierRule{
 		id: "azure_blob_host",
 		match: func(_, v string) bool {
-			return strings.Contains(strings.ToLower(extractHost(v)), "blob.core.windows.net")
+			return strings.Contains(strings.ToLower(extractHost(v)), activeVendors.ObjectStorage.AzureHostContains)
 		},
 		classify: func(v string) Classification {
 			return Classification{
@@ -254,27 +259,32 @@ func smtpRule() classifierRule {
 
 // ----- log shipper -----
 
-var logShipperHosts = []string{"datadoghq.com", "papertrailapp.com", "logz.io", "logdna.com", "splunkcloud.com"}
-var logShipperKeyREs = regexp.MustCompile(`(?i)(rsyslog|fluentd|fluent[_-]?bit|elastic[_-]?host|logstash|loki|datadog)`)
-
 func logShipperRule() classifierRule {
 	return classifierRule{
 		id: "log_shipper",
 		match: func(k, v string) bool {
 			h := strings.ToLower(extractHost(v))
-			for _, candidate := range logShipperHosts {
-				if strings.Contains(h, candidate) {
+			for _, e := range activeVendors.LogShippers {
+				if strings.Contains(h, e.HostContains) {
 					return true
 				}
 			}
-			return logShipperKeyREs.MatchString(k)
+			return activeLogShipperKeyRE != nil && activeLogShipperKeyRE.MatchString(k)
 		},
 		classify: func(v string) Classification {
+			h := strings.ToLower(extractHost(v))
+			rule := "log_shipper"
+			for _, e := range activeVendors.LogShippers {
+				if strings.Contains(h, e.HostContains) {
+					rule = e.RuleID
+					break
+				}
+			}
 			return Classification{
 				Category:   "log_shipper",
 				Host:       extractHost(v),
 				Confidence: ConfidenceMedium,
-				Rule:       "log_shipper",
+				Rule:       rule,
 				Dimension:  models.DimensionOperationeel,
 			}
 		},
@@ -283,27 +293,32 @@ func logShipperRule() classifierRule {
 
 // ----- webhook -----
 
-var webhookHosts = []string{"hooks.slack.com", "outlook.office.com/webhook", "discord.com/api/webhooks"}
-var webhookKeyRE = regexp.MustCompile(`(?i)webhook`)
-
 func webhookRule() classifierRule {
 	return classifierRule{
 		id: "webhook",
 		match: func(k, v string) bool {
 			h := strings.ToLower(extractHost(v))
-			for _, candidate := range webhookHosts {
-				if strings.Contains(h, candidate) {
+			for _, e := range activeVendors.Webhooks {
+				if strings.Contains(h, e.HostContains) {
 					return true
 				}
 			}
-			return webhookKeyRE.MatchString(k) && extractHost(v) != ""
+			return activeWebhookKeyRE != nil && activeWebhookKeyRE.MatchString(k) && extractHost(v) != ""
 		},
 		classify: func(v string) Classification {
+			h := strings.ToLower(extractHost(v))
+			rule := "webhook"
+			for _, e := range activeVendors.Webhooks {
+				if strings.Contains(h, e.HostContains) {
+					rule = e.RuleID
+					break
+				}
+			}
 			return Classification{
 				Category:   "webhook",
 				Host:       extractHost(v),
 				Confidence: ConfidenceMedium,
-				Rule:       "webhook",
+				Rule:       rule,
 				Dimension:  models.DimensionTechnologie,
 			}
 		},

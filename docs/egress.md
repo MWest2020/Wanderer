@@ -128,3 +128,46 @@ assessor can correctly mark the Juridisch dimension as `partial`.
   a path. Either add paths or disable the scanner.
 - Audit the Evidence field on suspicious findings. Evidence is the
   redacted source line; secrets never leak there.
+
+## Customising the vendor list
+
+The classifier's vendor / region / regex table is loaded from
+`internal/probe/egress/vendors.yaml` via `//go:embed` at build time.
+Operators can replace the embedded defaults with an organisation-
+specific file at runtime by either:
+
+1. Passing `--vendors /etc/wanderer/vendors.yaml` to `wanderer agent`
+2. Setting `WANDERER_VENDORS=/etc/wanderer/vendors.yaml` in the agent's
+   environment (used when `--vendors` is empty).
+
+A loaded override file replaces the defaults wholesale — there is no
+merge mode, so the file you ship must include every vendor entry you
+want active. Schema:
+
+```yaml
+log_shippers:
+  - host_contains: vendor.example.nl  # substring match against the
+    rule_id: example_logger           #   destination host
+log_shipper_key_regex: "(?i)(loki|elastic_host)"
+
+webhooks:
+  - host_contains: hooks.example.nl
+    rule_id: example_webhook
+webhook_key_regex: "(?i)webhook"
+
+object_storage:
+  aws_regional_regex: '^s3[.\-]([a-z]{2}-[a-z]+-\d)\.amazonaws\.com$'
+  gcs_host_contains: storage.googleapis.com
+  azure_host_contains: blob.core.windows.net
+```
+
+`object_storage.*` keys are required. `log_shippers` / `webhooks` may
+be empty, but every entry must carry both `host_contains` and
+`rule_id`. `*_key_regex` fields are optional fallbacks for
+configuration keys whose value's host does not match a known vendor
+(e.g. self-hosted Loki at an internal hostname).
+
+The agent fails fast on a missing file, malformed YAML, an invalid
+regex, or a missing required key: it prints the offending file path
+and parse position to stderr and exits non-zero. Operators get a
+hard signal rather than a silent fall-back to the embedded list.

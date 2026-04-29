@@ -1,0 +1,38 @@
+# Wanderer egress classifier vendor list.
+#
+# Operators can replace this file by passing `--vendors <path>` to
+# `wanderer agent` or by setting WANDERER_VENDORS=<path>; the classifier
+# loads the override file wholesale rather than merging it with these
+# defaults. See docs/egress.md for the per-key contract.
+
+log_shippers:
+  - host_contains: datadoghq.com
+    rule_id: datadog
+  - host_contains: papertrailapp.com
+    rule_id: papertrail
+  - host_contains: logz.io
+    rule_id: logzio
+  - host_contains: logdna.com
+    rule_id: logdna
+  - host_contains: splunkcloud.com
+    rule_id: splunkcloud
+
+# Per-key regex for env-var / config-key names that imply a log shipper
+# even when the value's host does not match a known vendor (e.g. an
+# operator running self-hosted Loki at log.example.internal).
+log_shipper_key_regex: "(?i)(rsyslog|fluentd|fluent[_-]?bit|elastic[_-]?host|logstash|loki|datadog)"
+
+webhooks:
+  - host_contains: hooks.slack.com
+    rule_id: slack_webhook
+  - host_contains: outlook.office.com/webhook
+    rule_id: teams_webhook
+  - host_contains: discord.com/api/webhooks
+    rule_id: discord_webhook
+
+webhook_key_regex: "(?i)webhook"
+
+object_storage:
+  aws_regional_regex: "^s3[.\\-]([a-z]{2}-[a-z]+-\\d)\\.amazonaws\\.com$"
+  gcs_host_contains: storage.googleapis.com
+  azure_host_contains: blob.core.windows.net

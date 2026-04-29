@@ -11,6 +11,22 @@ once a first release is cut. Until then every entry lives under
 
 ### Added
 
+- Egress classifier vendor / region table is now loaded from
+  `internal/probe/egress/vendors.yaml` via `//go:embed`, so a
+  contributor adding a new log shipper or webhook host edits a YAML
+  file rather than Go source. Operators can override the embedded
+  list with `wanderer agent --vendors <path>` or
+  `WANDERER_VENDORS=<path>`; a missing file, malformed YAML, invalid
+  regex, or missing required key is fatal at agent start. The
+  classifier publishes the per-vendor `rule_id` from the YAML in
+  the Finding's `classifier_rule` attribute, so an auditor can
+  trace each verdict back to the line that produced it.
+  (`internal/probe/egress/vendors.go`,
+  `internal/probe/egress/vendors.yaml`,
+  `internal/probe/egress/vendors_test.go`,
+  `internal/probe/egress/classify.go`,
+  `cmd/wanderer/agent.go`, `docs/egress.md`)
+
 - `pkg/models.TargetKind` distinguishes a perimeter `domain` Target
   from an agent `host` Target. Public-domain validation (one dot,
   printable ASCII) still applies to `domain` Targets; `host` Targets
