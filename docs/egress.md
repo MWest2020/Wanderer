@@ -156,15 +156,30 @@ egress:
 | ----------------------------------------- | -------------------------------------------------------------------------- |
 | Kernel < 5.8 / no BTF                     | Inspector emits `egress.flow.unavailable` with reason "kernel BTF missing" |
 | Kernel ≥ 5.8 + BTF + no CAP_BPF / non-root | Inspector emits `egress.flow.unavailable` with reason naming the cap       |
-| Build without bpf2go-generated object     | Inspector emits `egress.flow.unavailable` with reason "loader pending"      |
+| BPF program load fails (verifier reject, etc.) | Inspector emits `egress.flow.unavailable` with the specific load error |
 | All of the above + enabled: false         | Inspector is not constructed; no `egress.flow.*` finding is emitted        |
-| Kernel ready + CAP_BPF + loader present   | Inspector runs the program for the configured window and emits findings    |
+| Kernel ready + CAP_BPF + program loads    | Inspector attaches `sys_enter_connect`, drains perf events for the configured window, emits one Finding per unique destination |
 
-The "loader present" branch is **not yet shipped in this build**:
-the userspace aggregator and Inspector surface are landed but the
-eBPF object compile + attach is deferred. See
-[ADR-0010](decisions/0010-ebpf-flow-probe.md) for the kernel-version
-contract and the deferred-work checklist.
+The kernel attach is wired through `cilium/ebpf`. The compiled BPF
+blob ships in the repo (committed by
+`./scripts/bpf-build.sh`) so `go build ./...` works without
+clang/llvm; only the developer who edits `bpf/connect.bpf.c` needs
+the toolchain. See [ADR-0010](decisions/0010-ebpf-flow-probe.md)
+for the kernel-version contract and the build path.
+
+### Rebuilding the BPF object
+
+After editing `internal/probe/egress/flow/bpf/connect.bpf.c`:
+
+```sh
+./scripts/bpf-build.sh
+git add internal/probe/egress/flow/connect_x86_bpfel.{go,o}
+git commit -m "bpf: regenerate connect program"
+```
+
+The script uses a pinned `build/bpf-builder/Dockerfile` (Fedora 42
++ clang 20 + libbpf-devel 1.5 + bpf2go), so the host needs only
+docker / podman.
 
 ### Opt-in default — why
 

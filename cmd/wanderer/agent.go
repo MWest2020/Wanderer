@@ -82,11 +82,25 @@ func runAgent(args []string) int {
 // nil so the agent emits no egress.flow.* findings — matching the
 // "default config does not load the program" scenario in the
 // egress-probe spec.
+//
+// On enabled, we attempt to attach the kernel program eagerly at
+// agent startup. A failure (missing CAP_BPF, kernel rejects the
+// program, etc.) is captured on Flow.SourceErr so Available() can
+// report the specific reason; the inspector still surfaces as
+// egress.flow.unavailable on every tick rather than crashing the
+// agent.
 func buildFlowProbe(cfg *agent.Config) *flow.Flow {
 	if !cfg.Egress.Flow.Enabled {
 		return nil
 	}
-	return &flow.Flow{Window: cfg.Egress.Flow.Window}
+	f := &flow.Flow{Window: cfg.Egress.Flow.Window}
+	src, err := flow.NewKernelSource()
+	if err != nil {
+		f.SourceErr = err
+		return f
+	}
+	f.Source = src
+	return f
 }
 
 // buildEgressProbe wires the egress probe according to cfg. When no

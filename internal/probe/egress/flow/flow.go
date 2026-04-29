@@ -68,10 +68,17 @@ type EventSource interface {
 type Flow struct {
 	// Window is the sampling window. Defaults to 60 seconds.
 	Window time.Duration
-	// Source overrides the kernel event source. Used by tests; in
-	// production this is left nil and the inspector reports
-	// Available()=false until the eBPF object lands.
+	// Source overrides the kernel event source. Tests inject a
+	// stub here; production callers pass a *KernelSource produced
+	// by NewKernelSource (or leave it nil, in which case the
+	// inspector reports Available()=false with a kernel/capability
+	// reason).
 	Source EventSource
+	// SourceErr captures a NewKernelSource failure so the agent's
+	// buildFlowProbe can pass the specific reason ("permission
+	// denied loading BPF program", etc.) through to Available()
+	// without losing fidelity.
+	SourceErr error
 	// Resolver annotates each Finding with ASN/country attributes
 	// when wired (the existing GeoLite2 path).
 	Resolver egress.HostResolver
@@ -81,12 +88,14 @@ type Flow struct {
 func (Flow) ID() string { return "egress.flow" }
 
 // Available reports whether the flow probe can run on the current
-// host. The check is layered: OS, kernel BTF, capability, then the
-// presence of a usable EventSource. Each missing piece produces a
-// distinct reason so an operator can act.
+// host. The check is layered: SourceErr from a failed
+// NewKernelSource, an injected Source for tests, OS, kernel BTF,
+// and capability. Each missing piece produces a distinct reason so
+// an operator can act.
 func (f Flow) Available() (bool, string) {
-	// Test seam: if a synthetic source is wired, the inspector is
-	// available regardless of kernel state.
+	if f.SourceErr != nil {
+		return false, "eBPF flow probe failed to load: " + f.SourceErr.Error()
+	}
 	if f.Source != nil {
 		return true, ""
 	}
@@ -99,10 +108,10 @@ func (f Flow) Available() (bool, string) {
 	if os.Geteuid() != 0 && !hasBPFCap() {
 		return false, "eBPF flow probe requires CAP_BPF + CAP_PERFMON (or root)"
 	}
-	// Kernel ready, capability ready, no event source. The eBPF
-	// object is not yet shipped in this build; the inspector cannot
-	// load a program.
-	return false, "eBPF flow loader not yet shipped in this build — install the bpf2go toolchain and rebuild (see ADR-0010)"
+	// Kernel ready, capability ready, no source wired — buildFlowProbe
+	// did not call NewKernelSource. This is a wiring bug rather than
+	// a runtime condition.
+	return false, "eBPF flow probe has no event source wired (call flow.NewKernelSource in the agent builder)"
 }
 
 // Run is the agent-loop integration point. It runs the

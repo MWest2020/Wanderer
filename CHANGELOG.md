@@ -11,6 +11,34 @@ once a first release is cut. Until then every entry lives under
 
 ### Added
 
+- Egress flow probe **kernel attach** lands. Earlier today the
+  userspace half (Aggregator, Inspector surface, classifier reuse,
+  agent wiring, ADR-0010) shipped with the BPF object compile
+  deferred. The deferral is now closed: a pinned Fedora-42 builder
+  container (`build/bpf-builder/Dockerfile`) and a
+  `./scripts/bpf-build.sh` driver run `go generate` against the
+  bpf2go directive in `internal/probe/egress/flow/gen.go`,
+  producing committed `connect_x86_bpfel.{go,o}` artefacts. New
+  `kernel_linux.go` (build-tagged `linux && amd64`) loads the
+  embedded BPF object via `cilium/ebpf`, attaches to
+  `tracepoint/syscalls/sys_enter_connect`, and feeds a perf-ring
+  reader into the existing Aggregator. `cmd/wanderer/agent.go`
+  constructs the kernel source eagerly when `egress.flow.enabled:
+  true`; load failures are captured on Flow.SourceErr so
+  Available() reports the specific reason without crashing the
+  agent. `go build ./...` still works on hosts without
+  clang/llvm — only the developer regenerating the BPF object
+  needs the builder container.
+  (`build/bpf-builder/Dockerfile`, `scripts/bpf-build.sh`,
+  `internal/probe/egress/flow/gen.go`,
+  `internal/probe/egress/flow/kernel_linux.go`,
+  `internal/probe/egress/flow/kernel_stub.go`,
+  `internal/probe/egress/flow/connect_x86_bpfel.go` (generated),
+  `internal/probe/egress/flow/connect_x86_bpfel.o` (generated),
+  `cmd/wanderer/agent.go`,
+  `docs/decisions/0010-ebpf-flow-probe.md`,
+  `docs/egress.md`, `.gitignore`)
+
 - Egress runtime flow probe (eBPF) — userspace half landed
   2026-04-29; kernel attach deferred to a follow-up that needs a
   clang/llvm toolchain. The new `internal/probe/egress/flow`
