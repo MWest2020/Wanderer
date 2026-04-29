@@ -1,214 +1,294 @@
 # Architecture
 
-Wanderer is an observation engine. The MVP takes one input — a domain
-name — and turns it into a collection of structured `Finding` records
-covering four probe families. A future assessor turns those findings
-into a DICTU sovereignty score; the MVP deliberately stops short of
-scoring.
+Wanderer is an observation engine. It turns the configuration of a
+public-sector estate — domains, hosts, applications — into a stream of
+structured `Finding` records, then derives sovereignty assessments
+from those findings. Probes do not score. Assessors do not probe. The
+`Finding` schema is the wire between them.
 
-## Components
+## Three modi
 
+Wanderer ships one binary that runs in three operating modi. Each modus
+collects evidence the others cannot see; the assessor reads the merged
+stream.
+
+```mermaid
+flowchart LR
+    subgraph perimeter [perimeter — wanderer scan / serve]
+        DNS[probe/dns] --> Scanner
+        TLS[probe/tls] --> Scanner
+        IP[probe/ip] --> Scanner
+        HTTP[probe/http] --> Scanner
+        WHOIS[probe/whois] --> Scanner
+    end
+    subgraph inventory [inventory — wanderer agent]
+        Systemd[inventory/systemd] --> InvDispatch
+        Packages[inventory/packages] --> InvDispatch
+        Docker[inventory/docker] --> InvDispatch
+        Nextcloud[inventory/nextcloud] --> InvDispatch
+    end
+    subgraph egress [egress — wanderer agent]
+        ConfigFiles[egress/scanners/configfiles] --> EgressProbe
+        ProcEnv[egress/scanners/procenv] --> EgressProbe
+        SystemdUnits[egress/scanners/systemd] --> EgressProbe
+    end
+    Scanner --> Store[(SQLite store)]
+    InvDispatch --> Store
+    EgressProbe --> Store
+    Store --> Assessor[assessor: dictu + eucsf]
+    Store --> Drift[drift engine]
+    Store --> Export[export: csv / jsonl]
+    Store --> MCP[mcp server]
+    Store --> UI[read-only ui]
 ```
-              ┌──────────────┐
- CLI ───────► │              │      ┌────────────┐
-              │   scanner    │─────►│ probe/dns  │──► system / configured resolver
- API ───────► │ orchestrator │      ├────────────┤
-              │              │─────►│ probe/tls  │──► target:443 + crt.sh (best-effort)
-              │              │      ├────────────┤
-              │              │─────►│ probe/ip   │──► local GeoLite2 DB
-              │              │      ├────────────┤
-              │              │─────►│ probe/http │──► target:80/443
-              └──────┬───────┘      └────────────┘
-                     │
-                     ▼
-              ┌─────────────┐
-              │    store    │──► SQLite (modernc.org/sqlite, pure Go)
-              └─────────────┘
-```
 
-Every probe implements the same interface (`internal/probe.Probe`) and
-returns `[]models.Finding`. The scanner knows nothing about what any
-specific probe does; the probes know nothing about each other.
+### Perimeter — `wanderer scan` / `wanderer serve`
 
-## Data flow
+What the outside world sees. Five probes (DNS, TLS, IP, HTTP, WHOIS)
+under `internal/probe/{dns,tls,ip,http,whois}`. The scanner runs them
+in two passes (see "Two-pass scanning" below) and writes Findings
+tagged with `SourceModus = "perimeter"`. Per-capability docs:
+[scanner spec](../openspec/specs/scanner/spec.md), nothing else
+modus-specific — the probe details live in
+[`docs/findings.md`](findings.md).
 
-1. Caller (CLI or HTTP API) hands the scanner a `models.Target`.
-2. Scanner upserts the Target, creates a `running` `Scan` row.
-3. For each configured probe, the scanner derives a child context with
-   a per-probe timeout (default 30s), runs the probe, and persists its
-   findings. Panics are recovered, timeouts are recorded as info
-   findings — a failed probe never stops the scan.
-4. Scanner finalises the `Scan` with terminal status:
-   `complete` (all probes succeeded), `partial` (one or more produced
-   errors but others produced findings), or `failed` (nothing usable).
-5. Caller reads the final scan + findings back from the store.
+### Inventory — `wanderer agent` inspectors
+
+What is installed and running on a host. Inspectors live under
+`internal/probe/inventory/{systemd,packages,docker,nextcloud}` and
+implement the `inventory.Inspector` interface. The agent loops over
+the enabled inspectors each tick; failures surface as
+`inventory.<id>.unavailable` / `inventory.<id>.error` info Findings
+rather than crashing. Findings carry `SourceModus = "inventory"`.
+Operator-facing reference: [`docs/agent.md`](agent.md).
+
+### Egress — `wanderer agent` egress probe
+
+Where the data points when it leaves. Static-config-only:
+`internal/probe/egress/scanners/{configfiles,procenv,systemd}` walk
+config files, `/proc/<pid>/environ`, and systemd unit files; the
+classifier (`internal/probe/egress/classify.go`) buckets each value
+into a category (`object_storage`, `database`, `oidc`, `smtp`,
+`log_shipper`, `webhook`) using a vendor table loaded from
+[`internal/probe/egress/vendors.yaml`](../internal/probe/egress/vendors.yaml).
+A redactor (`internal/probe/egress/redact.go`) masks anything that
+looks like a secret before it reaches the Finding stream. Findings
+carry `SourceModus = "egress"`. Reference: [`docs/egress.md`](egress.md).
+
+## Findings as the contract
+
+Every probe and inspector returns `[]models.Finding` and nothing
+richer. The shape lives in [`pkg/models/finding.go`](../pkg/models/finding.go);
+the catalogue of every ProbeID Wanderer emits, plus the
+meta-finding convention (an `error` attribute, `no_answer: true`, or
+`unavailable: true` flags non-evidence rows), lives in
+[`docs/findings.md`](findings.md).
+
+`models.SourceModus` tags each Finding with the modus that produced
+it (`perimeter`, `inventory`, `egress`, `drift`). The assessor's
+completeness calculation reads SourceModus to know which evidence it
+has, so a perimeter-only scan can correctly mark
+inventory-dependent dimensions as `incomplete` rather than scoring
+them on absence.
+
+## Cross-cutting consumers
+
+These layers read from the store; none of them probe.
+
+| Component             | Path                                  | Reference                                    |
+| --------------------- | ------------------------------------- | -------------------------------------------- |
+| Assessor (DICTU + SEAL) | `internal/assessor/{,dictu,eucsf}`     | [`docs/assessor.md`](assessor.md)            |
+| Drift engine          | `internal/drift`                      | [`docs/drift.md`](drift.md)                  |
+| Exporters (CSV / JSONL) | `internal/export`                     | [`docs/exporters.md`](exporters.md)          |
+| MCP server            | `internal/mcp`                        | [`docs/mcp.md`](mcp.md)                      |
+| Scheduler (cron)      | `internal/scheduler`                  | [`docs/scheduling.md`](scheduling.md)        |
+| Read-only UI          | `internal/ui`                         | [`docs/operator.md`](operator.md)            |
+
+The assessor ships two rule packs side-by-side. **DICTU** maps
+Findings into five dimensions (`juridisch`, `operationeel`,
+`technologie`, `data_ai`, `mens`) and four levels (`onbekend` →
+`afhankelijk` → `gedeeld` → `soeverein`). **EU CSF (SEAL)** uses
+five SEAL levels (SEAL0–SEAL4) over the same Findings. `wanderer
+assess --framework dictu|eucsf|both` selects which pack(s) run;
+persisted Assessments carry a `Framework` tag.
 
 ## Key design decisions
 
 ### SQLite for the MVP
 
-`modernc.org/sqlite` is pure Go (no CGo), so builds are trivial on any
-platform and the DB is a single auditable file on disk. Migrating to
-PostgreSQL later is a `pg_dump`-shaped problem. The alternative —
-starting on Postgres "because we'll scale" — was rejected as premature.
+`modernc.org/sqlite` is pure Go — builds are trivial on any platform
+and the database is one auditable file on disk. Migrating to
+PostgreSQL later is a `pg_dump`-shaped problem. Starting on Postgres
+"because we'll scale" was rejected as premature.
+
+### Schema migrations are numbered, up-only, transactional
+
+`internal/store/migrations.go` runs entries from a `migrations` slice
+in numeric order, each in its own transaction. A
+`schema_migrations(version, name, applied_at)` table is the source of
+truth — an auditor can read one row to know which schema version is
+in production. New schema changes append the next version; previous
+entries are immutable.
 
 ### Probes are packages, not plugins
 
-No plugin loader, no registry with `init()` side effects. `scanner` imports
-each probe package and calls it. The call graph is static and readable
-via `go doc`. Adding a probe means writing a package and wiring it into
-`cmd/wanderer/scan.go#buildProbes`. Reflection-based dispatch can come
-later when we actually need it.
-
-### The Finding schema is the contract
-
-Every probe returns `[]models.Finding` and nothing richer. The assessor
-(future) reads `Finding.ProbeID`, `Finding.DimensionHint`, and
-`Finding.Attributes` without ever importing a probe package. This
-decoupling is the single most important choice: new probes do not
-touch the assessor, and vice versa. See `pkg/models/finding.go` for
-the shape, and `docs/findings.md` for the catalog.
+No plugin loader, no registry with `init()` side effects. The
+scanner imports each probe package and calls it; `cmd/wanderer/scan.go::buildProbes`
+is the single wiring point. The call graph is static and readable
+via `go doc`. Reflection-based dispatch can come later if it ever
+earns its keep.
 
 ### Partial scans are first-class
 
 A probe that errors, panics, or times out is not a scan failure. The
-scan records the failure as a `<probe>.error` / `.panic` / `.timeout`
-finding and continues. An operator gets imperfect output rather than
-nothing. A scan is `failed` only when **every** probe produced no
-usable findings.
-
-### Passive observation boundary
-
-- DNS: lookups via the configured resolver.
-- TLS: ClientHello + certificate inspection; no application data.
-- HTTP: one GET of the apex URL, with a `Wanderer/0.x` User-Agent,
-  honouring `robots.txt`, capping redirects at 5 and body at 2 MiB.
-- IP: local database lookup, no network call.
-
-No port scanning, no subdomain enumeration beyond what DNS and CT logs
-volunteer, nothing credential-adjacent. This is not a pentest tool.
+scanner records the failure as a `<probe>.error` / `.panic` /
+`.timeout` finding and continues. An operator gets imperfect output
+rather than nothing. A scan is `failed` only when **every** probe
+produced no usable findings.
 
 ### Two-pass scanning
 
-The scanner runs every scan in two passes:
-
-1. **Pass 1** runs DNS, TLS, HTTP and (when configured) the WHOIS
-   probe concurrently via `errgroup.WithContext`. Each probe sees the
-   original `Target` (apex domain plus any operator-supplied
-   `Related` hosts). A per-probe `defer recover()` converts panics
-   into `nil`-from-the-group errors so one misbehaving probe cannot
-   poison the whole scan.
-2. **Pass 2** runs only the IP probe. Between the passes,
-   `expandRelatedFromFindings` walks the pass-1 Findings and harvests
-   subjects from `dns.mx`, `http.third_party` and `dns.subdomain`
-   into a copy of the Target's `Related` slice. The IP probe receives
-   that enriched Target so MX hosts and third-party hostnames get
-   ASN/country lookups. Other probes still see the original Target;
-   the enrichment is local to the IP probe.
-
-`buildProbes` in `cmd/wanderer/scan.go` enforces the ordering by
-returning the IP probe last. The whole scan still runs under one
-`context.WithTimeout` so the global budget remains a single dial.
-`TestIPProbeReceivesDiscoveredHosts` in `internal/scanner` pins the
-fan-out invariant. Without this two-pass shape, the rules
-`dictu.juridisch.mx_vendor_jurisdiction`,
-`dictu.technologie.third_parties_eea` and the third-party half of
-`dictu.technologie.no_us_hyperscaler` silently returned Onbekend on
-every real scan.
+The perimeter scanner runs every scan in two passes. **Pass 1** runs
+DNS, TLS, HTTP, and WHOIS concurrently via `errgroup.WithContext`.
+Each probe sees the original Target. **Pass 2** runs only the IP
+probe; between the passes, `expandRelatedFromFindings` harvests
+subjects from `dns.mx`, `http.third_party`, and `dns.subdomain`
+findings into a copy of the Target's `Related` slice. The IP probe
+receives the enriched Target so MX hosts and third-party hostnames
+get ASN/country lookups. `buildProbes` enforces the order by
+returning the IP probe last; the whole scan still runs under one
+`context.WithTimeout` so the global budget is a single dial.
 
 ### SSRF guard
 
 `internal/probe/ssrf.go` wraps the dialers used by the HTTP and TLS
-probes. A static `*net.IPNet` table covers IPv4 loopback, link-local,
-RFC1918, CGNAT, and the cloud-metadata IPs (169.254.169.254,
-fd00:ec2::254), plus IPv6 ULA and link-local. Any resolved address
-that lands in one of those nets is refused at dial time. Operators
-who do need to scan a private host pass `--allow-private-targets`
-on `wanderer scan` or `wanderer serve`; default is on (private
-blocked). The `POST /scans` handler refuses requests whose domain
-resolves only to private addresses unless the flag was set at
-server start, so an authenticated API client cannot turn the scanner
-into an internal-network probe.
-
-### Framework selection
-
-The assessor supports two rule packs side-by-side:
-
-- **DICTU** — Dutch government sovereignty toets. Maps Findings into
-  five dimensions (`juridisch`, `operationeel`, `technologie`,
-  `data_ai`, `mens`) and four levels (`onbekend`/`afhankelijk`/
-  `gedeeld`/`soeverein`). Lives in `internal/assessor/dictu`.
-- **EU CSF (SEAL)** — five SEAL levels (SEAL0–SEAL4) over the same
-  Findings. Lives in `internal/assessor/eucsf`. SEAL0 = no evidence,
-  SEAL4 = full sovereignty.
-
-Both packs read the same `[]models.Finding` slice and emit
-`models.Assessment` records. `wanderer assess --framework
-dictu|eucsf|both` selects which pack(s) run; the persistence layer
-keeps assessments tagged with `Framework`. The two packs share no
-code beyond the Finding shape — adding a third pack means adding a
-new package, not modifying either of the existing two.
-`docs/assessor.md` is the operator-facing reference.
+probes. A static `*net.IPNet` table covers IPv4 loopback,
+link-local, RFC1918, CGNAT, and the cloud-metadata IPs
+(169.254.169.254, fd00:ec2::254), plus IPv6 ULA and link-local. Any
+resolved address that lands in one of those nets is refused at dial
+time. Operators who need to scan a private host pass
+`--allow-private-targets`; default is on (private blocked). The
+`POST /scans` handler refuses requests whose domain resolves only to
+private addresses unless the flag was set at server start.
 
 ### Read-only operator UI
 
-`internal/ui` ships a minimal web UI mounted on `wanderer serve` under
-`--ui` (default off). Three GET-only routes — `/ui/`, `/ui/scans/{id}`,
-`/ui/targets/{id}/drift` — render `html/template` pages backed by
-embedded templates and a single CSS file (`go:embed`). The package
-contains zero mutating handlers; `ui_test.go` greps the package source
-for `r.Post|Patch|Delete|Put` and fails the build if any appear, so
-the read-only invariant cannot be bypassed by accident in a future
-patch.
+`internal/ui` ships GET-only routes mounted at `/ui/` under
+`wanderer serve --ui`. Authentication is HTTP Basic against an
+htpasswd file (bcrypt only; legacy hash algorithms are rejected at
+startup). The package contains zero mutating handlers; a static-
+analysis test greps the package source for `r.Post|Patch|Delete|Put`
+and fails the build if any appear. Anything richer than read-only
+browse belongs behind a reverse proxy.
 
-Authentication is HTTP Basic against an htpasswd file
-(`--ui-htpasswd <path>` or `WANDERER_UI_HTPASSWD`). Only bcrypt
-entries (`$2a$`/`$2b$`/`$2y$`) are accepted; `$apr1$` MD5, `{SHA}`
-SHA-1, `$5$` SHA-256 crypt and `$6$` SHA-512 crypt are rejected at
-startup with an explicit "use bcrypt (`htpasswd -B`)" error. One
-algorithm = one battle-tested verification path; an operator who
-copies a legacy file gets a hard failure instead of a silent
-always-deny. The htpasswd file is re-read on every request so
-operators can rotate credentials without restarting.
-
-The UI is intentionally a thin observation surface: no session state,
-no JWT, no OAuth. Anything fancier belongs behind a reverse proxy.
-
-### External systems and their failure modes
-
-| System              | Used by     | Failure handling |
-| ------------------- | ----------- | ---------------- |
-| DNS resolver        | `probe/dns` | NXDOMAIN / timeout / SERVFAIL → info Finding with `kind` attribute |
-| Target `:443` TLS   | `probe/tls` | Handshake failure → retry with verification off and record verification failure as Finding |
-| crt.sh              | `probe/tls` | Any failure → single "unavailable" Finding, rest of TLS probe unaffected |
-| MaxMind GeoLite2    | `probe/ip`  | Missing/corrupt DB → **fail fast at startup**, never mid-scan |
-| Target `:80/:443`   | `probe/http`| HTTP fallback if HTTPS fails (recorded as `http.scheme_downgrade`); body > 2 MiB is truncated |
-
-## Extending the probe suite
-
-To add a new probe:
+## How to add a perimeter probe
 
 1. Create `internal/probe/<name>/` with a type implementing
-   `probe.Probe` (`ID() string` + `Run(ctx, target, cfg) ([]Finding, error)`).
-2. Return findings with stable `ProbeID` strings (`<name>.<what>`).
-   Put probe-specific structured data in `Attributes`. Raw source
-   material (certificates, DNS record text) goes in `Evidence`.
-3. Wire the probe into `cmd/wanderer/scan.go#buildProbes` (and into
-   the serve path, which shares the same builder).
-4. Document the new ProbeIDs in `docs/findings.md`.
+   `probe.Probe` — `ID() string` and `Run(ctx, target, cfg) ([]Finding, error)`.
+2. Emit findings with stable `ProbeID` strings (`<name>.<what>`).
+   Probe-specific structured data goes in `Attributes`; raw source
+   material (certificate PEMs, DNS record text) goes in `Evidence`.
+3. Honour the meta-finding convention for non-evidence rows (an
+   `error`, `no_answer`, or `unavailable` attribute).
+4. Wire the probe into `cmd/wanderer/scan.go::buildProbes`. Probes
+   that need pass-1 outputs (like the IP probe) go last in the
+   slice.
+5. Document the new ProbeIDs in `docs/findings.md`.
 
-That's the whole integration surface. No framework, no registry.
+That is the whole integration surface. No framework, no registry.
 
-## Surfaces that are out of scope for the MVP
+## How to add an inventory inspector
 
-- Assessor (Finding → DICTU dimension/level) — ships as its own change.
-- Scheduling + diffing between scans — one scan at a time, on command.
-- Multi-tenant authentication — `wanderer serve` is single-tenant; the
-  optional `/ui/` surface uses HTTP Basic via htpasswd, and the JSON
-  API itself remains trusted-network.
-- Rich web UI — `/ui/` is intentionally a thin read-only HTML surface;
-  anything richer (mutations, dashboards, multi-user) belongs behind
-  a reverse proxy or in a separate frontend.
-- JavaScript rendering for HTTP third-party extraction — static HTML
-  only. A headless-browser probe is a plausible future change when the
-  complexity/value ratio is right.
+1. Create `internal/probe/inventory/<id>/` with a type implementing
+   `inventory.Inspector` — `ID() string`, `Available() (bool, string)`,
+   `Inspect(ctx) ([]Finding, error)`.
+2. Emit findings with `ProbeID: inventory.<id>.<what>`. Subject is
+   the host's name unless the inspector tracks a sub-entity (e.g. a
+   container name). The inventory orchestrator
+   (`internal/probe/inventory/inventory.go::Inspect`) tags the
+   `SourceModus` for you.
+3. If the inspector cannot run (missing socket, missing CLI, wrong
+   OS), return `Available() = false, "<reason>"` — the orchestrator
+   converts that to an `inventory.<id>.unavailable` info Finding so
+   the absence is auditable.
+4. Add a config block under `inspectors:` in
+   [`internal/agent/config.go::InspectorCfg`](../internal/agent/config.go),
+   wire it into `cmd/wanderer/agent.go::buildInspectors`.
+5. Document the new ProbeIDs in `docs/findings.md`.
+
+The Docker inspector at `internal/probe/inventory/docker` is a
+reference: a stdlib-only `http.Client` over a unix-socket dialer,
+read-only GET calls, fixture-driven tests. Copy that shape.
+
+## How to add an egress scanner
+
+1. Create `internal/probe/egress/scanners/<id>.go` with a type
+   implementing `scanners.Scanner` — `ID() string`,
+   `Available() (bool, string)`, `Scan(ctx) ([]Candidate, error)`.
+   A Candidate is a `(source, key, value)` triple — config file
+   path, env var name, value to classify.
+2. The egress orchestrator
+   (`internal/probe/egress/egress.go::Inspect`) hands every
+   Candidate to the classifier, redactor, and (when configured)
+   IP-resolver before emitting a Finding. Scanners do not classify
+   or redact — that is the orchestrator's job, so the contract stays
+   uniform.
+3. Configure the new scanner in
+   [`internal/agent/config.go::EgressConfig`](../internal/agent/config.go);
+   wire it into `cmd/wanderer/agent.go::buildEgressProbe`.
+4. The classifier's vendor table is loaded from `vendors.yaml`. A
+   new vendor (log shipper / webhook host / object-storage prefix)
+   is a YAML edit, not a code change.
+
+## How to add a DICTU rule
+
+1. Add a function returning `assessor.Rule` in
+   `internal/assessor/dictu/rules.go`, register it in
+   `DefaultRules()`. Rule IDs follow `dictu.<dimension>.<short_name>`.
+2. The rule's `Match` closure consumes `[]models.Finding` and
+   returns a `RuleResult`. Filter by `ProbeID` first; for any
+   ProbeID where the probe also emits meta rows, route through
+   `assessor.IsEvidenceLike` so a non-resolvable domain or a
+   missing probe does not score positively on absence.
+3. Add a unit test in `rules_test.go` and an integration assertion
+   in `integration_test.go` (the integration test wires real probes
+   to fake resolvers, so a casing or attribute rename in either
+   side breaks the build immediately).
+4. The SEAL pack at `internal/assessor/eucsf/rules.go` mirrors the
+   DICTU shape and should learn the same rule when it makes sense
+   for the SEAL framework.
+
+## External systems and their failure modes
+
+| System                  | Used by             | Failure handling                                                    |
+| ----------------------- | ------------------- | ------------------------------------------------------------------- |
+| DNS resolver            | `probe/dns`         | NXDOMAIN / timeout / SERVFAIL → `error` attribute on the Finding    |
+| Target `:443` TLS       | `probe/tls`         | Handshake failure → retry with verification off; record both        |
+| crt.sh                  | `probe/tls`         | Any failure → `tls.ct.unavailable` Finding; rest of probe continues |
+| MaxMind GeoLite2        | `probe/ip`, egress  | Missing/corrupt DB → fail fast at startup, never mid-scan           |
+| Target `:80` / `:443`   | `probe/http`        | HTTP fallback if HTTPS fails (`http.scheme_downgrade`); body capped at 2 MiB |
+| RDAP at `rdap.org`      | `probe/whois`       | 5s timeout; failure → single `whois.unavailable` Finding            |
+| Docker socket           | `inventory/docker`  | Missing / EACCES → `inventory.docker.unavailable`; non-2xx → `.error` |
+| Wanderer core (remote agent) | `agent.Remote` | 3 retries (0s / 250ms / 1s + jitter), then spool to local outbox    |
+
+## Where to look next
+
+- [`docs/findings.md`](findings.md) — every ProbeID and its attributes
+- [`docs/assessor.md`](assessor.md) — DICTU + SEAL rule packs
+- [`docs/agent.md`](agent.md) — agent configuration, trust model,
+  outbox spool
+- [`docs/egress.md`](egress.md) — egress sources, classifier vendor
+  list, redaction
+- [`docs/drift.md`](drift.md) — diffing two scans
+- [`docs/exporters.md`](exporters.md) — CSV / JSONL exports
+- [`docs/mcp.md`](mcp.md) — MCP server over JSON-RPC stdio
+- [`docs/scheduling.md`](scheduling.md) — cron-based scan scheduling
+- [`docs/operator.md`](operator.md) — running the binary, logs, the
+  read-only UI
+- [`docs/observability.md`](observability.md) — metrics, tracing, log
+  shape
+- [`docs/maintainability.md`](maintainability.md) — `CHANGELOG.md`,
+  ADRs, package conventions
+- [`docs/tutorial.md`](tutorial.md) — end-to-end first-run walkthrough
+- [`docs/decisions/`](decisions/) — numbered ADRs for the choices that
+  constrain future work

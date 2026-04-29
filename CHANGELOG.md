@@ -9,6 +9,19 @@ once a first release is cut. Until then every entry lives under
 
 ## [Unreleased]
 
+### Changed
+
+- `docs/architecture.md` is rewritten around the three-modi triad
+  (perimeter / inventory / egress) with a Mermaid diagram, per-modus
+  prose, and four how-to-extend sections (perimeter probe, inventory
+  inspector, egress scanner, DICTU rule). Cross-references the
+  per-capability docs (`assessor.md`, `agent.md`, `egress.md`,
+  `mcp.md`, `scheduling.md`, `drift.md`, `exporters.md`,
+  `operator.md`, `observability.md`, `maintainability.md`,
+  `tutorial.md`) so a new contributor lands in the right reference
+  for whatever they are touching. The probe-level meta-finding
+  convention is documented inline. (`docs/architecture.md`)
+
 ### Added
 
 - Docker inventory inspector reports containers and images. The
