@@ -20,20 +20,122 @@ Or run directly with `go run`:
 go run ./cmd/wanderer scan example.nl
 ```
 
-## Prerequisites
+## GeoLite2 setup
 
-The IP probe needs a **MaxMind GeoLite2-ASN** database to resolve IPs
-to ASN + country. Without it, Wanderer still runs the DNS, TLS, and
-HTTP probes; the IP probe records a single "unavailable" finding and
-continues.
+The IP probe resolves observed IPs to ASN + country via MaxMind's
+GeoLite2 database. This is the input that unblocks the DICTU
+**technologie** dimension and most of the **juridisch** dimension —
+without it, every rule that depends on `ip.asn` returns `onbekend`,
+and an operator looking at the assessment sees a half-blank picture.
 
-- Register at <https://www.maxmind.com/en/geolite2/signup> and download
-  `GeoLite2-ASN.mmdb` (and optionally `GeoLite2-Country.mmdb`).
-- Pass the path via `--geoip` on the CLI or `WANDERER_GEOIP_ASN` env
-  var on `wanderer serve`.
+GeoLite2 is **free** but the licence forbids redistribution, so
+Wanderer cannot ship it; you fetch it once and keep it fresh.
 
-If the database file is missing or corrupt, Wanderer fails **fast at
-startup**, never mid-scan.
+### One-time setup
+
+1. Sign up at <https://www.maxmind.com/en/geolite2/signup>
+   (free MaxMind account).
+2. From your account portal, generate a **license key**.
+3. Download `GeoLite2-ASN.mmdb` (and optionally
+   `GeoLite2-Country.mmdb`) — either via the portal's manual
+   download, or via `geoipupdate` (recommended for hosts that
+   should stay current).
+
+### Paths Wanderer expects
+
+| Env var                     | CLI flag         | Required for     |
+| --------------------------- | ---------------- | ---------------- |
+| `WANDERER_GEOIP_ASN`        | `--geoip`        | ASN + country    |
+| `WANDERER_GEOIP_COUNTRY`    | `--geoip-country`| Country only (optional; defaults to the ASN file) |
+
+The flags apply to `wanderer scan`, `wanderer serve`, and the
+agent (where wired into the egress probe). When neither is set
+and the opt-out below is also absent, both `wanderer scan` and
+`wanderer serve` emit one warning to stderr at startup naming
+the missing flag and pointing at this guide. The scan still
+completes; the warning is informational.
+
+```
+warning: GeoLite2 ASN database is not configured — scan will
+continue with reduced assessment coverage. Pass --geoip <path>
+(or set WANDERER_GEOIP_ASN), or pass --no-geoip to silence
+this warning. See docs/operator.md for setup.
+```
+
+If the database file is configured but missing or corrupt at
+runtime, Wanderer fails **fast at startup**, never mid-scan.
+
+### Opt-out for offline labs and CI
+
+Hosts that consciously run without ASN annotation (offline audit
+labs, CI smoke tests, demos) silence the warning with either:
+
+- the `--no-geoip` CLI flag, or
+- the `WANDERER_GEOIP_OPTIONAL=1` environment variable.
+
+Neither changes the runtime behaviour — the IP probe still emits
+its single `ip.unavailable` info Finding and the rest of the scan
+continues — the opt-out only suppresses the startup warning.
+
+### Recommended: keep GeoLite2 fresh with `geoipupdate`
+
+MaxMind ships a small daemon
+([`geoipupdate`](https://github.com/maxmind/geoipupdate)) that
+re-downloads the database on a schedule. Wanderer reads whatever
+file is at the configured path, so a periodic `geoipupdate` run
+followed by a `wanderer serve` SIGHUP (or process restart) is the
+operational shape we recommend.
+
+Minimal `/etc/GeoIP.conf` (the daemon's config, not Wanderer's):
+
+```conf
+AccountID YOUR_ACCOUNT_ID
+LicenseKey YOUR_LICENSE_KEY
+EditionIDs GeoLite2-ASN GeoLite2-Country
+```
+
+Systemd timer (preferred over crontab on systemd hosts):
+
+```ini
+# /etc/systemd/system/geoipupdate.service
+[Unit]
+Description=Update MaxMind GeoIP databases
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/geoipupdate
+```
+
+```ini
+# /etc/systemd/system/geoipupdate.timer
+[Unit]
+Description=Daily geoipupdate
+[Timer]
+OnCalendar=daily
+Persistent=true
+[Install]
+WantedBy=timers.target
+```
+
+```sh
+sudo systemctl daemon-reload
+sudo systemctl enable --now geoipupdate.timer
+```
+
+Crontab alternative (for non-systemd hosts):
+
+```cron
+# 03:00 every day, append output to a log
+0 3 * * * /usr/bin/geoipupdate >> /var/log/geoipupdate.log 2>&1
+```
+
+### Test stub for offline runs
+
+`scripts/geoip-stub.sh /tmp/stub.mmdb` produces a deterministic
+empty-but-valid GeoLite2-shaped mmdb so the test suite (and an
+operator running smoke tests) can exercise the populated-but-empty
+branch of the IP probe without a real MaxMind license. The stub
+opens cleanly via the same reader Wanderer uses; every IP lookup
+returns "not found" rather than erroring out.
 
 ## Run a single scan
 

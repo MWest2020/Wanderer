@@ -11,6 +11,26 @@ once a first release is cut. Until then every entry lives under
 
 ### Added
 
+- GeoLite2 onboarding: `wanderer scan` and `wanderer serve` emit one
+  warning to stderr at startup when no `--geoip` / `WANDERER_GEOIP_ASN`
+  is configured, so a fresh-installed operator notices the missing
+  ASN data instead of silently scoring half the DICTU rules
+  `onbekend`. New `--no-geoip` flag (and `WANDERER_GEOIP_OPTIONAL=1`
+  env) silences the warning for offline labs / CI without changing
+  runtime behaviour. New `scripts/geoip-stub.sh` produces a
+  deterministic empty-but-valid GeoLite2-shaped mmdb so the test
+  suite can exercise the populated-but-empty branch without a real
+  MaxMind license. `docs/operator.md` gains an explicit "GeoLite2
+  setup" section (license-key acquisition, recommended
+  `geoipupdate` via systemd timer, opt-out, test stub);
+  `docs/architecture.md` and `docs/tutorial.md` link into it.
+  Adds dev-time dependency `github.com/maxmind/mmdbwriter` (used
+  only by the stub script via `//go:build ignore`).
+  (`cmd/wanderer/geoip.go`, `cmd/wanderer/geoip_test.go`,
+  `cmd/wanderer/scan.go`, `cmd/wanderer/serve.go`,
+  `scripts/geoip-stub.sh`, `scripts/geoip-stub/main.go`,
+  `docs/operator.md`, `docs/architecture.md`, `docs/tutorial.md`)
+
 - Egress flow probe **kernel attach** lands. Earlier today the
   userspace half (Aggregator, Inspector surface, classifier reuse,
   agent wiring, ADR-0010) shipped with the BPF object compile

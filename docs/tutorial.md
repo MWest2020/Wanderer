@@ -34,21 +34,29 @@ You should see a version string like `0.0.0-dev` or a git tag.
 If you do not have Go 1.25 installed, either grab it from
 <https://go.dev/dl/> or run Wanderer via your distro's Go package.
 
-## 2. (Optional but recommended) get a GeoLite2 database
+## 2. (Strongly recommended) get a GeoLite2 database
 
 The IP probe resolves each IP address to an ASN and a country, which is
 one of the most useful signals for answering "where does our data
 live". That lookup is a local database query — Wanderer ships no IP
 data itself.
 
-1. Register for a free MaxMind account at
-   <https://www.maxmind.com/en/geolite2/signup>.
-2. Download `GeoLite2-ASN.mmdb`. Put it somewhere stable, e.g.
-   `/var/lib/wanderer/GeoLite2-ASN.mmdb` or `~/wanderer-data/`.
+For the short version: register at
+<https://www.maxmind.com/en/geolite2/signup>, download
+`GeoLite2-ASN.mmdb`, and put it somewhere stable
+(`/var/lib/wanderer/GeoLite2-ASN.mmdb` or `~/wanderer-data/`).
+
+For the long version — including the recommended `geoipupdate`
+setup that keeps the database fresh, the optional country-only
+file, and the opt-out for offline labs — see the
+[GeoLite2 setup section in `docs/operator.md`](operator.md#geolite2-setup).
 
 Without this database Wanderer still runs — the IP probe records a
-single `ip.unavailable` finding and the rest of the scan proceeds.
-But you will be missing the jurisdictional picture.
+single `ip.unavailable` finding and the rest of the scan proceeds —
+but you will be missing the jurisdictional picture and the
+**technologie** dimension of the assessment will stay `onbekend`.
+The CLI prints a one-line warning to stderr at startup until you
+either configure a database or pass `--no-geoip` to silence it.
 
 ## 3. Run your first scan
 

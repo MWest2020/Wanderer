@@ -26,8 +26,7 @@ func runServe(args []string) int {
 	fs := flag.NewFlagSet("serve", flag.ContinueOnError)
 	addr := fs.String("addr", envOr("WANDERER_LISTEN", ":8080"), "HTTP listen address")
 	dbPath := fs.String("db", envOr("WANDERER_DB", "wanderer.db"), "Path to SQLite database")
-	geoipPath := fs.String("geoip", envOr("WANDERER_GEOIP_ASN", ""), "Path to GeoLite2-ASN mmdb")
-	geoipCountry := fs.String("geoip-country", envOr("WANDERER_GEOIP_COUNTRY", ""), "Optional GeoLite2-Country mmdb")
+	geoipPath, geoipCountry, noGeoIP := registerGeoIPFlags(fs)
 	perProbe := fs.Duration("per-probe-timeout", scanner.DefaultPerProbeTimeout, "Per-probe timeout")
 	globalTO := fs.Duration("budget", scanner.DefaultGlobalBudget, "Global scan timeout budget")
 	ua := fs.String("user-agent", "Wanderer/0.x", "User-Agent for HTTP probes")
@@ -38,6 +37,9 @@ func runServe(args []string) int {
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}
+
+	warnIfGeoIPMissing(os.Stderr, *geoipPath, *noGeoIP)
+
 	logger := newLogger(true)
 	slog.SetDefault(logger)
 

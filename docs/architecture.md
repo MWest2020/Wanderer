@@ -265,7 +265,7 @@ read-only GET calls, fixture-driven tests. Copy that shape.
 | DNS resolver            | `probe/dns`         | NXDOMAIN / timeout / SERVFAIL → `error` attribute on the Finding    |
 | Target `:443` TLS       | `probe/tls`         | Handshake failure → retry with verification off; record both        |
 | crt.sh                  | `probe/tls`         | Any failure → `tls.ct.unavailable` Finding; rest of probe continues |
-| MaxMind GeoLite2        | `probe/ip`, egress  | Missing/corrupt DB → fail fast at startup, never mid-scan           |
+| MaxMind GeoLite2        | `probe/ip`, egress  | Missing/corrupt DB → fail fast at startup, never mid-scan. Setup: see [`docs/operator.md`](operator.md) "GeoLite2 setup" |
 | Target `:80` / `:443`   | `probe/http`        | HTTP fallback if HTTPS fails (`http.scheme_downgrade`); body capped at 2 MiB |
 | RDAP at `rdap.org`      | `probe/whois`       | 5s timeout; failure → single `whois.unavailable` Finding            |
 | Docker socket           | `inventory/docker`  | Missing / EACCES → `inventory.docker.unavailable`; non-2xx → `.error` |
