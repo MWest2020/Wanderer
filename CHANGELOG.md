@@ -11,6 +11,40 @@ once a first release is cut. Until then every entry lives under
 
 ### Added
 
+- Operator UI Dashboard page (closes the DAR triad with the
+  Analysis page that landed earlier today). `/ui/` now renders a
+  posture summary (counts of targets per worst-dimension score
+  per framework), top concerns (rules whose `afhankelijk`
+  rationales span the most distinct targets, target-counted —
+  one rule firing 50× on one target counts once), and recent
+  activity (the five most recent scans across the estate, each
+  linking to the per-scan Analysis page if it has an Assessment).
+  An empty-state path renders a `wanderer scan <domain>` hint
+  when no scans exist. New `internal/ui/aggregate.go` exposes
+  pure-Go helpers (`WorstScore`, `PostureCounts`, `TopConcerns`,
+  `RecentActivity`) covered by `aggregate_test.go`. End-to-end
+  tests cover empty store, posture counts, target-counted
+  concerns, and the activity-row cap.
+  (`internal/ui/aggregate.go`, `internal/ui/aggregate_test.go`,
+  `internal/ui/ui.go`,
+  `internal/ui/templates/dashboard.tmpl`,
+  `internal/ui/static/main.css`, `internal/ui/ui_test.go`)
+
+### Changed
+
+- Operator UI: the previous flat targets table that lived at
+  `/ui/` moved to `/ui/targets`. The dashboard at `/ui/` is the
+  new entry point; the targets table is one click away ("All
+  targets →" in the dashboard header). All in-page back-links
+  ("← all targets") on scan / drift / assessment pages now
+  point at the dashboard with a secondary "all targets" link
+  pointing at `/ui/targets`. Operators with bookmarks to the
+  flat table need to update them.
+  (`internal/ui/ui.go`, `internal/ui/templates/index.tmpl`,
+  `internal/ui/templates/scan.tmpl`,
+  `internal/ui/templates/drift.tmpl`,
+  `internal/ui/templates/assessment.tmpl`)
+
 - Operator UI Analysis page: `/ui/scans/{id}/assessment` renders
   every persisted Assessment for the scan as one card per
   framework, dimension cards with the score badge and

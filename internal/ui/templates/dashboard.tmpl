@@ -1,0 +1,119 @@
+{{define "dashboard.tmpl"}}<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Wanderer — dashboard</title>
+<link rel="stylesheet" href="/ui/static/main.css">
+</head>
+<body>
+<header>
+  <h1>Wanderer dashboard</h1>
+  <p class="meta">Generated {{.GeneratedAt}} · <a href="/ui/targets">All targets →</a></p>
+</header>
+<main>
+{{if not .HasData}}
+<p class="empty-state">
+  No scans yet. Run <code>wanderer scan &lt;domain&gt;</code> against a
+  target to populate the store; the dashboard refreshes on every
+  page load.
+</p>
+{{else}}
+
+<section class="dashboard-section">
+  <h2>Posture summary</h2>
+  {{if .PostureBlocks}}
+  <div class="posture-grid">
+    {{range .PostureBlocks}}
+    <div class="posture-block">
+      <h3>{{.Framework}}</h3>
+      <ul class="posture-counts">
+        {{range .Counts}}
+        <li><span class="badge score-{{.Score}}">{{.Count}} {{.Score}}</span></li>
+        {{end}}
+      </ul>
+      <p class="meta">{{.Total}} target{{if ne .Total 1}}s{{end}} assessed</p>
+    </div>
+    {{end}}
+  </div>
+  {{else}}
+  <p class="muted">
+    No assessments yet. Run <code>wanderer assess &lt;scan-id&gt; --framework both</code>
+    to score a scan against the DICTU and EU CSF rule packs.
+  </p>
+  {{end}}
+</section>
+
+<section class="dashboard-section">
+  <h2>Top concerns</h2>
+  {{if .TopConcerns}}
+  <table class="concerns">
+    <thead>
+      <tr>
+        <th>Framework</th>
+        <th>Rule</th>
+        <th>Targets</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{range .TopConcerns}}
+      <tr>
+        <td>{{.Framework}}</td>
+        <td>
+          <code>{{.CriteriumID}}</code>
+          {{if .Description}}
+          <details class="why">
+            <summary>{{.Description}}</summary>
+            {{if .Rationale}}<p class="rationale-text">{{.Rationale}}</p>{{end}}
+          </details>
+          {{end}}
+        </td>
+        <td><span class="badge score-afhankelijk">{{.TargetCount}}</span></td>
+      </tr>
+      {{end}}
+    </tbody>
+  </table>
+  {{else}}
+  <p class="muted">No `afhankelijk` rationales recorded yet.</p>
+  {{end}}
+</section>
+
+<section class="dashboard-section">
+  <h2>Recent activity</h2>
+  {{if .Activity}}
+  <table>
+    <thead>
+      <tr>
+        <th>When</th>
+        <th>Domain</th>
+        <th>Status</th>
+        <th>Open</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{range .Activity}}
+      <tr>
+        <td><code>{{.StartedAt}}</code></td>
+        <td>{{.Domain}}</td>
+        <td><span class="status-{{.Status}}">{{.Status}}</span></td>
+        <td>
+          {{if .HasAssessment}}
+          <a href="/ui/scans/{{.ScanID}}/assessment">assessment →</a>
+          {{else}}
+          <a href="/ui/scans/{{.ScanID}}">findings →</a>
+          {{end}}
+        </td>
+      </tr>
+      {{end}}
+    </tbody>
+  </table>
+  {{else}}
+  <p class="muted">No scans yet.</p>
+  {{end}}
+</section>
+
+{{end}}
+</main>
+</body>
+</html>
+{{end}}

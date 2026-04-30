@@ -49,7 +49,8 @@ func Handler(st *store.Store, htpasswdPath string) (http.Handler, error) {
 		return nil, err
 	}
 	r.Handle("/static/*", http.StripPrefix("/static/", http.FileServer(http.FS(staticFS))))
-	r.Get("/", indexHandler(st, tmpl))
+	r.Get("/", dashboardHandler(st, tmpl))
+	r.Get("/targets", targetsHandler(st, tmpl))
 	r.Get("/scans/{id}", scanHandler(st, tmpl))
 	r.Get("/scans/{id}/assessment", assessmentHandler(st, tmpl))
 	r.Get("/targets/{id}/drift", driftHandler(st, tmpl))
@@ -93,6 +94,149 @@ func verifyAgainst(creds map[string]string, user, pass string) bool {
 	return VerifyHtpasswdLine(entry, pass)
 }
 
+// dashboardView is the shape consumed by dashboard.tmpl. The
+// posture summary, top concerns, and recent activity sections each
+// render from their own field; templates that find an empty slice
+// emit empty-state copy rather than nothing.
+type dashboardView struct {
+	GeneratedAt   string
+	HasData       bool // true when at least one scan exists
+	PostureBlocks []postureBlockView
+	TopConcerns   []ConcernRow
+	Activity      []activityRowView
+}
+
+type postureBlockView struct {
+	Framework string
+	Counts    []postureCountView
+	Total     int
+}
+
+type postureCountView struct {
+	Score string
+	Count int
+}
+
+type activityRowView struct {
+	ScanID        string
+	Domain        string
+	StartedAt     string
+	Status        string
+	HasAssessment bool
+}
+
+func dashboardHandler(st *store.Store, tmpl *template.Template) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		ctx := r.Context()
+		scans, err := st.ListScans(ctx, store.Selectors{})
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		// Build per-target snapshots: most recent scan per target,
+		// most recent Assessment per (target, framework). The same
+		// shape feeds PostureCounts and TopConcerns.
+		type latest struct {
+			scan store.ScanRow
+			when time.Time
+		}
+		byTarget := map[string]latest{}
+		for _, s := range scans {
+			cur, ok := byTarget[s.TargetID]
+			if !ok || s.StartedAt.After(cur.when) {
+				byTarget[s.TargetID] = latest{scan: s, when: s.StartedAt}
+			}
+		}
+		snaps := make([]TargetSnapshot, 0, len(byTarget))
+		assessmentsByScan := map[string]bool{}
+		for _, l := range byTarget {
+			snap := TargetSnapshot{
+				TargetID:    l.scan.TargetID,
+				Domain:      l.scan.Domain,
+				LastScanID:  l.scan.ID,
+				LastScanAt:  l.when,
+				LastStatus:  l.scan.Status,
+				Assessments: map[string]models.Assessment{},
+			}
+			if list, err := st.ListAssessmentsForScan(ctx, l.scan.ID); err == nil {
+				for _, a := range list {
+					assessmentsByScan[l.scan.ID] = true
+					cur, ok := snap.Assessments[a.Framework]
+					if !ok || a.CreatedAt.After(cur.CreatedAt) {
+						snap.Assessments[a.Framework] = a
+					}
+				}
+			}
+			snaps = append(snaps, snap)
+		}
+		// Activity needs HasAssessment lookups for ALL scans, not
+		// just the most-recent-per-target subset.
+		activityHas := func(scanID string) bool {
+			if assessmentsByScan[scanID] {
+				return true
+			}
+			if list, err := st.ListAssessmentsForScan(ctx, scanID); err == nil && len(list) > 0 {
+				assessmentsByScan[scanID] = true
+				return true
+			}
+			return false
+		}
+
+		summary := PostureCounts(snaps)
+		concerns := TopConcerns(snaps, lookupRule, 5)
+		activity := RecentActivity(scans, activityHas, 5)
+
+		view := dashboardView{
+			GeneratedAt: time.Now().UTC().Format(time.RFC3339),
+			HasData:     len(scans) > 0,
+			TopConcerns: concerns,
+		}
+		// Stable framework order: dictu, eucsf, then alphabetical.
+		fwOrder := func(a, b string) bool {
+			if a == "dictu" {
+				return true
+			}
+			if b == "dictu" {
+				return false
+			}
+			if a == "eucsf" {
+				return true
+			}
+			if b == "eucsf" {
+				return false
+			}
+			return a < b
+		}
+		var frameworks []string
+		for fw := range summary {
+			frameworks = append(frameworks, fw)
+		}
+		sort.Slice(frameworks, func(i, j int) bool { return fwOrder(frameworks[i], frameworks[j]) })
+		for _, fw := range frameworks {
+			block := postureBlockView{Framework: fw}
+			for _, sc := range AllScores {
+				count := summary[fw][sc]
+				if count == 0 {
+					continue
+				}
+				block.Counts = append(block.Counts, postureCountView{Score: string(sc), Count: count})
+				block.Total += count
+			}
+			view.PostureBlocks = append(view.PostureBlocks, block)
+		}
+		for _, a := range activity {
+			view.Activity = append(view.Activity, activityRowView{
+				ScanID:        a.ScanID,
+				Domain:        a.Domain,
+				StartedAt:     a.StartedAt.UTC().Format(time.RFC3339),
+				Status:        a.Status,
+				HasAssessment: a.HasAssessment,
+			})
+		}
+		render(w, tmpl, "dashboard.tmpl", view)
+	}
+}
+
 // targetsRowsView is the shape index.tmpl iterates over.
 type targetsRowsView struct {
 	GeneratedAt string
@@ -114,7 +258,7 @@ type frameworkRowView struct {
 	When      string
 }
 
-func indexHandler(st *store.Store, tmpl *template.Template) http.HandlerFunc {
+func targetsHandler(st *store.Store, tmpl *template.Template) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 		scans, err := st.ListScans(ctx, store.Selectors{})

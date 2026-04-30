@@ -59,10 +59,10 @@ func newServer(t *testing.T, htpasswd string) (*httptest.Server, *store.Store) {
 	return srv, st
 }
 
-func TestIndex_RendersTargetRow(t *testing.T) {
+func TestTargetsRoute_RendersTargetRow(t *testing.T) {
 	srv, st := newServer(t, "")
 	_, _ = seed(t, st)
-	resp, err := http.Get(srv.URL + "/ui/")
+	resp, err := http.Get(srv.URL + "/ui/targets")
 	if err != nil {
 		t.Fatalf("get: %v", err)
 	}
@@ -72,10 +72,163 @@ func TestIndex_RendersTargetRow(t *testing.T) {
 	}
 	body, _ := io.ReadAll(resp.Body)
 	if !strings.Contains(string(body), "example.nl") {
-		t.Errorf("index missing target domain; body:\n%s", string(body))
+		t.Errorf("targets page missing target domain; body:\n%s", string(body))
 	}
 	if !strings.Contains(string(body), "Wanderer targets") {
-		t.Errorf("index header missing")
+		t.Errorf("targets header missing")
+	}
+}
+
+func TestDashboard_EmptyStoreRendersEmptyHint(t *testing.T) {
+	srv, _ := newServer(t, "")
+	resp, err := http.Get(srv.URL + "/ui/")
+	if err != nil {
+		t.Fatalf("get: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != 200 {
+		t.Fatalf("status = %d", resp.StatusCode)
+	}
+	body, _ := io.ReadAll(resp.Body)
+	if !strings.Contains(string(body), "wanderer scan") {
+		t.Errorf("expected empty-state hint with `wanderer scan`; body:\n%s", string(body))
+	}
+}
+
+func TestDashboard_PostureSummary(t *testing.T) {
+	srv, st := newServer(t, "")
+	// Seed three targets each with one DICTU Assessment whose worst
+	// dimension is soeverein, afhankelijk, and onbekend respectively.
+	for i, score := range []models.Score{models.ScoreSoeverein, models.ScoreAfhankelijk, models.ScoreOnbekend} {
+		domain := []string{"a.example", "b.example", "c.example"}[i]
+		tgt := &models.Target{Domain: domain}
+		if err := st.UpsertTarget(context.Background(), tgt); err != nil {
+			t.Fatal(err)
+		}
+		sc, err := st.CreateScan(context.Background(), tgt.ID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		comp := models.CompletenessComplete
+		if score == models.ScoreOnbekend {
+			comp = models.CompletenessIncomplete
+		}
+		a := &models.Assessment{
+			ScanID:    sc.ID,
+			Framework: "dictu",
+			Dimensions: []models.DimensionScore{{
+				Dimension:    models.DimensionJuridisch,
+				Score:        score,
+				Completeness: comp,
+				Rationale: []models.Rationale{{
+					CriteriumID: "dictu.juridisch.cert_issuer_eea",
+					Verdict:     "test",
+					Score:       score,
+				}},
+			}},
+		}
+		if err := st.CreateAssessment(context.Background(), a); err != nil {
+			t.Fatal(err)
+		}
+	}
+	resp, err := http.Get(srv.URL + "/ui/")
+	if err != nil {
+		t.Fatalf("get: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != 200 {
+		t.Fatalf("status = %d", resp.StatusCode)
+	}
+	body, _ := io.ReadAll(resp.Body)
+	bodyStr := string(body)
+	for _, want := range []string{
+		"Posture summary",
+		"1 soeverein",
+		"1 afhankelijk",
+		"1 onbekend",
+	} {
+		if !strings.Contains(bodyStr, want) {
+			t.Errorf("dashboard missing %q; body:\n%s", want, bodyStr)
+		}
+	}
+}
+
+func TestDashboard_TopConcerns_TargetCounted(t *testing.T) {
+	srv, st := newServer(t, "")
+	// Five distinct targets each scoring afhankelijk on the same rule.
+	for i := 0; i < 5; i++ {
+		domain := []string{"t1.example", "t2.example", "t3.example", "t4.example", "t5.example"}[i]
+		tgt := &models.Target{Domain: domain}
+		if err := st.UpsertTarget(context.Background(), tgt); err != nil {
+			t.Fatal(err)
+		}
+		sc, err := st.CreateScan(context.Background(), tgt.ID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		a := &models.Assessment{
+			ScanID:    sc.ID,
+			Framework: "dictu",
+			Dimensions: []models.DimensionScore{{
+				Dimension:    models.DimensionJuridisch,
+				Score:        models.ScoreAfhankelijk,
+				Completeness: models.CompletenessComplete,
+				Rationale: []models.Rationale{{
+					CriteriumID: "dictu.juridisch.cert_issuer_eea",
+					Verdict:     "afhankelijk",
+					Score:       models.ScoreAfhankelijk,
+				}},
+			}},
+		}
+		if err := st.CreateAssessment(context.Background(), a); err != nil {
+			t.Fatal(err)
+		}
+	}
+	resp, err := http.Get(srv.URL + "/ui/")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	body, _ := io.ReadAll(resp.Body)
+	bodyStr := string(body)
+	if !strings.Contains(bodyStr, "dictu.juridisch.cert_issuer_eea") {
+		t.Errorf("expected concern row with rule ID; body:\n%s", bodyStr)
+	}
+	// The badge contains the count "5" inside score-afhankelijk.
+	if !strings.Contains(bodyStr, "score-afhankelijk\">5</span>") {
+		t.Errorf("expected target count 5; body:\n%s", bodyStr)
+	}
+}
+
+func TestDashboard_RecentActivity(t *testing.T) {
+	srv, st := newServer(t, "")
+	// Seven scans across three targets — newest five should appear.
+	for i := 0; i < 7; i++ {
+		domain := []string{"t1.example", "t2.example", "t3.example"}[i%3]
+		tgt := &models.Target{Domain: domain}
+		_ = st.UpsertTarget(context.Background(), tgt)
+		_, err := st.CreateScan(context.Background(), tgt.ID)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	resp, err := http.Get(srv.URL + "/ui/")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	body, _ := io.ReadAll(resp.Body)
+	if !strings.Contains(string(body), "Recent activity") {
+		t.Errorf("expected Recent activity section")
+	}
+	// Count rows in the activity table — should be exactly 5
+	// findings/assessment links rendered.
+	rowCount := strings.Count(string(body), `href="/ui/scans/`)
+	// The dashboard's recent-activity links + concerns row
+	// (none here) + posture (none here) — all "/ui/scans/" links.
+	// Five scans → five anchors.
+	if rowCount != 5 {
+		t.Errorf("expected 5 scan links in activity, got %d", rowCount)
 	}
 }
 
