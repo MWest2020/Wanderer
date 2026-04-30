@@ -9,6 +9,44 @@ once a first release is cut. Until then every entry lives under
 
 ## [Unreleased]
 
+### Changed (breaking)
+
+- The first-party rule pack — formerly named **`dictu`** after the
+  Dutch government's *Dienst ICT Uitvoering* — has been renamed to
+  **`wand`** (Wanderer-NL) per
+  [ADR-0011](docs/decisions/0011-rename-dictu-to-wand.md). DICTU's
+  publicly-available *Toetsingsinstrument Soevereiniteit
+  Clouddiensten* remains credited as the inspiration; the rule
+  pack's identity is Conduction's. Affects: the Go package
+  (`internal/assessor/dictu/` → `internal/assessor/wand/`), every
+  rule ID (`dictu.<dim>.<short>` → `wand.<dim>.<short>`), the
+  persisted `Assessment.Framework` value (`"dictu"` →
+  `"wand"`), the CLI flag default (`--framework wand` is the new
+  canonical), and every documentation surface. Schema migration
+  v4 rewrites existing assessment rows on first `store.Open` —
+  both the framework column and the JSON-encoded `criterium_id`
+  strings inside the dimensions blob, in one transaction.
+  External consumers reading the JSON API or the SQLite
+  assessments table will see `framework: "wand"` after this
+  change; integration code that pinned `"dictu"` needs updating.
+
+### Added
+
+- `--framework dictu` continues to work as a deprecated alias for
+  `--framework wand` for one release. Operators using the alias
+  see one stderr line at startup pointing at the canonical name
+  and the docs that explain the rename. The alias goes away in
+  the next release.
+- `internal/ui/registry.go::lookupRule` accepts both `wand` and
+  `dictu` as the framework key for one release so any DB row that
+  bypassed the migration still renders against the live rule
+  registry. Removed in the next release.
+- ADR-0011 documents the legal motivation for the rename;
+  ADR-0009 (dual-framework assessor) and ADR-0004 (assessor rule
+  engine) gain rename addenda pointing at ADR-0011 so the
+  package layout described in the older ADRs stays
+  cross-referenceable.
+
 ### Added
 
 - Operator UI Dashboard page (closes the DAR triad with the

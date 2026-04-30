@@ -1,4 +1,4 @@
-package dictu_test
+package wand_test
 
 // Integration test: pin the contract between probe IDs and assessor IDs.
 // Bug 1 of the 2026-04-27 audit was a casing mismatch (rule looked for
@@ -13,7 +13,7 @@ import (
 	"testing"
 
 	"github.com/MWest2020/wanderer/internal/assessor"
-	"github.com/MWest2020/wanderer/internal/assessor/dictu"
+	"github.com/MWest2020/wanderer/internal/assessor/wand"
 	"github.com/MWest2020/wanderer/internal/probe"
 	dnsprobe "github.com/MWest2020/wanderer/internal/probe/dns"
 	"github.com/MWest2020/wanderer/pkg/models"
@@ -101,8 +101,8 @@ func TestDNSProbeFeedsApexIPEEARule(t *testing.T) {
 	all := append([]models.Finding{}, dnsFindings...)
 	all = append(all, asnFinding("example.nl", "NL", "TransIP B.V."))
 
-	scores := assessor.Assess(all, dictu.DefaultRules())
-	rat, ok := rationaleByID(scores, "dictu.juridisch.apex_ip_eea")
+	scores := assessor.Assess(all, wand.DefaultRules())
+	rat, ok := rationaleByID(scores, "wand.juridisch.apex_ip_eea")
 	if !ok {
 		t.Fatal("apex_ip_eea rationale missing from assessment")
 	}
@@ -132,8 +132,8 @@ func TestDNSProbeFeedsMXVendorJurisdictionRule(t *testing.T) {
 	// expansion feeds the IP probe.
 	all = append(all, asnFinding("mail.protection.outlook.com", "IE", "Microsoft Ireland"))
 
-	scores := assessor.Assess(all, dictu.DefaultRules())
-	rat, ok := rationaleByID(scores, "dictu.juridisch.mx_vendor_jurisdiction")
+	scores := assessor.Assess(all, wand.DefaultRules())
+	rat, ok := rationaleByID(scores, "wand.juridisch.mx_vendor_jurisdiction")
 	if !ok {
 		t.Fatal("mx_vendor_jurisdiction rationale missing")
 	}
@@ -152,8 +152,8 @@ func TestThirdPartiesEEARuleContract(t *testing.T) {
 		httpThirdParty("cdn.example.eu"),
 		asnFinding("cdn.example.eu", "DE", "Hetzner Online GmbH"),
 	}
-	scores := assessor.Assess(all, dictu.DefaultRules())
-	rat, ok := rationaleByID(scores, "dictu.technologie.third_parties_eea")
+	scores := assessor.Assess(all, wand.DefaultRules())
+	rat, ok := rationaleByID(scores, "wand.technologie.third_parties_eea")
 	if !ok {
 		t.Fatal("third_parties_eea rationale missing")
 	}

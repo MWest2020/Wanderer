@@ -8,10 +8,10 @@ package assessor
 import "github.com/MWest2020/wanderer/pkg/models"
 
 // Rule is a single DICTU / SEAL criterium expressed as a Go function.
-// Rules live in their own sub-package (e.g. internal/assessor/dictu)
+// Rules live in their own sub-package (e.g. internal/assessor/wand)
 // and are passed into Assess as a slice.
 type Rule struct {
-	// ID is the stable identifier, e.g. "dictu.juridisch.cert_issuer_eu".
+	// ID is the stable identifier, e.g. "wand.juridisch.cert_issuer_eu".
 	// It is recorded on every emitted models.Rationale as
 	// Rationale.CriteriumID so a reader can trace a verdict back to
 	// the rule that produced it.

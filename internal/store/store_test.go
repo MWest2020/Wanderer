@@ -2,6 +2,7 @@ package store_test
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	"github.com/MWest2020/wanderer/internal/store"
@@ -144,6 +145,79 @@ func TestUpsertTarget_HostKindRoundTrip(t *testing.T) {
 	}
 	if again.ID != tgt.ID {
 		t.Errorf("expected same row, got %s vs %s", again.ID, tgt.ID)
+	}
+}
+
+// TestMigration_RenameDictuToWand pins the SQL semantics of
+// migration version 4 (ADR-0011): a row with framework='dictu' and
+// a dictu-prefixed criterium_id JSON value is rewritten to
+// framework='wand' with wand-prefixed criterium_id; a row already
+// at wand is left untouched.
+func TestMigration_RenameDictuToWand(t *testing.T) {
+	ctx := context.Background()
+	s := openTestStore(t)
+
+	// Need a target + scan first because of the FK on assessments.scan_id.
+	tgt := &models.Target{Domain: "example.nl"}
+	if err := s.UpsertTarget(ctx, tgt); err != nil {
+		t.Fatalf("upsert target: %v", err)
+	}
+	sc, err := s.CreateScan(ctx, tgt.ID)
+	if err != nil {
+		t.Fatalf("create scan: %v", err)
+	}
+
+	// Insert a pre-migration row directly via SQL — bypass
+	// CreateAssessment so the row carries the legacy 'dictu'
+	// framework and a 'dictu.juridisch.cert_issuer_eea' criterium
+	// ID inside the JSON-encoded dimensions blob.
+	preDimensions := `[{"dimension":"juridisch","score":"afhankelijk","completeness":"complete","rationale":[{"criterium_id":"dictu.juridisch.cert_issuer_eea","verdict":"cert in US","score":"afhankelijk","evidence":["f_1"]}]}]`
+	if _, err := s.DB().ExecContext(ctx,
+		`INSERT INTO assessments (id, scan_id, framework, dimensions, report, created_at) VALUES (?,?,?,?,?,?)`,
+		"a_legacy", sc.ID, "dictu", preDimensions, "", "2026-04-29T00:00:00Z",
+	); err != nil {
+		t.Fatalf("insert legacy row: %v", err)
+	}
+
+	// Apply the migration SQL directly. (The runner already executed
+	// it at Open() but the table was empty then; we want to prove
+	// the SQL itself rewrites a legacy row.)
+	migrationSQL := `UPDATE assessments
+	  SET framework  = 'wand',
+	      dimensions = REPLACE(dimensions, '"dictu.', '"wand.')
+	  WHERE framework = 'dictu'`
+	if _, err := s.DB().ExecContext(ctx, migrationSQL); err != nil {
+		t.Fatalf("apply migration: %v", err)
+	}
+
+	// Verify the row was rewritten.
+	row := s.DB().QueryRowContext(ctx,
+		`SELECT framework, dimensions FROM assessments WHERE id = ?`, "a_legacy")
+	var framework, dimensions string
+	if err := row.Scan(&framework, &dimensions); err != nil {
+		t.Fatalf("select: %v", err)
+	}
+	if framework != "wand" {
+		t.Errorf("framework = %q, want wand", framework)
+	}
+	if !strings.Contains(dimensions, `"wand.juridisch.cert_issuer_eea"`) {
+		t.Errorf("criterium_id not rewritten; dimensions = %s", dimensions)
+	}
+	if strings.Contains(dimensions, `"dictu.juridisch.cert_issuer_eea"`) {
+		t.Errorf("legacy dictu criterium_id still present; dimensions = %s", dimensions)
+	}
+
+	// Re-running the SQL must not touch already-migrated rows.
+	if _, err := s.DB().ExecContext(ctx, migrationSQL); err != nil {
+		t.Fatalf("re-apply migration: %v", err)
+	}
+	row = s.DB().QueryRowContext(ctx,
+		`SELECT framework FROM assessments WHERE id = ?`, "a_legacy")
+	if err := row.Scan(&framework); err != nil {
+		t.Fatalf("re-select: %v", err)
+	}
+	if framework != "wand" {
+		t.Errorf("after re-apply: framework = %q, want wand (idempotent)", framework)
 	}
 }
 

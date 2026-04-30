@@ -9,7 +9,9 @@ each block of the output means. Budget: about 20 minutes.
 You are probably one of:
 
 - a **compliance or information-security analyst** at a public-sector
-  organisation, asked to produce evidence for a DICTU toets,
+  organisation, asked to produce sovereignty-posture evidence (the
+  Dutch *Toetsingsinstrument Soevereiniteit Clouddiensten* is one
+  example of the kind of artefact this evidence supports),
 - a **platform operator** wanting to see what your org's public-facing
   systems look like from the outside,
 - a **developer** extending Wanderer with a new probe or integrating it
@@ -109,7 +111,7 @@ Each finding has:
   [`docs/findings.md`](findings.md) for the full catalogue.
 - **Subject** — what the finding is about. Usually the domain; for
   `http.third_party` findings it is the external host.
-- **Dimension hint** (optional) — which DICTU dimension this fact
+- **Dimension hint** (optional) — which sovereignty dimension this fact
   informs: `juridisch`, `technologie`, `data_ai`, `operationeel`,
   `mens`.
 - **Attributes** — probe-specific structured data indented below.
@@ -201,11 +203,13 @@ workflow:
 
 1. Run scans across your full domain portfolio, one at a time.
 2. Export findings (the SQLite file, or the API) into whatever tool
-   you use for DICTU toetsing.
+   you use for sovereignty toetsing.
 3. Use the catalogue in [`docs/findings.md`](findings.md) as the
    mapping key: each ProbeID already carries a `DimensionHint` for
-   the DICTU dimension it informs.
-4. When the assessor change lands, Wanderer will do step 2–3 for you.
+   the sovereignty dimension it informs.
+4. The wand and SEAL assessor packs already do steps 2–3 for you;
+   `wanderer assess <scan-id> --framework both` produces an
+   audit-ready Markdown / JSON report.
 
 ## Where to go next
 

@@ -98,6 +98,27 @@ ALTER TABLE findings ADD COLUMN source_modus TEXT NOT NULL DEFAULT 'perimeter';
 ALTER TABLE targets ADD COLUMN kind TEXT NOT NULL DEFAULT 'domain';
 `,
 	},
+	{
+		Version: 4,
+		Name:    "rename_dictu_framework_to_wand",
+		Up: `-- ADR-0011: the first-party rule pack is renamed from 'dictu'
+-- (which is the name of a Dutch government agency Conduction has
+-- no affiliation with) to 'wand' (Wanderer-NL). Existing rows are
+-- migrated in place: the framework column is updated and every
+-- JSON-encoded criterium_id string starting with "dictu. is
+-- rewritten to start with "wand. so the rule registry can resolve
+-- the persisted IDs against the renamed package.
+--
+-- The substring '"dictu.' (with leading double-quote and trailing
+-- dot) only appears as the prefix of a JSON-encoded criterium_id
+-- value; no other field in the dimensions blob carries that
+-- exact substring, so the byte-level REPLACE is safe.
+UPDATE assessments
+SET framework  = 'wand',
+    dimensions = REPLACE(dimensions, '"dictu.', '"wand.')
+WHERE framework = 'dictu';
+`,
+	},
 }
 
 // runMigrations applies every migration whose Version is not already

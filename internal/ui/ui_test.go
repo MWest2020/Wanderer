@@ -115,13 +115,13 @@ func TestDashboard_PostureSummary(t *testing.T) {
 		}
 		a := &models.Assessment{
 			ScanID:    sc.ID,
-			Framework: "dictu",
+			Framework: "wand",
 			Dimensions: []models.DimensionScore{{
 				Dimension:    models.DimensionJuridisch,
 				Score:        score,
 				Completeness: comp,
 				Rationale: []models.Rationale{{
-					CriteriumID: "dictu.juridisch.cert_issuer_eea",
+					CriteriumID: "wand.juridisch.cert_issuer_eea",
 					Verdict:     "test",
 					Score:       score,
 				}},
@@ -168,13 +168,13 @@ func TestDashboard_TopConcerns_TargetCounted(t *testing.T) {
 		}
 		a := &models.Assessment{
 			ScanID:    sc.ID,
-			Framework: "dictu",
+			Framework: "wand",
 			Dimensions: []models.DimensionScore{{
 				Dimension:    models.DimensionJuridisch,
 				Score:        models.ScoreAfhankelijk,
 				Completeness: models.CompletenessComplete,
 				Rationale: []models.Rationale{{
-					CriteriumID: "dictu.juridisch.cert_issuer_eea",
+					CriteriumID: "wand.juridisch.cert_issuer_eea",
 					Verdict:     "afhankelijk",
 					Score:       models.ScoreAfhankelijk,
 				}},
@@ -191,7 +191,7 @@ func TestDashboard_TopConcerns_TargetCounted(t *testing.T) {
 	defer resp.Body.Close()
 	body, _ := io.ReadAll(resp.Body)
 	bodyStr := string(body)
-	if !strings.Contains(bodyStr, "dictu.juridisch.cert_issuer_eea") {
+	if !strings.Contains(bodyStr, "wand.juridisch.cert_issuer_eea") {
 		t.Errorf("expected concern row with rule ID; body:\n%s", bodyStr)
 	}
 	// The badge contains the count "5" inside score-afhankelijk.
@@ -267,14 +267,14 @@ func TestScanPage_NotFound(t *testing.T) {
 func seedAssessment(t *testing.T, st *store.Store, scanID string, frameworks ...string) {
 	t.Helper()
 	if len(frameworks) == 0 {
-		frameworks = []string{"dictu"}
+		frameworks = []string{"wand"}
 	}
 	for _, fw := range frameworks {
 		var rationale models.Rationale
 		switch fw {
-		case "dictu":
+		case "wand":
 			rationale = models.Rationale{
-				CriteriumID: "dictu.juridisch.cert_issuer_eea",
+				CriteriumID: "wand.juridisch.cert_issuer_eea",
 				Verdict:     "cert issued in NL (EEA)",
 				Score:       models.ScoreSoeverein,
 				Evidence:    []string{"f_test"},
@@ -306,7 +306,7 @@ func seedAssessment(t *testing.T, st *store.Store, scanID string, frameworks ...
 func TestAssessmentPage_RendersDimensionAndRule(t *testing.T) {
 	srv, st := newServer(t, "")
 	_, scanID := seed(t, st)
-	seedAssessment(t, st, scanID, "dictu", "eucsf")
+	seedAssessment(t, st, scanID, "wand", "eucsf")
 	resp, err := http.Get(srv.URL + "/ui/scans/" + scanID + "/assessment")
 	if err != nil {
 		t.Fatalf("get: %v", err)
@@ -319,10 +319,10 @@ func TestAssessmentPage_RendersDimensionAndRule(t *testing.T) {
 	bodyStr := string(body)
 	for _, want := range []string{
 		"Assessment for scan",
-		"dictu",
+		"wand",
 		"eucsf",
 		"juridisch",
-		"dictu.juridisch.cert_issuer_eea",
+		"wand.juridisch.cert_issuer_eea",
 		"eucsf.sov2.cert_issuer_eu",
 		"score-soeverein",
 	} {
@@ -357,13 +357,13 @@ func TestAssessmentPage_RetiredRuleDegrades(t *testing.T) {
 	_, scanID := seed(t, st)
 	a := &models.Assessment{
 		ScanID:    scanID,
-		Framework: "dictu",
+		Framework: "wand",
 		Dimensions: []models.DimensionScore{{
 			Dimension:    models.DimensionJuridisch,
 			Score:        models.ScoreOnbekend,
 			Completeness: models.CompletenessIncomplete,
 			Rationale: []models.Rationale{{
-				CriteriumID: "dictu.juridisch.no_such_rule_anymore",
+				CriteriumID: "wand.juridisch.no_such_rule_anymore",
 				Verdict:     "historical verdict",
 				Score:       models.ScoreOnbekend,
 			}},
@@ -390,7 +390,7 @@ func TestAssessmentPage_RetiredRuleDegrades(t *testing.T) {
 func TestScanPage_LinksToAssessmentWhenAssessed(t *testing.T) {
 	srv, st := newServer(t, "")
 	_, scanID := seed(t, st)
-	seedAssessment(t, st, scanID, "dictu")
+	seedAssessment(t, st, scanID, "wand")
 	resp, err := http.Get(srv.URL + "/ui/scans/" + scanID)
 	if err != nil {
 		t.Fatalf("get: %v", err)

@@ -49,25 +49,25 @@ func TestWorstScore_OnbekendDoesNotDragDown(t *testing.T) {
 func TestPostureCounts_BucketsByFrameworkAndScore(t *testing.T) {
 	snaps := []TargetSnapshot{
 		{TargetID: "t1", Assessments: map[string]models.Assessment{
-			"dictu": {Dimensions: []models.DimensionScore{{Score: models.ScoreSoeverein}}},
+			"wand": {Dimensions: []models.DimensionScore{{Score: models.ScoreSoeverein}}},
 		}},
 		{TargetID: "t2", Assessments: map[string]models.Assessment{
-			"dictu": {Dimensions: []models.DimensionScore{{Score: models.ScoreAfhankelijk}}},
+			"wand": {Dimensions: []models.DimensionScore{{Score: models.ScoreAfhankelijk}}},
 		}},
 		{TargetID: "t3", Assessments: map[string]models.Assessment{
-			"dictu": {Dimensions: []models.DimensionScore{{Score: models.ScoreOnbekend}}},
+			"wand": {Dimensions: []models.DimensionScore{{Score: models.ScoreOnbekend}}},
 			"eucsf": {Dimensions: []models.DimensionScore{{Score: models.ScoreSoeverein}}},
 		}},
 	}
 	got := PostureCounts(snaps)
-	if got["dictu"][models.ScoreSoeverein] != 1 {
-		t.Errorf("dictu soeverein = %d, want 1", got["dictu"][models.ScoreSoeverein])
+	if got["wand"][models.ScoreSoeverein] != 1 {
+		t.Errorf("wand soeverein = %d, want 1", got["wand"][models.ScoreSoeverein])
 	}
-	if got["dictu"][models.ScoreAfhankelijk] != 1 {
-		t.Errorf("dictu afhankelijk = %d, want 1", got["dictu"][models.ScoreAfhankelijk])
+	if got["wand"][models.ScoreAfhankelijk] != 1 {
+		t.Errorf("wand afhankelijk = %d, want 1", got["wand"][models.ScoreAfhankelijk])
 	}
-	if got["dictu"][models.ScoreOnbekend] != 1 {
-		t.Errorf("dictu onbekend = %d, want 1", got["dictu"][models.ScoreOnbekend])
+	if got["wand"][models.ScoreOnbekend] != 1 {
+		t.Errorf("wand onbekend = %d, want 1", got["wand"][models.ScoreOnbekend])
 	}
 	if got["eucsf"][models.ScoreSoeverein] != 1 {
 		t.Errorf("eucsf soeverein = %d, want 1", got["eucsf"][models.ScoreSoeverein])
@@ -79,10 +79,10 @@ func TestTopConcerns_OneRuleManyFindingsCountsTargetOnce(t *testing.T) {
 	// afhankelijk on two rationales. TargetCount must be 1.
 	snaps := []TargetSnapshot{
 		{TargetID: "t1", Assessments: map[string]models.Assessment{
-			"dictu": {Dimensions: []models.DimensionScore{
+			"wand": {Dimensions: []models.DimensionScore{
 				{Rationale: []models.Rationale{
-					{CriteriumID: "dictu.juridisch.cert_issuer_eea", Score: models.ScoreAfhankelijk},
-					{CriteriumID: "dictu.juridisch.cert_issuer_eea", Score: models.ScoreAfhankelijk},
+					{CriteriumID: "wand.juridisch.cert_issuer_eea", Score: models.ScoreAfhankelijk},
+					{CriteriumID: "wand.juridisch.cert_issuer_eea", Score: models.ScoreAfhankelijk},
 				}},
 			}},
 		}},
@@ -102,9 +102,9 @@ func TestTopConcerns_SameRuleManyTargetsCounts(t *testing.T) {
 		return TargetSnapshot{
 			TargetID: id,
 			Assessments: map[string]models.Assessment{
-				"dictu": {Dimensions: []models.DimensionScore{
+				"wand": {Dimensions: []models.DimensionScore{
 					{Rationale: []models.Rationale{
-						{CriteriumID: "dictu.juridisch.cert_issuer_eea", Score: models.ScoreAfhankelijk},
+						{CriteriumID: "wand.juridisch.cert_issuer_eea", Score: models.ScoreAfhankelijk},
 					}},
 				}},
 			},
@@ -123,9 +123,9 @@ func TestTopConcerns_SameRuleManyTargetsCounts(t *testing.T) {
 func TestTopConcerns_LookupAttachesDescription(t *testing.T) {
 	snaps := []TargetSnapshot{
 		{TargetID: "t1", Assessments: map[string]models.Assessment{
-			"dictu": {Dimensions: []models.DimensionScore{
+			"wand": {Dimensions: []models.DimensionScore{
 				{Rationale: []models.Rationale{
-					{CriteriumID: "dictu.juridisch.cert_issuer_eea", Score: models.ScoreAfhankelijk},
+					{CriteriumID: "wand.juridisch.cert_issuer_eea", Score: models.ScoreAfhankelijk},
 				}},
 			}},
 		}},
@@ -145,7 +145,7 @@ func TestTopConcerns_LookupAttachesDescription(t *testing.T) {
 func TestTopConcerns_NonAfhankelijkIgnored(t *testing.T) {
 	snaps := []TargetSnapshot{
 		{TargetID: "t1", Assessments: map[string]models.Assessment{
-			"dictu": {Dimensions: []models.DimensionScore{
+			"wand": {Dimensions: []models.DimensionScore{
 				{Rationale: []models.Rationale{
 					{CriteriumID: "x", Score: models.ScoreSoeverein},
 					{CriteriumID: "y", Score: models.ScoreOnbekend},

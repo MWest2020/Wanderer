@@ -5,9 +5,12 @@
 **Wanderer** is an automated digital sovereignty monitor for public-sector
 organisations. It continuously maps an organisation's actual digital footprint
 — DNS, MX, TLS, IP/ASN, HTTP third parties — and scores those findings against
-the [DICTU Toetsingsinstrument Soevereiniteit Clouddiensten][dictu] so that
-"how sovereign are we?" becomes a question you can answer with evidence instead
-of a form.
+its own **wand** rule pack (Wanderer-NL — inspired by the
+[DICTU Toetsingsinstrument Soevereiniteit Clouddiensten][dictu], independent
+implementation) so that "how sovereign are we?" becomes a question you can
+answer with evidence instead of a form. The DICTU framework is credited as
+the public source of inspiration; Conduction owns and maintains the wand
+implementation. See [ADR-0011](docs/decisions/0011-rename-dictu-to-wand.md).
 
 [dictu]: https://www.dictu.nl/documenten/publicaties/2025/toetsingsinstrument-soevereiniteit-clouddiensten
 
@@ -34,7 +37,7 @@ chains — and walk the graph outward until the picture is complete. Then score.
 
 - An observation engine. Scanners probe public signals (DNS, TLS, HTTP, WHOIS,
   IP/ASN) and record raw findings.
-- An assessor. Findings are mapped to the DICTU dimensions and levels to
+- An assessor. Findings are mapped to the wand dimensions and levels to
   produce an evidence-backed sovereignty profile.
 - A living picture. Scans run on a schedule; the profile changes when reality
   does.
@@ -44,7 +47,8 @@ chains — and walk the graph outward until the picture is complete. Then score.
 - A pentest tool. Wanderer only looks at externally observable signals, it does
   not probe internal systems or attempt exploitation.
 - A replacement for the DICTU toets. The toets asks the policy questions;
-  Wanderer supplies the technical evidence that informs the answers.
+  Wanderer's wand pack supplies the technical evidence that informs the
+  answers.
 - A commercial SaaS replacement for Shodan or SecurityTrails. The intent is
   deployable inside the organisation, auditable, and free of vendor lock-in.
 
@@ -77,8 +81,11 @@ or a read-only HTML UI (`wanderer serve --ui`, htpasswd-protected).
 
 Two assessor packs ship in the same binary:
 
-- **DICTU** — Dutch government sovereignty toets, four levels over
-  five dimensions. See [`docs/assessor.md`](docs/assessor.md).
+- **wand** (Wanderer-NL) — Dutch sovereignty rule pack, four levels
+  over five dimensions, inspired by the DICTU
+  *Toetsingsinstrument Soevereiniteit Clouddiensten*. See
+  [`docs/assessor.md`](docs/assessor.md) and
+  [ADR-0011](docs/decisions/0011-rename-dictu-to-wand.md).
 - **EU CSF / SEAL** — five SEAL levels (SEAL0–SEAL4) over the same
   Findings; selected via `wanderer assess --framework eucsf|both`.
 
@@ -106,7 +113,7 @@ cmd/wanderer/            # CLI + server entry point
 internal/
   scanner/              # Orchestration — takes a target, runs probes
   probe/                # Individual probes (dns, tls, http, ip)
-  assessor/             # Maps findings to DICTU dimensions/levels
+  assessor/             # Maps findings to sovereignty dimensions/levels (wand + SEAL)
   store/                # Persistence (findings, scans, targets)
   api/                  # HTTP API
 pkg/models/             # Shared types, exportable

@@ -2,12 +2,12 @@
 
 Every probe produces `models.Finding` records with a shared shape. This
 document is the catalogue: which ProbeIDs exist, what they mean, which
-attributes they carry, and which DICTU dimension they inform.
+sovereignty dimension they inform.
 
 > **Probe-ID / rule-ID drift is build-breaking.** Each ProbeID listed
 > here is referenced by string from at least one assessor rule
-> (`internal/assessor/dictu`, `internal/assessor/eucsf`). The DICTU
-> integration tests in `internal/assessor/dictu/integration_test.go`
+> (`internal/assessor/wand`, `internal/assessor/eucsf`). The
+> integration tests in `internal/assessor/wand/integration_test.go`
 > drive real probes through real rules; renaming a ProbeID without
 > updating the matching rule fails CI immediately rather than silently
 > returning Onbekend on every real scan. Treat this catalogue as the
@@ -20,8 +20,8 @@ type Finding struct {
     ID            string              // assigned on persist
     ScanID        string              // set by the scanner
     ProbeID       string              // "dns.mx", "tls.issuer", ...
-    DimensionHint DimensionHint       // optional DICTU dimension
-    CriteriumHint string              // optional DICTU criterium ref
+    DimensionHint DimensionHint       // optional sovereignty dimension
+    CriteriumHint string              // optional rule-pack criterium ref
     Subject       string              // the thing being described
     Severity      Severity
     Attributes    map[string]any      // probe-specific structured data
@@ -44,9 +44,12 @@ See `pkg/models/finding.go` for the canonical definition.
 The ladder is deliberately coarse. Fine-grained weighting belongs to
 the assessor, not to the probe.
 
-## DICTU dimension hints
+## Sovereignty dimension hints
 
-| Hint              | DICTU dimension |
+The dimension labels are shared between the wand and SEAL rule
+packs.
+
+| Hint              | Dimension       |
 | ----------------- | --------------- |
 | `juridisch`       | Juridisch       |
 | `technologie`     | Technologie     |
@@ -88,7 +91,7 @@ Assessor rules SHALL skip these rows when deciding whether evidence
 backs a verdict — see `assessor.IsEvidenceLike` in
 `internal/assessor/rule.go`. A rule that aggregates by `ProbeID`
 without filtering through this helper risks scoring positively on
-the absence of real signal (e.g. `dictu.data_ai.mx_present` once
+the absence of real signal (e.g. `wand.data_ai.mx_present` once
 counted lookup-error rows as configured mail exchangers).
 
 ## DNS probe — `internal/probe/dns`
@@ -183,7 +186,7 @@ timeout and walks the returned vCard array per RFC 7483. Stdlib
 | `whois.registrar`  | info     | —           | `name` (registrar organisation)             |
 | `whois.unavailable`| info     | —           | `reason` — emitted on any network error, non-2xx, parse error, or response with no registrant/registrar entities, so the rest of the scan continues |
 
-Consumed by `dictu.juridisch.registrar_jurisdiction`, which maps
+Consumed by `wand.juridisch.registrar_jurisdiction`, which maps
 EEA registrant countries to soeverein, anything outside the EEA to
 afhankelijk, and absence (`whois.unavailable`) to onbekend.
 

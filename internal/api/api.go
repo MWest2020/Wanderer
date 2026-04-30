@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"github.com/MWest2020/wanderer/internal/assessor"
-	"github.com/MWest2020/wanderer/internal/assessor/dictu"
+	"github.com/MWest2020/wanderer/internal/assessor/wand"
 	"github.com/MWest2020/wanderer/internal/metrics"
 	"github.com/MWest2020/wanderer/internal/scanner"
 	"github.com/MWest2020/wanderer/internal/store"
@@ -97,10 +97,10 @@ func RouterWithSecrets(st *store.Store, sc *scanner.Scanner, logger *slog.Logger
 			writeError(w, http.StatusInternalServerError, "store_error", err.Error())
 			return
 		}
-		rules := dictu.DefaultRules()
+		rules := wand.DefaultRules()
 		a := &models.Assessment{
 			ScanID:     scan.ID,
-			Framework:  "dictu",
+			Framework:  "wand",
 			Dimensions: assessor.Assess(scan.Findings, rules),
 		}
 		var buf strBuf

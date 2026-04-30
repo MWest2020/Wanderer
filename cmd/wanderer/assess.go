@@ -5,13 +5,14 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/MWest2020/wanderer/internal/assessor"
-	"github.com/MWest2020/wanderer/internal/assessor/dictu"
+	"github.com/MWest2020/wanderer/internal/assessor/wand"
 	"github.com/MWest2020/wanderer/internal/assessor/eucsf"
 	"github.com/MWest2020/wanderer/internal/store"
 	"github.com/MWest2020/wanderer/pkg/models"
@@ -23,7 +24,7 @@ func runAssess(args []string) int {
 	fs := flag.NewFlagSet("assess", flag.ContinueOnError)
 	dbPath := fs.String("db", envOr("WANDERER_DB", "wanderer.db"), "Path to SQLite database")
 	format := fs.String("format", "text", "Output format: text | markdown | json")
-	framework := fs.String("framework", "dictu", "Rule pack: dictu | eucsf | both")
+	framework := fs.String("framework", "wand", "Rule pack: wand | eucsf | both (dictu is a deprecated alias for wand)")
 	persist := fs.Bool("persist", true, "Persist the Assessment to the store")
 	positional, err := parseFlagsInterspersed(fs, args)
 	if err != nil {
@@ -35,6 +36,7 @@ func runAssess(args []string) int {
 	}
 	scanID := positional[0]
 
+	warnIfDeprecatedFramework(os.Stderr, *framework)
 	frameworks, err := selectedFrameworks(*framework)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "wanderer: %v\n", err)
@@ -107,17 +109,33 @@ func runAssess(args []string) int {
 }
 
 // selectedFrameworks parses the --framework flag value and returns
-// the ordered list of frameworks to assess.
+// the ordered list of frameworks to assess. The "dictu" value is
+// accepted as a deprecated alias for "wand" for one release; the
+// caller is expected to print the deprecation notice via
+// warnIfDeprecatedFramework.
 func selectedFrameworks(flagValue string) ([]models.Framework, error) {
 	switch strings.ToLower(strings.TrimSpace(flagValue)) {
-	case "", "dictu":
-		return []models.Framework{models.FrameworkDICTU}, nil
+	case "", "wand", "dictu":
+		return []models.Framework{models.FrameworkWand}, nil
 	case "eucsf", "seal":
 		return []models.Framework{models.FrameworkEUCSF}, nil
 	case "both":
-		return []models.Framework{models.FrameworkDICTU, models.FrameworkEUCSF}, nil
+		return []models.Framework{models.FrameworkWand, models.FrameworkEUCSF}, nil
 	}
-	return nil, fmt.Errorf("--framework: unknown value %q (want dictu|eucsf|both)", flagValue)
+	return nil, fmt.Errorf("--framework: unknown value %q (want wand|eucsf|both)", flagValue)
+}
+
+// warnIfDeprecatedFramework prints one stderr line when the operator
+// passed the legacy `dictu` alias instead of `wand`. The alias
+// continues to work for one release per ADR-0011; this warning is the
+// rollout signal that the next release will remove it.
+func warnIfDeprecatedFramework(out io.Writer, flagValue string) {
+	if out == nil {
+		out = os.Stderr
+	}
+	if strings.EqualFold(strings.TrimSpace(flagValue), "dictu") {
+		fmt.Fprintln(out, "warning: --framework dictu is deprecated and will be removed in the next release; use --framework wand instead. The DICTU framework is credited as the inspiration in docs/assessor.md.")
+	}
 }
 
 // rulesForFramework dispatches to the right rule pack.
@@ -126,7 +144,7 @@ func rulesForFramework(fw models.Framework) []assessor.Rule {
 	case models.FrameworkEUCSF:
 		return eucsf.DefaultRules()
 	default:
-		return dictu.DefaultRules()
+		return wand.DefaultRules()
 	}
 }
 

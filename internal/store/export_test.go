@@ -166,7 +166,7 @@ func TestListAssessments(t *testing.T) {
 
 	a := &models.Assessment{
 		ScanID:    scanID,
-		Framework: "dictu",
+		Framework: "wand",
 		Dimensions: []models.DimensionScore{
 			{Dimension: models.DimensionJuridisch, Score: models.ScoreVoldoende, Completeness: models.CompletenessComplete},
 		},

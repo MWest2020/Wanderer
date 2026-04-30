@@ -55,3 +55,15 @@ the JSON, not inside the assessor.
   free to evolve its own definition of "worst".
 - A future framework (NIS2, ENISA-specific, sector toetsen) lands as
   a sibling package, not a configuration of an existing one.
+
+## Addendum (2026-04-30) — first-pack rename
+
+The first-party rule pack — originally named `dictu` after DICTU's
+*Toetsingsinstrument Soevereiniteit Clouddiensten*, which it was
+inspired by — was renamed to `wand` (Wanderer-NL) per
+[ADR-0011](0011-rename-dictu-to-wand.md). The architectural
+decision in this ADR (two parallel rule packs sharing the Finding
+contract; per-pack score scale; `Framework` field on every
+persisted Assessment) is unchanged; only the identifier of the
+first pack moved. ADR-0011 documents the legal and reputational
+reasoning.

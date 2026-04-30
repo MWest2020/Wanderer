@@ -39,14 +39,14 @@ func TestCreateAssessment_RoundTrip(t *testing.T) {
 
 	a := &models.Assessment{
 		ScanID:    scanID,
-		Framework: "dictu",
+		Framework: "wand",
 		Dimensions: []models.DimensionScore{
 			{
 				Dimension:    models.DimensionJuridisch,
 				Score:        models.ScoreVoldoende,
 				Completeness: models.CompletenessComplete,
 				Rationale: []models.Rationale{
-					{CriteriumID: "dictu.j.1", Verdict: "ok", Score: models.ScoreVoldoende, Evidence: []string{"f1"}},
+					{CriteriumID: "wand.j.1", Verdict: "ok", Score: models.ScoreVoldoende, Evidence: []string{"f1"}},
 				},
 			},
 		},
@@ -66,7 +66,7 @@ func TestCreateAssessment_RoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatalf("get: %v", err)
 	}
-	if got.ScanID != scanID || got.Framework != "dictu" || len(got.Dimensions) != 1 {
+	if got.ScanID != scanID || got.Framework != "wand" || len(got.Dimensions) != 1 {
 		t.Errorf("round trip lost fields: %+v", got)
 	}
 	if got.Dimensions[0].Rationale[0].Evidence[0] != "f1" {
@@ -85,7 +85,7 @@ func TestListAssessmentsForScan(t *testing.T) {
 	mk := func(when time.Time) *models.Assessment {
 		return &models.Assessment{
 			ScanID:    scanID,
-			Framework: "dictu",
+			Framework: "wand",
 			CreatedAt: when,
 			Dimensions: []models.DimensionScore{
 				{Dimension: models.DimensionJuridisch, Score: models.ScoreVoldoende, Completeness: models.CompletenessComplete},

@@ -2,7 +2,7 @@
 
 This document describes how to run Wanderer, interpret its output, and
 operate the single-tenant HTTP API. It covers the MVP only —
-scheduling, authentication, and the DICTU assessor ship as separate
+scheduling, authentication, and the wand assessor ship as separate
 changes.
 
 ## Install
@@ -23,7 +23,7 @@ go run ./cmd/wanderer scan example.nl
 ## GeoLite2 setup
 
 The IP probe resolves observed IPs to ASN + country via MaxMind's
-GeoLite2 database. This is the input that unblocks the DICTU
+GeoLite2 database. This is the input that unblocks the wand
 **technologie** dimension and most of the **juridisch** dimension —
 without it, every rule that depends on `ip.asn` returns `onbekend`,
 and an operator looking at the assessment sees a half-blank picture.
@@ -210,7 +210,7 @@ Every finding carries:
 - `ProbeID` — stable identifier, e.g. `tls.issuer`, `http.third_party`.
 - `Severity` — `info`, `observation`, `concern`, `finding`. This is
   deliberately coarse; precise scoring is the assessor's job.
-- `DimensionHint` — which DICTU dimension the finding informs, if any.
+- `DimensionHint` — which sovereignty dimension the finding informs, if any.
 - `Subject` — the thing being described (a domain, a host, an IP).
 - `Attributes` — probe-specific structured data.
 - `Evidence` — raw source material (certificate PEM, verbatim DNS

@@ -4,7 +4,7 @@
 // into DefaultRules. Rules that need data a current probe does not
 // produce return RuleResult{} (no evidence) so the assessor can report
 // them as Incomplete rather than absent.
-package dictu
+package wand
 
 import (
 	"fmt"
@@ -60,7 +60,7 @@ func DefaultRules() []assessor.Rule {
 // soeverein; outside-EEA scores afhankelijk.
 func registrarJurisdiction() assessor.Rule {
 	return assessor.Rule{
-		ID:          "dictu.juridisch.registrar_jurisdiction",
+		ID:          "wand.juridisch.registrar_jurisdiction",
 		Dimension:   models.DimensionJuridisch,
 		Description: "Domain registrant registered in an EEA jurisdiction.",
 		Rationale: "The party legally registered as the domain holder is the entity " +
@@ -102,7 +102,7 @@ func registrarJurisdiction() assessor.Rule {
 
 func certIssuerEEA() assessor.Rule {
 	return assessor.Rule{
-		ID:          "dictu.juridisch.cert_issuer_eea",
+		ID:          "wand.juridisch.cert_issuer_eea",
 		Dimension:   models.DimensionJuridisch,
 		Description: "TLS certificate issued by an authority in the EEA.",
 		Rationale: "Certificate Authorities can revoke or refuse to renew certificates. " +
@@ -153,7 +153,7 @@ func certIssuerEEA() assessor.Rule {
 
 func apexIPInEEA() assessor.Rule {
 	return assessor.Rule{
-		ID:          "dictu.juridisch.apex_ip_eea",
+		ID:          "wand.juridisch.apex_ip_eea",
 		Dimension:   models.DimensionJuridisch,
 		Description: "Apex IP addresses resolve to AS registered in the EEA.",
 		Rationale: "The IP address that serves the apex domain belongs to an Autonomous " +
@@ -223,7 +223,7 @@ func apexIPInEEA() assessor.Rule {
 
 func mxVendorJurisdiction() assessor.Rule {
 	return assessor.Rule{
-		ID:          "dictu.juridisch.mx_vendor_jurisdiction",
+		ID:          "wand.juridisch.mx_vendor_jurisdiction",
 		Dimension:   models.DimensionJuridisch,
 		Description: "MX hosts resolve to AS registered in the EEA.",
 		Rationale: "Email is the most common channel for sensitive correspondence. " +
@@ -304,7 +304,7 @@ func mxVendorJurisdiction() assessor.Rule {
 
 func certValidity() assessor.Rule {
 	return assessor.Rule{
-		ID:          "dictu.operationeel.cert_validity",
+		ID:          "wand.operationeel.cert_validity",
 		Dimension:   models.DimensionOperationeel,
 		Description: "TLS certificate is valid and not expiring within 30 days.",
 		Rationale: "An expired or imminently-expiring TLS certificate is the single most " +
@@ -352,7 +352,7 @@ func certValidity() assessor.Rule {
 
 func dnsRedundancy() assessor.Rule {
 	return assessor.Rule{
-		ID:          "dictu.operationeel.dns_redundancy",
+		ID:          "wand.operationeel.dns_redundancy",
 		Dimension:   models.DimensionOperationeel,
 		Description: "At least two authoritative nameservers are delegated.",
 		Rationale: "A single authoritative nameserver is a single point of failure for " +
@@ -395,7 +395,7 @@ func dnsRedundancy() assessor.Rule {
 
 func caaRestricts() assessor.Rule {
 	return assessor.Rule{
-		ID:          "dictu.operationeel.caa_restricts_issuance",
+		ID:          "wand.operationeel.caa_restricts_issuance",
 		Dimension:   models.DimensionOperationeel,
 		Description: "CAA records restrict which CAs may issue certificates.",
 		Rationale: "A `CAA` DNS record names the Certificate Authorities allowed to " +
@@ -447,7 +447,7 @@ func caaRestricts() assessor.Rule {
 
 func thirdPartiesEEA() assessor.Rule {
 	return assessor.Rule{
-		ID:          "dictu.technologie.third_parties_eea",
+		ID:          "wand.technologie.third_parties_eea",
 		Dimension:   models.DimensionTechnologie,
 		Description: "HTTP third-party dependencies resolve to AS registered in the EEA.",
 		Rationale: "Modern web pages load fonts, analytics, scripts, and assets from " +
@@ -519,7 +519,7 @@ func thirdPartiesEEA() assessor.Rule {
 
 func noUSHyperscaler() assessor.Rule {
 	return assessor.Rule{
-		ID:          "dictu.technologie.no_us_hyperscaler",
+		ID:          "wand.technologie.no_us_hyperscaler",
 		Dimension:   models.DimensionTechnologie,
 		Description: "Apex and third-party hosts are not routed via known US hyperscalers.",
 		Rationale: "AWS, Google, Microsoft, Cloudflare, Akamai, and Fastly are US-" +
@@ -577,7 +577,7 @@ func noUSHyperscaler() assessor.Rule {
 
 func mxPresent() assessor.Rule {
 	return assessor.Rule{
-		ID:          "dictu.data_ai.mx_present",
+		ID:          "wand.data_ai.mx_present",
 		Dimension:   models.DimensionDataAI,
 		Description: "Domain has configured mail exchangers (routing is knowable).",
 		Rationale: "A domain without `MX` records cannot route inbound mail. For an " +
@@ -614,7 +614,7 @@ func mxPresent() assessor.Rule {
 
 func oidcFederation() assessor.Rule {
 	return assessor.Rule{
-		ID:          "dictu.data_ai.oidc_federation",
+		ID:          "wand.data_ai.oidc_federation",
 		Dimension:   models.DimensionDataAI,
 		Description: "Identity federation endpoints are sovereign. Requires the egress probe (not yet landed).",
 		Rationale: "OpenID Connect (OIDC) federation lets users sign in with credentials " +

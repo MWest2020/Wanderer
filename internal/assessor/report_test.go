@@ -14,7 +14,7 @@ func fixtureAssessment() *models.Assessment {
 	return &models.Assessment{
 		ID:        "a_1",
 		ScanID:    "s_1",
-		Framework: "dictu",
+		Framework: "wand",
 		CreatedAt: time.Date(2026, 4, 24, 12, 0, 0, 0, time.UTC),
 		Dimensions: []models.DimensionScore{
 			{
@@ -22,7 +22,7 @@ func fixtureAssessment() *models.Assessment {
 				Score:        models.ScoreAfhankelijk,
 				Completeness: models.CompletenessComplete,
 				Rationale: []models.Rationale{
-					{CriteriumID: "dictu.juridisch.cert_issuer_eea", Verdict: "cert issued in US (outside EEA)", Score: models.ScoreAfhankelijk, Evidence: []string{"f_1"}},
+					{CriteriumID: "wand.juridisch.cert_issuer_eea", Verdict: "cert issued in US (outside EEA)", Score: models.ScoreAfhankelijk, Evidence: []string{"f_1"}},
 				},
 			},
 			{
@@ -30,7 +30,7 @@ func fixtureAssessment() *models.Assessment {
 				Score:        models.ScoreOnbekend,
 				Completeness: models.CompletenessPartial,
 				Rationale: []models.Rationale{
-					{CriteriumID: "dictu.technologie.third_parties_eea", Verdict: "no http.third_party finding", Score: models.ScoreOnbekend, Evidence: []string{}},
+					{CriteriumID: "wand.technologie.third_parties_eea", Verdict: "no http.third_party finding", Score: models.ScoreOnbekend, Evidence: []string{}},
 				},
 			},
 			{
@@ -44,7 +44,7 @@ func fixtureAssessment() *models.Assessment {
 				Score:        models.ScoreSoeverein,
 				Completeness: models.CompletenessComplete,
 				Rationale: []models.Rationale{
-					{CriteriumID: "dictu.operationeel.cert_validity", Verdict: "certificate valid, 83 days remaining", Score: models.ScoreSoeverein, Evidence: []string{"f_2"}},
+					{CriteriumID: "wand.operationeel.cert_validity", Verdict: "certificate valid, 83 days remaining", Score: models.ScoreSoeverein, Evidence: []string{"f_2"}},
 				},
 			},
 			{
@@ -59,9 +59,9 @@ func fixtureAssessment() *models.Assessment {
 
 func fixtureRules() Rules {
 	return Rules{
-		{ID: "dictu.juridisch.cert_issuer_eea", Description: "TLS certificate issued by an authority in the EEA."},
-		{ID: "dictu.technologie.third_parties_eea", Description: "HTTP third-party dependencies resolve to AS in the EEA."},
-		{ID: "dictu.operationeel.cert_validity", Description: "TLS certificate is valid and not expiring within 30 days."},
+		{ID: "wand.juridisch.cert_issuer_eea", Description: "TLS certificate issued by an authority in the EEA."},
+		{ID: "wand.technologie.third_parties_eea", Description: "HTTP third-party dependencies resolve to AS in the EEA."},
+		{ID: "wand.operationeel.cert_validity", Description: "TLS certificate is valid and not expiring within 30 days."},
 	}
 }
 
@@ -79,7 +79,7 @@ func TestRenderMarkdown_GoldenShape(t *testing.T) {
 	mustContain := []string{
 		"# Wanderer Assessment — example.nl",
 		"Scan: s_1",
-		"Framework: dictu",
+		"Framework: wand",
 		"## Samenvatting",
 		"| juridisch | afhankelijk | complete |",
 		"| technologie | onbekend | partial |",
@@ -87,7 +87,7 @@ func TestRenderMarkdown_GoldenShape(t *testing.T) {
 		"| operationeel | soeverein | complete |",
 		"| mens | onbekend | n/a |",
 		"## juridisch — afhankelijk (complete)",
-		"### dictu.juridisch.cert_issuer_eea — afhankelijk",
+		"### wand.juridisch.cert_issuer_eea — afhankelijk",
 		"Verdict: cert issued in US (outside EEA)",
 		"Evidence: f_1",
 		"## data_ai — onbekend (n/a)",

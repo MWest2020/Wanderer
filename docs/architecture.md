@@ -35,7 +35,7 @@ flowchart LR
     Scanner --> Store[(SQLite store)]
     InvDispatch --> Store
     EgressProbe --> Store
-    Store --> Assessor[assessor: dictu + eucsf]
+    Store --> Assessor[assessor: wand + eucsf]
     Store --> Drift[drift engine]
     Store --> Export[export: csv / jsonl]
     Store --> MCP[mcp server]
@@ -97,19 +97,21 @@ These layers read from the store; none of them probe.
 
 | Component             | Path                                  | Reference                                    |
 | --------------------- | ------------------------------------- | -------------------------------------------- |
-| Assessor (DICTU + SEAL) | `internal/assessor/{,dictu,eucsf}`     | [`docs/assessor.md`](assessor.md)            |
+| Assessor (wand + SEAL) | `internal/assessor/{,wand,eucsf}`      | [`docs/assessor.md`](assessor.md)            |
 | Drift engine          | `internal/drift`                      | [`docs/drift.md`](drift.md)                  |
 | Exporters (CSV / JSONL) | `internal/export`                     | [`docs/exporters.md`](exporters.md)          |
 | MCP server            | `internal/mcp`                        | [`docs/mcp.md`](mcp.md)                      |
 | Scheduler (cron)      | `internal/scheduler`                  | [`docs/scheduling.md`](scheduling.md)        |
 | Read-only UI          | `internal/ui`                         | [`docs/operator.md`](operator.md)            |
 
-The assessor ships two rule packs side-by-side. **DICTU** maps
-Findings into five dimensions (`juridisch`, `operationeel`,
-`technologie`, `data_ai`, `mens`) and four levels (`onbekend` →
-`afhankelijk` → `gedeeld` → `soeverein`). **EU CSF (SEAL)** uses
-five SEAL levels (SEAL0–SEAL4) over the same Findings. `wanderer
-assess --framework dictu|eucsf|both` selects which pack(s) run;
+The assessor ships two rule packs side-by-side. **wand**
+(Wanderer-NL — inspired by DICTU's *Toetsingsinstrument
+Soevereiniteit Clouddiensten*; see ADR-0011) maps Findings into
+five dimensions (`juridisch`, `operationeel`, `technologie`,
+`data_ai`, `mens`) and four levels (`onbekend` → `afhankelijk`
+→ `voldoende` → `soeverein`). **EU CSF (SEAL)** uses five SEAL
+levels (SEAL0–SEAL4) over the same Findings. `wanderer assess
+--framework wand|eucsf|both` selects which pack(s) run;
 persisted Assessments carry a `Framework` tag.
 
 ## Key design decisions
@@ -240,11 +242,11 @@ read-only GET calls, fixture-driven tests. Copy that shape.
    new vendor (log shipper / webhook host / object-storage prefix)
    is a YAML edit, not a code change.
 
-## How to add a DICTU rule
+## How to add a wand rule
 
 1. Add a function returning `assessor.Rule` in
-   `internal/assessor/dictu/rules.go`, register it in
-   `DefaultRules()`. Rule IDs follow `dictu.<dimension>.<short_name>`.
+   `internal/assessor/wand/rules.go`, register it in
+   `DefaultRules()`. Rule IDs follow `wand.<dimension>.<short_name>`.
 2. The rule's `Match` closure consumes `[]models.Finding` and
    returns a `RuleResult`. Filter by `ProbeID` first; for any
    ProbeID where the probe also emits meta rows, route through
@@ -255,7 +257,7 @@ read-only GET calls, fixture-driven tests. Copy that shape.
    to fake resolvers, so a casing or attribute rename in either
    side breaks the build immediately).
 4. The SEAL pack at `internal/assessor/eucsf/rules.go` mirrors the
-   DICTU shape and should learn the same rule when it makes sense
+   wand shape and should learn the same rule when it makes sense
    for the SEAL framework.
 
 ## External systems and their failure modes
@@ -274,7 +276,7 @@ read-only GET calls, fixture-driven tests. Copy that shape.
 ## Where to look next
 
 - [`docs/findings.md`](findings.md) — every ProbeID and its attributes
-- [`docs/assessor.md`](assessor.md) — DICTU + SEAL rule packs
+- [`docs/assessor.md`](assessor.md) — wand + SEAL rule packs
 - [`docs/agent.md`](agent.md) — agent configuration, trust model,
   outbox spool
 - [`docs/egress.md`](egress.md) — egress sources, classifier vendor

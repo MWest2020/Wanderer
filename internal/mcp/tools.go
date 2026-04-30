@@ -7,7 +7,7 @@ import (
 	"fmt"
 
 	"github.com/MWest2020/wanderer/internal/assessor"
-	"github.com/MWest2020/wanderer/internal/assessor/dictu"
+	"github.com/MWest2020/wanderer/internal/assessor/wand"
 	"github.com/MWest2020/wanderer/internal/scanner"
 	"github.com/MWest2020/wanderer/internal/store"
 	"github.com/MWest2020/wanderer/pkg/models"
@@ -129,10 +129,10 @@ func assessScanTool(d Deps) Tool {
 			if err != nil {
 				return ToolResult{}, err
 			}
-			rules := dictu.DefaultRules()
+			rules := wand.DefaultRules()
 			a := &models.Assessment{
 				ScanID:     scan.ID,
-				Framework:  "dictu",
+				Framework:  "wand",
 				Dimensions: assessor.Assess(scan.Findings, rules),
 			}
 			if err := d.Store.CreateAssessment(ctx, a); err != nil {

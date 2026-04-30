@@ -203,7 +203,7 @@ func TestAssessmentsCSV_OneRowPerDimension(t *testing.T) {
 	scanID := seed(t, st)
 	a := &models.Assessment{
 		ScanID:    scanID,
-		Framework: "dictu",
+		Framework: "wand",
 		Dimensions: []models.DimensionScore{
 			{Dimension: models.DimensionJuridisch, Score: models.ScoreAfhankelijk, Completeness: models.CompletenessComplete},
 			{Dimension: models.DimensionOperationeel, Score: models.ScoreVoldoende, Completeness: models.CompletenessComplete},

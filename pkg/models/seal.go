@@ -51,14 +51,18 @@ func (l SealLevel) ToScore() Score {
 type Framework string
 
 const (
-	FrameworkDICTU Framework = "dictu"
+	// FrameworkWand is Conduction's first-party rule pack, formerly
+	// known as DICTU. The DICTU Toetsingsinstrument Soevereiniteit
+	// Clouddiensten inspired the rule semantics; the implementation
+	// and the `wand` (Wanderer-NL) name are Conduction's. See ADR-0011.
+	FrameworkWand  Framework = "wand"
 	FrameworkEUCSF Framework = "eucsf"
 )
 
 // Valid reports whether f is one of the defined frameworks.
 func (f Framework) Valid() bool {
 	switch f {
-	case FrameworkDICTU, FrameworkEUCSF:
+	case FrameworkWand, FrameworkEUCSF:
 		return true
 	}
 	return false

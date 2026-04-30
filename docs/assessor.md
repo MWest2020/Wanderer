@@ -6,19 +6,33 @@ per-rule rationales that cite the Findings they drew their verdict
 from.
 
 This document covers: running the assessor, reading the output, and
-how to extend the DICTU rule set.
+how to extend the **wand** rule set.
+
+## Inspired by
+
+Wanderer's first-party rule pack is named **wand** (Wanderer-NL).
+Its rule semantics were inspired by the Dutch government's
+publicly available *Toetsingsinstrument Soevereiniteit
+Clouddiensten*, published by **DICTU** (Dienst ICT Uitvoering, EZK).
+The rule authoring, the implementation, and the ongoing
+maintenance are Conduction's; DICTU does not endorse, certify,
+or otherwise sanction Wanderer or the wand pack. See
+[ADR-0011](decisions/0011-rename-dictu-to-wand.md) for the
+rationale behind the rename.
 
 ## Running it
 
 From the CLI:
 
 ```sh
-wanderer assess <scan-id> [--framework dictu|eucsf|both] [--format text|markdown|json] [--db wanderer.db] [--persist=false]
+wanderer assess <scan-id> [--framework wand|eucsf|both] [--format text|markdown|json] [--db wanderer.db] [--persist=false]
 ```
 
-- `--framework` defaults to `dictu`. `eucsf` runs the EU Cybersecurity
+- `--framework` defaults to `wand`. `eucsf` runs the EU Cybersecurity
   Framework / SEAL pack instead; `both` runs both packs and persists
   one Assessment record per framework, tagged on `Assessment.Framework`.
+  `dictu` is accepted as a deprecated alias for `wand` for one
+  release (it prints a stderr deprecation warning).
 - `--format` defaults to `text`. Markdown is the intended operator-
   facing format; JSON is for tooling.
 - `--persist=false` suppresses the side-effect of writing the
@@ -37,7 +51,7 @@ the same scan remain retrievable by their own IDs.
 
 ## Reading a score
 
-Each DICTU dimension receives one of:
+Each wand dimension receives one of:
 
 | Score         | Meaning                                                   |
 | ------------- | --------------------------------------------------------- |
@@ -65,21 +79,22 @@ rule set) is rendered as `n/a` in the summary table.
 
 ## Rule set (MVP)
 
-The DICTU rule set today is deliberately small. Each rule is a Go
-function in `internal/assessor/dictu/rules.go`.
+The wand rule set today is deliberately small. Each rule is a Go
+function in `internal/assessor/wand/rules.go`.
 
-| Rule ID                                      | Dimension    |
-| -------------------------------------------- | ------------ |
-| `dictu.juridisch.cert_issuer_eea`            | juridisch    |
-| `dictu.juridisch.apex_ip_eea`                | juridisch    |
-| `dictu.juridisch.mx_vendor_jurisdiction`     | juridisch    |
-| `dictu.operationeel.cert_validity`           | operationeel |
-| `dictu.operationeel.dns_redundancy`          | operationeel |
-| `dictu.operationeel.caa_restricts_issuance`  | operationeel |
-| `dictu.technologie.third_parties_eea`        | technologie  |
-| `dictu.technologie.no_us_hyperscaler`        | technologie  |
-| `dictu.data_ai.mx_present`                   | data_ai      |
-| `dictu.data_ai.oidc_federation`              | data_ai      |
+| Rule ID                                     | Dimension    |
+| ------------------------------------------- | ------------ |
+| `wand.juridisch.cert_issuer_eea`            | juridisch    |
+| `wand.juridisch.apex_ip_eea`                | juridisch    |
+| `wand.juridisch.mx_vendor_jurisdiction`     | juridisch    |
+| `wand.juridisch.registrar_jurisdiction`     | juridisch    |
+| `wand.operationeel.cert_validity`           | operationeel |
+| `wand.operationeel.dns_redundancy`          | operationeel |
+| `wand.operationeel.caa_restricts_issuance`  | operationeel |
+| `wand.technologie.third_parties_eea`        | technologie  |
+| `wand.technologie.no_us_hyperscaler`        | technologie  |
+| `wand.data_ai.mx_present`                   | data_ai      |
+| `wand.data_ai.oidc_federation`              | data_ai      |
 
 The `oidc_federation` rule always returns no evidence until the
 egress probe lands — it is listed so the reader sees the future
@@ -92,7 +107,7 @@ observes perimeter posture, not human processes.
 ## EU CSF / SEAL framework
 
 `internal/assessor/eucsf` ships the SEAL pack — a five-level
-sovereignty scale (SEAL0–SEAL4) over the same Findings the DICTU pack
+sovereignty scale (SEAL0–SEAL4) over the same Findings the wand pack
 consumes. The two packs share no rule code; `--framework both` runs
 each independently and persists one Assessment per framework.
 
@@ -116,7 +131,7 @@ The MVP rules are intentionally narrow:
 
 The SEAL level for a dimension is the **worst** rule outcome that
 contributed to it; absent evidence collapses to SEAL0 rather than
-silently inflating the score. This mirrors the DICTU "worst wins"
+silently inflating the score. This mirrors the wand "worst wins"
 collapse — a reader who sees SEAL3 knows every rule is at SEAL3 or
 better, not "on average".
 
@@ -126,10 +141,11 @@ to lift a SEAL0 verdict to a real one need to look at the missing
 ProbeID rather than re-running the assessor.
 
 [ADR-0009](decisions/0009-dual-framework-assessor.md) records the
-DICTU/SEAL dual-framework choice; the rationale is that the two
-stakeholder groups (DICTU toets and EU CSF reviewers) ask the same
-evidence questions but want different answer shapes, and we prefer
-to ship the second shape rather than translate at read time.
+wand/SEAL dual-framework choice; the rationale is that the two
+stakeholder groups (Dutch sovereignty reviewers and EU CSF
+reviewers) ask the same evidence questions but want different
+answer shapes, and we prefer to ship the second shape rather than
+translate at read time.
 
 ## Evidence and auditability
 
@@ -150,9 +166,10 @@ rationales, and evidence lists, modulo assessment ID and timestamp.
 
 Rules are Go functions, not a DSL. To add one:
 
-1. Add a function to `internal/assessor/dictu/rules.go` that returns
-   an `assessor.Rule` with a stable `ID` (prefix `dictu.<dimension>.`),
-   a `Dimension`, a one-line `Description`, and a `Match` function.
+1. Add a function to `internal/assessor/wand/rules.go` that returns
+   an `assessor.Rule` with a stable `ID` (prefix `wand.<dimension>.`),
+   a `Dimension`, a one-line `Description`, a `Rationale`, and a
+   `Match` function.
 2. Wire it into `DefaultRules`.
 3. Add a test in `rules_test.go`. The pattern is: fabricate the minimal
    set of Findings the rule needs, call `r.Match`, assert on

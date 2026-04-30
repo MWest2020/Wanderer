@@ -1,6 +1,7 @@
-package dictu
+package wand
 
 import (
+	"strings"
 	"testing"
 	"time"
 
@@ -43,7 +44,7 @@ func dropKey(m map[string]any, key string) map[string]any {
 }
 
 func TestCertIssuerEEA(t *testing.T) {
-	r := ruleByID(t, "dictu.juridisch.cert_issuer_eea")
+	r := ruleByID(t, "wand.juridisch.cert_issuer_eea")
 	cases := []struct {
 		name       string
 		findings   []models.Finding
@@ -95,7 +96,7 @@ func TestCertIssuerEEA(t *testing.T) {
 }
 
 func TestApexIPInEEA(t *testing.T) {
-	r := ruleByID(t, "dictu.juridisch.apex_ip_eea")
+	r := ruleByID(t, "wand.juridisch.apex_ip_eea")
 	got := r.Match([]models.Finding{
 		f("d1", "dns.a", map[string]any{"_subject": "example.nl", "address": "1.2.3.4"}),
 		f("a1", "ip.asn", map[string]any{"_subject": "example.nl", "country": "NL", "organisation": "TransIP"}),
@@ -121,7 +122,7 @@ func TestApexIPInEEA(t *testing.T) {
 }
 
 func TestMXVendorJurisdiction(t *testing.T) {
-	r := ruleByID(t, "dictu.juridisch.mx_vendor_jurisdiction")
+	r := ruleByID(t, "wand.juridisch.mx_vendor_jurisdiction")
 	got := r.Match([]models.Finding{
 		f("m1", "dns.mx", map[string]any{"_subject": "example.nl", "host": "mail.example.nl"}),
 		f("a1", "ip.asn", map[string]any{"_subject": "mail.example.nl", "country": "NL", "organisation": "TransIP"}),
@@ -140,7 +141,7 @@ func TestMXVendorJurisdiction(t *testing.T) {
 }
 
 func TestCertValidity(t *testing.T) {
-	r := ruleByID(t, "dictu.operationeel.cert_validity")
+	r := ruleByID(t, "wand.operationeel.cert_validity")
 	got := r.Match([]models.Finding{
 		f("v1", "tls.validity", map[string]any{"_subject": "example.nl", "days_left": 90, "not_after": time.Now().Add(90 * 24 * time.Hour)}),
 	})
@@ -164,7 +165,7 @@ func TestCertValidity(t *testing.T) {
 }
 
 func TestDNSRedundancy(t *testing.T) {
-	r := ruleByID(t, "dictu.operationeel.dns_redundancy")
+	r := ruleByID(t, "wand.operationeel.dns_redundancy")
 	got := r.Match([]models.Finding{
 		f("n1", "dns.ns", map[string]any{"_subject": "example.nl", "host": "ns1.example.nl"}),
 		f("n2", "dns.ns", map[string]any{"_subject": "example.nl", "host": "ns2.example.nl"}),
@@ -187,7 +188,7 @@ func TestDNSRedundancy(t *testing.T) {
 }
 
 func TestCAARestricts(t *testing.T) {
-	r := ruleByID(t, "dictu.operationeel.caa_restricts_issuance")
+	r := ruleByID(t, "wand.operationeel.caa_restricts_issuance")
 	got := r.Match([]models.Finding{
 		f("c1", "dns.caa", map[string]any{"_subject": "example.nl", "tag": "issue", "value": "letsencrypt.org", "flag": 0}),
 	})
@@ -204,7 +205,7 @@ func TestCAARestricts(t *testing.T) {
 }
 
 func TestThirdPartiesEEA(t *testing.T) {
-	r := ruleByID(t, "dictu.technologie.third_parties_eea")
+	r := ruleByID(t, "wand.technologie.third_parties_eea")
 	got := r.Match([]models.Finding{
 		f("t1", "http.third_party", map[string]any{"_subject": "cdn.example.nl", "source_domain": "example.nl"}),
 		f("a1", "ip.asn", map[string]any{"_subject": "cdn.example.nl", "country": "NL", "organisation": "Leaseweb"}),
@@ -228,7 +229,7 @@ func TestThirdPartiesEEA(t *testing.T) {
 }
 
 func TestNoUSHyperscaler(t *testing.T) {
-	r := ruleByID(t, "dictu.technologie.no_us_hyperscaler")
+	r := ruleByID(t, "wand.technologie.no_us_hyperscaler")
 	got := r.Match([]models.Finding{
 		f("a1", "ip.asn", map[string]any{"_subject": "example.nl", "country": "NL", "organisation": "Leaseweb Netherlands"}),
 	})
@@ -245,7 +246,7 @@ func TestNoUSHyperscaler(t *testing.T) {
 }
 
 func TestMXPresent(t *testing.T) {
-	r := ruleByID(t, "dictu.data_ai.mx_present")
+	r := ruleByID(t, "wand.data_ai.mx_present")
 	got := r.Match([]models.Finding{
 		f("m1", "dns.mx", map[string]any{"_subject": "example.nl", "host": "mail.example.nl"}),
 	})
@@ -263,7 +264,7 @@ func TestMXPresent(t *testing.T) {
 // dns.mx Findings carrying lookup-error metadata. Before the
 // IsEvidenceLike filter these counted as evidence and scored voldoende.
 func TestMXPresent_LookupErrorIsNotEvidence(t *testing.T) {
-	r := ruleByID(t, "dictu.data_ai.mx_present")
+	r := ruleByID(t, "wand.data_ai.mx_present")
 	got := r.Match([]models.Finding{
 		f("m1", "dns.mx", map[string]any{"_subject": "wanderer-test-host.invalid", "error": "no such host", "kind": "nxdomain"}),
 		f("m2", "dns.mx", map[string]any{"_subject": "wanderer-test-host.invalid", "no_answer": true, "reason": "domain returns NXDOMAIN"}),
@@ -277,7 +278,7 @@ func TestMXPresent_LookupErrorIsNotEvidence(t *testing.T) {
 }
 
 func TestOIDCFederation_AlwaysNoEvidence(t *testing.T) {
-	r := ruleByID(t, "dictu.data_ai.oidc_federation")
+	r := ruleByID(t, "wand.data_ai.oidc_federation")
 	got := r.Match([]models.Finding{
 		f("x", "dns.mx", map[string]any{"_subject": "example.nl", "host": "m.example.nl"}),
 	})
@@ -296,10 +297,31 @@ func TestDefaultRules_HasTenRules(t *testing.T) {
 func TestEveryRuleHasRationale(t *testing.T) {
 	for _, r := range DefaultRules() {
 		if r.Rationale == "" {
-			t.Errorf("rule %s: Rationale is empty (every DICTU rule must explain why it matters)", r.ID)
+			t.Errorf("rule %s: Rationale is empty (every wand rule must explain why it matters)", r.ID)
 		}
 		if r.Rationale == r.Description {
 			t.Errorf("rule %s: Rationale equals Description (must add why-this-matters context, not duplicate the summary)", r.ID)
+		}
+	}
+}
+
+// TestFrameworkRename_RegressionGuard pins ADR-0011: every rule
+// registered under the wand pack carries a `wand.` prefix on its
+// CriteriumID. A future edit that accidentally re-introduces a
+// `dictu.` prefix (a copy-paste from an old branch, an incomplete
+// rename) breaks this test, so the rebrand we did for legal /
+// reputational reasons cannot quietly regress.
+func TestFrameworkRename_RegressionGuard(t *testing.T) {
+	rules := DefaultRules()
+	if len(rules) == 0 {
+		t.Fatal("DefaultRules returned zero rules")
+	}
+	for _, r := range rules {
+		if !strings.HasPrefix(r.ID, "wand.") {
+			t.Errorf("rule %q: ID must start with `wand.` (ADR-0011)", r.ID)
+		}
+		if strings.HasPrefix(r.ID, "dictu.") {
+			t.Errorf("rule %q: ID still starts with the deprecated `dictu.` prefix; rerun the rename per ADR-0011", r.ID)
 		}
 	}
 }
