@@ -51,6 +51,7 @@ func Handler(st *store.Store, htpasswdPath string) (http.Handler, error) {
 	r.Handle("/static/*", http.StripPrefix("/static/", http.FileServer(http.FS(staticFS))))
 	r.Get("/", indexHandler(st, tmpl))
 	r.Get("/scans/{id}", scanHandler(st, tmpl))
+	r.Get("/scans/{id}/assessment", assessmentHandler(st, tmpl))
 	r.Get("/targets/{id}/drift", driftHandler(st, tmpl))
 	return r, nil
 }
@@ -192,12 +193,13 @@ func lastAssessmentsForScan(ctx context.Context, st *store.Store, scanID string)
 }
 
 type scanView struct {
-	ID        string
-	TargetID  string
-	StartedAt string
-	EndedAt   string
-	Status    string
-	Probes    []probeGroupView
+	ID            string
+	TargetID      string
+	StartedAt     string
+	EndedAt       string
+	Status        string
+	Probes        []probeGroupView
+	HasAssessment bool
 }
 
 type probeGroupView struct {
@@ -234,6 +236,9 @@ func scanHandler(st *store.Store, tmpl *template.Template) http.HandlerFunc {
 		}
 		if scan.EndedAt != nil {
 			view.EndedAt = scan.EndedAt.UTC().Format(time.RFC3339)
+		}
+		if assessments, err := st.ListAssessmentsForScan(r.Context(), scan.ID); err == nil && len(assessments) > 0 {
+			view.HasAssessment = true
 		}
 		groups := map[string][]findingRowView{}
 		for _, f := range scan.Findings {
@@ -295,6 +300,108 @@ func driftHandler(st *store.Store, tmpl *template.Template) http.HandlerFunc {
 			})
 		}
 		render(w, tmpl, "drift.tmpl", view)
+	}
+}
+
+// assessmentView is the shape consumed by assessment.tmpl. One
+// frameworkView per persisted Assessment for the scan; if no
+// Assessment exists the Frameworks slice is empty and the template
+// renders the "run wanderer assess" hint.
+type assessmentView struct {
+	ScanID     string
+	StartedAt  string
+	Status     string
+	Frameworks []frameworkCardView
+}
+
+type frameworkCardView struct {
+	Framework  string
+	CreatedAt  string
+	Dimensions []dimensionCardView
+}
+
+type dimensionCardView struct {
+	Dimension    string
+	Score        string
+	Completeness string
+	Rationales   []rationaleRowView
+}
+
+type rationaleRowView struct {
+	CriteriumID string
+	Score       string
+	Verdict     string
+	Description string
+	Rationale   string
+	Retired     bool
+	Evidence    []string
+}
+
+func assessmentHandler(st *store.Store, tmpl *template.Template) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		id := chi.URLParam(r, "id")
+		scan, err := st.GetScan(r.Context(), id)
+		if err != nil {
+			if errors.Is(err, store.ErrNotFound) {
+				http.Error(w, "scan not found", http.StatusNotFound)
+				return
+			}
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		assessments, err := st.ListAssessmentsForScan(r.Context(), scan.ID)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		view := assessmentView{
+			ScanID:    scan.ID,
+			StartedAt: scan.StartedAt.UTC().Format(time.RFC3339),
+			Status:    string(scan.Status),
+		}
+		// Stable framework order: dictu first, then alphabetical.
+		sort.SliceStable(assessments, func(i, j int) bool {
+			a, b := assessments[i].Framework, assessments[j].Framework
+			if a == "dictu" {
+				return true
+			}
+			if b == "dictu" {
+				return false
+			}
+			return a < b
+		})
+		for _, a := range assessments {
+			fw := frameworkCardView{
+				Framework: a.Framework,
+				CreatedAt: a.CreatedAt.UTC().Format(time.RFC3339),
+			}
+			for _, d := range a.Dimensions {
+				card := dimensionCardView{
+					Dimension:    string(d.Dimension),
+					Score:        string(d.Score),
+					Completeness: string(d.Completeness),
+				}
+				for _, rationale := range d.Rationale {
+					row := rationaleRowView{
+						CriteriumID: rationale.CriteriumID,
+						Score:       string(rationale.Score),
+						Verdict:     rationale.Verdict,
+						Evidence:    rationale.Evidence,
+					}
+					if rule, ok := lookupRule(a.Framework, rationale.CriteriumID); ok {
+						row.Description = rule.Description
+						row.Rationale = rule.Rationale
+					} else {
+						row.Description = "rule retired"
+						row.Retired = true
+					}
+					card.Rationales = append(card.Rationales, row)
+				}
+				fw.Dimensions = append(fw.Dimensions, card)
+			}
+			view.Frameworks = append(view.Frameworks, fw)
+		}
+		render(w, tmpl, "assessment.tmpl", view)
 	}
 }
 

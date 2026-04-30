@@ -1,0 +1,84 @@
+{{define "assessment.tmpl"}}<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Wanderer — assessment for {{.ScanID}}</title>
+<link rel="stylesheet" href="/ui/static/main.css">
+</head>
+<body>
+<header>
+  <h1>Assessment for scan {{.ScanID}}</h1>
+  <p class="meta">
+    Scan started {{.StartedAt}}
+    · Status <span class="status-{{.Status}}">{{.Status}}</span>
+  </p>
+  <p>
+    <a href="/ui/">← all targets</a>
+    · <a href="/ui/scans/{{.ScanID}}">Findings (raw) →</a>
+  </p>
+</header>
+<main>
+{{if .Frameworks}}
+<div class="frameworks">
+{{range .Frameworks}}
+<section class="framework">
+  <h2>{{.Framework}}</h2>
+  <p class="meta">Generated {{.CreatedAt}}</p>
+  {{range .Dimensions}}
+  <article class="dimension-card">
+    <header class="dimension-header">
+      <h3>{{.Dimension}}</h3>
+      <span class="badge score-{{.Score}}">{{.Score}}</span>
+      <span class="completeness">completeness: {{.Completeness}}</span>
+    </header>
+    {{if .Rationales}}
+    <table class="rationales">
+      <thead>
+        <tr>
+          <th>Criterium</th>
+          <th>Score</th>
+          <th>Verdict</th>
+          <th>Evidence</th>
+        </tr>
+      </thead>
+      <tbody>
+        {{range .Rationales}}
+        <tr class="score-row-{{.Score}}{{if .Retired}} retired{{end}}">
+          <td>
+            <code>{{.CriteriumID}}</code>
+            <details class="why">
+              <summary>{{.Description}}</summary>
+              <p class="rationale-text">{{.Rationale}}</p>
+            </details>
+          </td>
+          <td><span class="badge score-{{.Score}}">{{.Score}}</span></td>
+          <td>{{.Verdict}}</td>
+          <td class="evidence">
+            {{range .Evidence}}
+            <a href="/ui/scans/{{$.ScanID}}#{{.}}"><code>{{.}}</code></a>
+            {{else}}<span class="muted">—</span>{{end}}
+          </td>
+        </tr>
+        {{end}}
+      </tbody>
+    </table>
+    {{else}}
+    <p class="muted">No rationales for this dimension.</p>
+    {{end}}
+  </article>
+  {{end}}
+</section>
+{{end}}
+</div>
+{{else}}
+<p class="empty-state">
+  No assessment has been produced for this scan yet.<br>
+  Run <code>wanderer assess {{.ScanID}} --framework both</code>
+  to score this scan against the DICTU and EU CSF (SEAL) rule packs.
+</p>
+{{end}}
+</main>
+</body>
+</html>
+{{end}}

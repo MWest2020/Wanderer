@@ -63,6 +63,11 @@ func registrarJurisdiction() assessor.Rule {
 		ID:          "dictu.juridisch.registrar_jurisdiction",
 		Dimension:   models.DimensionJuridisch,
 		Description: "Domain registrant registered in an EEA jurisdiction.",
+		Rationale: "The party legally registered as the domain holder is the entity " +
+			"a court order or law-enforcement request would address first. A registrant " +
+			"in the EEA falls under EU jurisdiction (GDPR, Schrems II); a registrant " +
+			"outside it depends on the cooperation of foreign authorities for any " +
+			"sovereignty-sensitive intervention.",
 		Match: func(findings []models.Finding) assessor.RuleResult {
 			for _, f := range findings {
 				if f.ProbeID != "whois.registrant" {
@@ -100,6 +105,11 @@ func certIssuerEEA() assessor.Rule {
 		ID:          "dictu.juridisch.cert_issuer_eea",
 		Dimension:   models.DimensionJuridisch,
 		Description: "TLS certificate issued by an authority in the EEA.",
+		Rationale: "Certificate Authorities can revoke or refuse to renew certificates. " +
+			"When the issuer is incorporated outside the EEA, the authority that " +
+			"controls the cryptographic identity of the site sits under foreign " +
+			"jurisdiction — a sanctions regime or court order in that jurisdiction " +
+			"can pressure the issuer in ways an EEA regulator cannot reach.",
 		Match: func(findings []models.Finding) assessor.RuleResult {
 			for _, f := range findings {
 				if f.ProbeID != "tls.issuer" {
@@ -146,6 +156,12 @@ func apexIPInEEA() assessor.Rule {
 		ID:          "dictu.juridisch.apex_ip_eea",
 		Dimension:   models.DimensionJuridisch,
 		Description: "Apex IP addresses resolve to AS registered in the EEA.",
+		Rationale: "The IP address that serves the apex domain belongs to an Autonomous " +
+			"System operated by a specific organisation in a specific country. Where " +
+			"that AS is registered determines which legal regime governs the data " +
+			"in transit and the host's day-to-day operation. Apex traffic landing " +
+			"outside the EEA means the front door of the service depends on a " +
+			"non-EEA operator.",
 		Match: func(findings []models.Finding) assessor.RuleResult {
 			var apex string
 			for _, f := range findings {
@@ -210,6 +226,11 @@ func mxVendorJurisdiction() assessor.Rule {
 		ID:          "dictu.juridisch.mx_vendor_jurisdiction",
 		Dimension:   models.DimensionJuridisch,
 		Description: "MX hosts resolve to AS registered in the EEA.",
+		Rationale: "Email is the most common channel for sensitive correspondence. " +
+			"The mail-exchange host (`MX`) is where the organisation's inbound " +
+			"messages physically arrive; a non-EEA MX vendor processes citizen " +
+			"correspondence under foreign jurisdiction, with implications under " +
+			"GDPR and the post-Schrems II EU adequacy regime.",
 		Match: func(findings []models.Finding) assessor.RuleResult {
 			mxHosts := map[string]string{}
 			for _, f := range findings {
@@ -286,6 +307,10 @@ func certValidity() assessor.Rule {
 		ID:          "dictu.operationeel.cert_validity",
 		Dimension:   models.DimensionOperationeel,
 		Description: "TLS certificate is valid and not expiring within 30 days.",
+		Rationale: "An expired or imminently-expiring TLS certificate is the single most " +
+			"common cause of unplanned downtime on public-facing services. The rule " +
+			"flags renewals that have not been automated and gives the operator a " +
+			"30-day lead-time to fix the underlying process before the outage hits.",
 		Match: func(findings []models.Finding) assessor.RuleResult {
 			for _, f := range findings {
 				if f.ProbeID != "tls.validity" {
@@ -330,6 +355,11 @@ func dnsRedundancy() assessor.Rule {
 		ID:          "dictu.operationeel.dns_redundancy",
 		Dimension:   models.DimensionOperationeel,
 		Description: "At least two authoritative nameservers are delegated.",
+		Rationale: "A single authoritative nameserver is a single point of failure for " +
+			"the entire domain — every service the organisation runs becomes " +
+			"unreachable when that one server is down. RFC 2182 recommends at " +
+			"least two; sovereign-grade operators typically run nameservers in " +
+			"two distinct ASs and two distinct geographic regions.",
 		Match: func(findings []models.Finding) assessor.RuleResult {
 			hosts := map[string]bool{}
 			var evidence []string
@@ -368,6 +398,11 @@ func caaRestricts() assessor.Rule {
 		ID:          "dictu.operationeel.caa_restricts_issuance",
 		Dimension:   models.DimensionOperationeel,
 		Description: "CAA records restrict which CAs may issue certificates.",
+		Rationale: "A `CAA` DNS record names the Certificate Authorities allowed to " +
+			"issue certificates for the domain. Without one, any CA in the " +
+			"world's public trust store can mint a valid certificate — including " +
+			"one obtained by an attacker who tricked a CA into issuing it. CAA " +
+			"is a low-cost preventive control with no operational downside.",
 		Match: func(findings []models.Finding) assessor.RuleResult {
 			var evidence []string
 			var hasCAA bool
@@ -415,6 +450,12 @@ func thirdPartiesEEA() assessor.Rule {
 		ID:          "dictu.technologie.third_parties_eea",
 		Dimension:   models.DimensionTechnologie,
 		Description: "HTTP third-party dependencies resolve to AS registered in the EEA.",
+		Rationale: "Modern web pages load fonts, analytics, scripts, and assets from " +
+			"third-party hosts. Each third party that runs on a non-EEA AS adds " +
+			"another foreign-jurisdiction dependency to every page load — the " +
+			"third party sees the visitor's IP, their browsing context, and " +
+			"often a session cookie. Reducing non-EEA third parties shrinks the " +
+			"export surface citizen data crosses on its way to the screen.",
 		Match: func(findings []models.Finding) assessor.RuleResult {
 			thirdParties := map[string]string{} // host -> finding id
 			for _, f := range findings {
@@ -481,6 +522,14 @@ func noUSHyperscaler() assessor.Rule {
 		ID:          "dictu.technologie.no_us_hyperscaler",
 		Dimension:   models.DimensionTechnologie,
 		Description: "Apex and third-party hosts are not routed via known US hyperscalers.",
+		Rationale: "AWS, Google, Microsoft, Cloudflare, Akamai, and Fastly are US-" +
+			"headquartered providers subject to the CLOUD Act, which obliges them " +
+			"to surface customer data on a US warrant regardless of where the " +
+			"data physically sits. A site whose apex or third-party traffic " +
+			"flows through one of these providers operates inside that " +
+			"jurisdictional reach, which the DICTU framework treats as a " +
+			"sovereignty dependency even when individual data centres are in EU " +
+			"countries.",
 		Match: func(findings []models.Finding) assessor.RuleResult {
 			var matched []string
 			var evidence []string
@@ -531,6 +580,12 @@ func mxPresent() assessor.Rule {
 		ID:          "dictu.data_ai.mx_present",
 		Dimension:   models.DimensionDataAI,
 		Description: "Domain has configured mail exchangers (routing is knowable).",
+		Rationale: "A domain without `MX` records cannot route inbound mail. For an " +
+			"organisation that publishes contact addresses on the apex domain, " +
+			"missing MX records mean that mail addressed to the organisation " +
+			"silently fails — a posture issue (the organisation publishes an " +
+			"unreachable contact path) and a data-flow issue (citizen messages " +
+			"vanish without a clear delivery report).",
 		Match: func(findings []models.Finding) assessor.RuleResult {
 			var evidence []string
 			for _, f := range findings {
@@ -562,6 +617,13 @@ func oidcFederation() assessor.Rule {
 		ID:          "dictu.data_ai.oidc_federation",
 		Dimension:   models.DimensionDataAI,
 		Description: "Identity federation endpoints are sovereign. Requires the egress probe (not yet landed).",
+		Rationale: "OpenID Connect (OIDC) federation lets users sign in with credentials " +
+			"managed by an external identity provider. Each authentication round-trip " +
+			"sends the user's identity, organisation, and login context through that " +
+			"provider's infrastructure; a non-sovereign IdP becomes the single most " +
+			"sensitive third-party dependency on every protected endpoint. The rule " +
+			"will fire once the egress probe surfaces the configured `OIDC_ISSUER` " +
+			"endpoints; today it returns no evidence as a placeholder.",
 		Match: func(_ []models.Finding) assessor.RuleResult {
 			// Intentional no-evidence until add-egress-probe ships.
 			return assessor.RuleResult{Score: models.ScoreOnbekend, Verdict: "no evidence — requires add-egress-probe"}

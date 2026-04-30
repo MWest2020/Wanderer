@@ -7,22 +7,33 @@ package assessor
 
 import "github.com/MWest2020/wanderer/pkg/models"
 
-// Rule is a single DICTU criterium expressed as a Go function. Rules
-// live in their own sub-package (e.g. internal/assessor/dictu) and are
-// passed into Assess as a slice.
+// Rule is a single DICTU / SEAL criterium expressed as a Go function.
+// Rules live in their own sub-package (e.g. internal/assessor/dictu)
+// and are passed into Assess as a slice.
 type Rule struct {
 	// ID is the stable identifier, e.g. "dictu.juridisch.cert_issuer_eu".
-	// It becomes Rationale.CriteriumID in the emitted Assessment.
+	// It is recorded on every emitted models.Rationale as
+	// Rationale.CriteriumID so a reader can trace a verdict back to
+	// the rule that produced it.
 	ID string
-	// Dimension is the DICTU dimension this rule contributes to.
+	// Dimension is the DICTU / SEAL dimension this rule contributes to.
 	Dimension models.DimensionHint
 	// Description is a one-line human-readable summary shown in the
-	// markdown report.
+	// markdown report and the UI's analysis card header.
 	Description string
-	// Match is the rule body. It receives every Finding in the scan and
-	// returns a RuleResult. Rules SHOULD be total: defensively handle
-	// missing or mistyped attributes by returning ScoreOnbekend with an
-	// empty Evidence list, not by panicking.
+	// Rationale is a paragraph (1–4 sentences) of plain-language
+	// context surfaced in the UI's analysis page: what the rule
+	// observes, why it matters for sovereignty posture, and the
+	// shape of the consequence when it fires `afhankelijk`. It is
+	// the "why this matters" answer for a non-technical reader.
+	// Required: every rule registered with DefaultRules() MUST set
+	// a non-empty Rationale; the corresponding rule pack's
+	// TestEveryRuleHasRationale fails the build otherwise.
+	Rationale string
+	// Match is the rule body. It receives every Finding in the scan
+	// and returns a RuleResult. Rules SHOULD be total: defensively
+	// handle missing or mistyped attributes by returning
+	// ScoreOnbekend with an empty Evidence list, not by panicking.
 	Match func(findings []models.Finding) RuleResult
 }
 

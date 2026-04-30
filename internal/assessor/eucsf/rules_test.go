@@ -127,3 +127,14 @@ func TestDefaultRules_FiveRules(t *testing.T) {
 		t.Errorf("DefaultRules count = %d, want 5", got)
 	}
 }
+
+func TestEveryRuleHasRationale(t *testing.T) {
+	for _, r := range DefaultRules() {
+		if r.Rationale == "" {
+			t.Errorf("rule %s: Rationale is empty (every EUCSF rule must explain why it matters)", r.ID)
+		}
+		if r.Rationale == r.Description {
+			t.Errorf("rule %s: Rationale equals Description (must add why-this-matters context, not duplicate the summary)", r.ID)
+		}
+	}
+}

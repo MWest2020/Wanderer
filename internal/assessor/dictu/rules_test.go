@@ -292,3 +292,14 @@ func TestDefaultRules_HasTenRules(t *testing.T) {
 		t.Errorf("DefaultRules count = %d, want >= 10", n)
 	}
 }
+
+func TestEveryRuleHasRationale(t *testing.T) {
+	for _, r := range DefaultRules() {
+		if r.Rationale == "" {
+			t.Errorf("rule %s: Rationale is empty (every DICTU rule must explain why it matters)", r.ID)
+		}
+		if r.Rationale == r.Description {
+			t.Errorf("rule %s: Rationale equals Description (must add why-this-matters context, not duplicate the summary)", r.ID)
+		}
+	}
+}

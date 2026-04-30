@@ -11,6 +11,42 @@ once a first release is cut. Until then every entry lives under
 
 ### Added
 
+- Operator UI Analysis page: `/ui/scans/{id}/assessment` renders
+  every persisted Assessment for the scan as one card per
+  framework, dimension cards with the score badge and
+  completeness flag, and one row per Rationale showing the rule's
+  CriteriumID + verdict + a "why this matters" expandable detail
+  with cited evidence Findings linking back to the scan-detail
+  page. Scans without an Assessment render an empty-state hint
+  pointing at `wanderer assess`. The scan-detail page gains an
+  "Open assessment →" link when at least one Assessment exists.
+  `assessor.Rule` grows a required `Rationale` field — every
+  DICTU and EUCSF rule now ships with a paragraph explaining what
+  it observes and why it matters; new
+  `TestEveryRuleHasRationale` per pack fails the build if any
+  rule's Rationale is empty or duplicates the Description.
+  Read-only contract preserved: every new handler is GET-only,
+  the existing static-analysis test still pins it.
+  (`internal/assessor/rule.go`,
+  `internal/assessor/dictu/rules.go`,
+  `internal/assessor/eucsf/rules.go`,
+  `internal/ui/registry.go`, `internal/ui/registry_test.go`,
+  `internal/ui/ui.go`,
+  `internal/ui/templates/assessment.tmpl`,
+  `internal/ui/templates/scan.tmpl`,
+  `internal/ui/static/main.css`, `internal/ui/ui_test.go`)
+
+### Changed (breaking)
+
+- `assessor.Rule.Rationale` is now a required field on every Rule
+  registered with `dictu.DefaultRules()` /
+  `eucsf.DefaultRules()`. External consumers that build their own
+  rule packs must populate the field; an empty value is caught by
+  the per-pack `TestEveryRuleHasRationale` rather than going
+  silently into production.
+
+### Added
+
 - GeoLite2 onboarding: `wanderer scan` and `wanderer serve` emit one
   warning to stderr at startup when no `--geoip` / `WANDERER_GEOIP_ASN`
   is configured, so a fresh-installed operator notices the missing

@@ -97,3 +97,68 @@ button {
   border-radius: 0.25rem;
   cursor: pointer;
 }
+
+/* Assessment / Analysis page. */
+.frameworks {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 2rem;
+}
+@media (min-width: 1100px) {
+  .frameworks { grid-template-columns: 1fr 1fr; }
+}
+.framework h2 {
+  text-transform: uppercase;
+  font-size: 0.875rem;
+  letter-spacing: 0.05rem;
+  color: var(--muted);
+  margin-bottom: 0.25rem;
+}
+.dimension-card {
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  padding: 1rem;
+  margin-bottom: 1rem;
+  background: #fafafa;
+}
+.dimension-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+.dimension-header h3 {
+  margin: 0;
+  font-size: 1rem;
+  text-transform: capitalize;
+}
+.completeness { color: var(--muted); font-size: 0.85rem; }
+.rationales { font-size: 0.9rem; }
+.rationales code { font-size: 0.85rem; }
+.rationales .why summary {
+  cursor: pointer;
+  color: var(--fg);
+  display: inline-block;
+  margin-left: 0.25rem;
+}
+.rationales .why summary:hover { color: var(--accent); }
+.rationale-text {
+  margin: 0.5rem 0 0 0;
+  padding: 0.5rem 0.75rem;
+  border-left: 3px solid var(--accent);
+  background: #fff;
+  color: var(--muted);
+}
+.score-row-afhankelijk { background: rgba(217, 83, 79, 0.04); }
+.score-row-onbekend    { background: rgba(108, 117, 125, 0.04); }
+tr.retired td { opacity: 0.7; font-style: italic; }
+.evidence a { display: inline-block; margin-right: 0.25rem; }
+.empty-state {
+  border: 1px dashed var(--border);
+  padding: 1.5rem;
+  text-align: center;
+  color: var(--muted);
+  border-radius: 0.5rem;
+}

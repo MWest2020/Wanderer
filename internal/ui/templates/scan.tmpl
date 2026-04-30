@@ -14,7 +14,12 @@
     {{if .EndedAt}}· Ended {{.EndedAt}}{{end}}
     · Status <span class="status-{{.Status}}">{{.Status}}</span>
   </p>
-  <p><a href="/ui/">← all targets</a></p>
+  <p>
+    <a href="/ui/">← all targets</a>
+    {{if .HasAssessment}}
+    · <a href="/ui/scans/{{.ID}}/assessment">Open assessment →</a>
+    {{end}}
+  </p>
 </header>
 <main>
 {{range .Probes}}
