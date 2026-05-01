@@ -32,7 +32,25 @@ var assets embed.FS
 // empty; with an empty path the routes are still mounted but no
 // authentication is required (development mode).
 func Handler(st *store.Store, htpasswdPath string) (http.Handler, error) {
-	tmpl, err := template.ParseFS(assets, "templates/*.tmpl")
+	tmpl, err := template.New("ui").Funcs(template.FuncMap{
+		// dict builds a map[string]any from alternating key/value
+		// args so partials can be parameterised in {{template ...}}
+		// invocations (e.g. nav.tmpl wants Active + HasReporting).
+		"dict": func(values ...any) (map[string]any, error) {
+			if len(values)%2 != 0 {
+				return nil, fmt.Errorf("dict: expected even number of args, got %d", len(values))
+			}
+			out := make(map[string]any, len(values)/2)
+			for i := 0; i < len(values); i += 2 {
+				key, ok := values[i].(string)
+				if !ok {
+					return nil, fmt.Errorf("dict: key %d not a string", i)
+				}
+				out[key] = values[i+1]
+			}
+			return out, nil
+		},
+	}).ParseFS(assets, "templates/*.tmpl")
 	if err != nil {
 		return nil, fmt.Errorf("ui: parse templates: %w", err)
 	}
@@ -99,11 +117,24 @@ func verifyAgainst(creds map[string]string, user, pass string) bool {
 // render from their own field; templates that find an empty slice
 // emit empty-state copy rather than nothing.
 type dashboardView struct {
-	GeneratedAt   string
-	HasData       bool // true when at least one scan exists
-	PostureBlocks []postureBlockView
-	TopConcerns   []ConcernRow
-	Activity      []activityRowView
+	GeneratedAt           string
+	HasData               bool // true when at least one scan exists
+	Headline              headlineRenderView
+	ExternalPostureBlocks []postureBlockView
+	InternalPostureBlocks []postureBlockView
+	HasReporting          bool // controls whether the Reporting nav link renders
+	TopConcerns           []ConcernRow
+	Activity              []activityRowView
+}
+
+// headlineRenderView is the pontificaal section's render shape —
+// strings preformatted so the template stays declarative.
+type headlineRenderView struct {
+	LastScanAt       string // RFC3339 of most recent scan, "" when no scans
+	TotalScans       int
+	PerimeterTargets int
+	AgentHostTargets int
+	Frameworks       []string
 }
 
 type postureBlockView struct {
@@ -150,9 +181,17 @@ func dashboardHandler(st *store.Store, tmpl *template.Template) http.HandlerFunc
 		snaps := make([]TargetSnapshot, 0, len(byTarget))
 		assessmentsByScan := map[string]bool{}
 		for _, l := range byTarget {
+			// Resolve Kind so the headline and per-scope posture can
+			// split perimeter (domain) from agent host (host) targets.
+			// Missing or zero Kind defaults to domain in the model.
+			var kind models.TargetKind
+			if t, err := st.GetTarget(ctx, l.scan.TargetID); err == nil && t != nil {
+				kind = t.Kind
+			}
 			snap := TargetSnapshot{
 				TargetID:    l.scan.TargetID,
 				Domain:      l.scan.Domain,
+				Kind:        kind,
 				LastScanID:  l.scan.ID,
 				LastScanAt:  l.when,
 				LastStatus:  l.scan.Status,
@@ -182,17 +221,34 @@ func dashboardHandler(st *store.Store, tmpl *template.Template) http.HandlerFunc
 			return false
 		}
 
-		summary := PostureCounts(snaps)
 		concerns := TopConcerns(snaps, lookupRule, 5)
 		activity := RecentActivity(scans, activityHas, 5)
+		headline := BuildHeadline(snaps, scans)
 
 		view := dashboardView{
 			GeneratedAt: time.Now().UTC().Format(time.RFC3339),
 			HasData:     len(scans) > 0,
+			Headline: headlineRenderView{
+				TotalScans:       headline.TotalScans,
+				PerimeterTargets: headline.PerimeterTargets,
+				AgentHostTargets: headline.AgentHostTargets,
+				Frameworks:       headline.Frameworks,
+			},
 			TopConcerns: concerns,
 		}
-		// Stable framework order: dictu, eucsf, then alphabetical.
+		if !headline.LastScanAt.IsZero() {
+			view.Headline.LastScanAt = headline.LastScanAt.UTC().Format(time.RFC3339)
+		}
+		// Stable framework order: wand, eucsf, then alphabetical.
+		// Pre-rename "dictu" rows are rendered by their persisted key
+		// for one release; the lookup table accepts both.
 		fwOrder := func(a, b string) bool {
+			if a == "wand" {
+				return true
+			}
+			if b == "wand" {
+				return false
+			}
 			if a == "dictu" {
 				return true
 			}
@@ -207,23 +263,8 @@ func dashboardHandler(st *store.Store, tmpl *template.Template) http.HandlerFunc
 			}
 			return a < b
 		}
-		var frameworks []string
-		for fw := range summary {
-			frameworks = append(frameworks, fw)
-		}
-		sort.Slice(frameworks, func(i, j int) bool { return fwOrder(frameworks[i], frameworks[j]) })
-		for _, fw := range frameworks {
-			block := postureBlockView{Framework: fw}
-			for _, sc := range AllScores {
-				count := summary[fw][sc]
-				if count == 0 {
-					continue
-				}
-				block.Counts = append(block.Counts, postureCountView{Score: string(sc), Count: count})
-				block.Total += count
-			}
-			view.PostureBlocks = append(view.PostureBlocks, block)
-		}
+		view.ExternalPostureBlocks = renderPostureBlocks(PostureCountsByKind(snaps, models.TargetKindDomain), fwOrder)
+		view.InternalPostureBlocks = renderPostureBlocks(PostureCountsByKind(snaps, models.TargetKindHost), fwOrder)
 		for _, a := range activity {
 			view.Activity = append(view.Activity, activityRowView{
 				ScanID:        a.ScanID,
@@ -235,6 +276,32 @@ func dashboardHandler(st *store.Store, tmpl *template.Template) http.HandlerFunc
 		}
 		render(w, tmpl, "dashboard.tmpl", view)
 	}
+}
+
+// renderPostureBlocks turns a PostureSummary into the slice the
+// dashboard template iterates over. The framework order is
+// supplied by the caller so external and internal blocks present
+// frameworks in the same canonical sequence.
+func renderPostureBlocks(summary PostureSummary, fwOrder func(a, b string) bool) []postureBlockView {
+	var frameworks []string
+	for fw := range summary {
+		frameworks = append(frameworks, fw)
+	}
+	sort.Slice(frameworks, func(i, j int) bool { return fwOrder(frameworks[i], frameworks[j]) })
+	out := make([]postureBlockView, 0, len(frameworks))
+	for _, fw := range frameworks {
+		block := postureBlockView{Framework: fw}
+		for _, sc := range AllScores {
+			count := summary[fw][sc]
+			if count == 0 {
+				continue
+			}
+			block.Counts = append(block.Counts, postureCountView{Score: string(sc), Count: count})
+			block.Total += count
+		}
+		out = append(out, block)
+	}
+	return out
 }
 
 // targetsRowsView is the shape index.tmpl iterates over.

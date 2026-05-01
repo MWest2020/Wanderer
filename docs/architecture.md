@@ -183,6 +183,28 @@ analysis test greps the package source for `r.Post|Patch|Delete|Put`
 and fails the build if any appear. Anything richer than read-only
 browse belongs behind a reverse proxy.
 
+The UI is layered as **DAR — Dashboard, Analysis, Reporting**:
+
+- **Dashboard** (`/ui/`) is a single-page overview of the
+  instance: a pontificaal headline (last scan, total scans,
+  external + internal coverage counts, frameworks scored), an
+  External posture block (perimeter targets, `Kind=domain`), an
+  Internal posture block (agent-host targets, `Kind=host`) with
+  an explicit empty-state when no agent is reporting yet, plus
+  Top concerns and Recent activity.
+- **Analysis** (`/ui/targets`, `/ui/scans/{id}`,
+  `/ui/scans/{id}/assessment`, `/ui/targets/{id}/drift`) is the
+  per-target / per-scan deep-dive surface where an operator
+  drills into specific evidence.
+- **Reporting** (`/ui/reporting`) is the per-rule cross-target
+  view, populated when the sibling `add-reporting-per-check`
+  proposal lands.
+
+A small `nav.tmpl` partial renders the same Dashboard / Analysis /
+Reporting tabs across every page, so the operator's mental model
+of "where am I" is reinforced everywhere. The Reporting tab is
+omitted from the rendered HTML when the route is not registered.
+
 ## How to add a perimeter probe
 
 1. Create `internal/probe/<name>/` with a type implementing

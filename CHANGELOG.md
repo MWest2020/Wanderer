@@ -9,6 +9,23 @@ once a first release is cut. Until then every entry lives under
 
 ## [Unreleased]
 
+### Changed
+
+- The read-only operator UI's `/ui/` page is now a Dashboard in
+  the strict sense: a pontificaal headline (last scan, total
+  scans, external + internal coverage counts, frameworks
+  scored), an explicit **External posture** block for perimeter
+  targets (`Kind=domain`), and an **Internal posture** block for
+  agent-host targets (`Kind=host`) with empty-state copy
+  pointing at `wanderer agent` when no host is reporting yet.
+  A small `nav.tmpl` partial renders Dashboard / Analysis /
+  Reporting tabs across every UI page so the layering is
+  reinforced everywhere; the Reporting tab is omitted until the
+  sibling `add-reporting-per-check` proposal lands. The page's
+  Top concerns and Recent activity tables are unchanged. Spec
+  delta in `openspec/specs/web-ui/spec.md` adds the headline
+  and external/internal split as requirements.
+
 ### Added
 
 - YAML config file for `wanderer serve`. New `--config <path>`

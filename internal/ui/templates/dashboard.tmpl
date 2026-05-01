@@ -7,9 +7,32 @@
 <link rel="stylesheet" href="/ui/static/main.css">
 </head>
 <body>
-<header>
-  <h1>Wanderer dashboard</h1>
-  <p class="meta">Generated {{.GeneratedAt}} · <a href="/ui/targets">All targets →</a></p>
+{{template "nav.tmpl" dict "Active" "dashboard" "HasReporting" .HasReporting}}
+<header class="headline">
+  <h1>Wanderer · sovereignty observation</h1>
+  <p class="meta">Generated {{.GeneratedAt}}</p>
+  <dl class="headline-stats">
+    <div>
+      <dt>Last scan</dt>
+      <dd>{{if .Headline.LastScanAt}}<code>{{.Headline.LastScanAt}}</code>{{else}}<span class="muted">no scans yet</span>{{end}}</dd>
+    </div>
+    <div>
+      <dt>Scans</dt>
+      <dd>{{.Headline.TotalScans}}</dd>
+    </div>
+    <div>
+      <dt>External coverage</dt>
+      <dd>{{.Headline.PerimeterTargets}} perimeter target{{if ne .Headline.PerimeterTargets 1}}s{{end}}</dd>
+    </div>
+    <div>
+      <dt>Internal coverage</dt>
+      <dd>{{if eq .Headline.AgentHostTargets 0}}<span class="muted">no agent hosts reporting</span>{{else}}{{.Headline.AgentHostTargets}} agent host{{if ne .Headline.AgentHostTargets 1}}s{{end}}{{end}}</dd>
+    </div>
+    <div>
+      <dt>Frameworks scored</dt>
+      <dd>{{if .Headline.Frameworks}}{{range $i, $fw := .Headline.Frameworks}}{{if $i}}, {{end}}<code>{{$fw}}</code>{{end}}{{else}}<span class="muted">none yet</span>{{end}}</dd>
+    </div>
+  </dl>
 </header>
 <main>
 {{if not .HasData}}
@@ -21,10 +44,10 @@
 {{else}}
 
 <section class="dashboard-section">
-  <h2>Posture summary</h2>
-  {{if .PostureBlocks}}
+  <h2>External posture <span class="scope-label">perimeter scans</span></h2>
+  {{if .ExternalPostureBlocks}}
   <div class="posture-grid">
-    {{range .PostureBlocks}}
+    {{range .ExternalPostureBlocks}}
     <div class="posture-block">
       <h3>{{.Framework}}</h3>
       <ul class="posture-counts">
@@ -38,8 +61,35 @@
   </div>
   {{else}}
   <p class="muted">
-    No assessments yet. Run <code>wanderer assess &lt;scan-id&gt; --framework both</code>
-    to score a scan against the DICTU and EU CSF rule packs.
+    No perimeter Assessments yet. Run
+    <code>wanderer assess &lt;scan-id&gt; --framework both</code> after a
+    <code>wanderer scan &lt;domain&gt;</code>.
+  </p>
+  {{end}}
+</section>
+
+<section class="dashboard-section">
+  <h2>Internal posture <span class="scope-label">agent host inspectors</span></h2>
+  {{if .InternalPostureBlocks}}
+  <div class="posture-grid">
+    {{range .InternalPostureBlocks}}
+    <div class="posture-block">
+      <h3>{{.Framework}}</h3>
+      <ul class="posture-counts">
+        {{range .Counts}}
+        <li><span class="badge score-{{.Score}}">{{.Count}} {{.Score}}</span></li>
+        {{end}}
+      </ul>
+      <p class="meta">{{.Total}} host{{if ne .Total 1}}s{{end}} assessed</p>
+    </div>
+    {{end}}
+  </div>
+  {{else}}
+  <p class="muted">
+    No agent hosts reporting yet. Run
+    <code>wanderer agent --config &lt;path&gt;</code> on a host to onboard
+    one; the agent's inventory and egress inspectors land Findings
+    in the same store and surface here.
   </p>
   {{end}}
 </section>

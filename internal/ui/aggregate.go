@@ -14,10 +14,70 @@ import (
 type TargetSnapshot struct {
 	TargetID    string
 	Domain      string
+	Kind        models.TargetKind // "domain" (perimeter) or "host" (agent)
 	LastScanID  string
 	LastScanAt  time.Time
 	LastStatus  string
 	Assessments map[string]models.Assessment
+}
+
+// Headline is the pontificaal-section data shape: what coverage
+// the instance has at a glance. Populated from data the store
+// already holds; no new query, no new probe.
+type Headline struct {
+	LastScanAt       time.Time // zero time when no scans recorded
+	TotalScans       int
+	PerimeterTargets int      // unique TargetIDs with Kind=domain
+	AgentHostTargets int      // unique TargetIDs with Kind=host
+	Frameworks       []string // sorted list of frameworks with at least one Assessment
+}
+
+// BuildHeadline derives the headline counts from the scans list
+// (for total + last-scan timestamp) and the per-target snapshots
+// (for kind counts and framework presence).
+func BuildHeadline(snaps []TargetSnapshot, scans []store.ScanRow) Headline {
+	h := Headline{TotalScans: len(scans)}
+	for _, s := range scans {
+		if s.StartedAt.After(h.LastScanAt) {
+			h.LastScanAt = s.StartedAt
+		}
+	}
+	frameworks := map[string]struct{}{}
+	for _, sn := range snaps {
+		switch sn.Kind {
+		case models.TargetKindHost:
+			h.AgentHostTargets++
+		default: // empty kind defaults to domain in pkg/models.Target
+			h.PerimeterTargets++
+		}
+		for fw := range sn.Assessments {
+			frameworks[fw] = struct{}{}
+		}
+	}
+	for fw := range frameworks {
+		h.Frameworks = append(h.Frameworks, fw)
+	}
+	sort.Strings(h.Frameworks)
+	return h
+}
+
+// PostureCountsByKind returns the same shape as PostureCounts but
+// limited to snapshots whose Kind matches `kind`. Empty result
+// when no snapshot of that kind exists — let the renderer pick
+// the empty-state copy.
+func PostureCountsByKind(snaps []TargetSnapshot, kind models.TargetKind) PostureSummary {
+	filtered := make([]TargetSnapshot, 0, len(snaps))
+	for _, s := range snaps {
+		// Empty kind defaults to domain to match pkg/models.Target.
+		actual := s.Kind
+		if actual == "" {
+			actual = models.TargetKindDomain
+		}
+		if actual == kind {
+			filtered = append(filtered, s)
+		}
+	}
+	return PostureCounts(filtered)
 }
 
 // PostureSummary is per-framework counts of targets bucketed by

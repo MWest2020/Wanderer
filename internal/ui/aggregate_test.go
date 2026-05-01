@@ -196,3 +196,96 @@ func TestRecentActivity_HasAssessmentFlag(t *testing.T) {
 		t.Errorf("s1 should not have assessment flag set")
 	}
 }
+
+func TestBuildHeadline_MixedCoverage(t *testing.T) {
+	mkAssess := func(fw string) models.Assessment {
+		return models.Assessment{Framework: fw, Dimensions: []models.DimensionScore{{
+			Dimension: models.DimensionJuridisch, Score: models.ScoreSoeverein,
+		}}}
+	}
+	t0 := time.Now()
+	snaps := []TargetSnapshot{
+		{TargetID: "t1", Domain: "a.example", Kind: models.TargetKindDomain,
+			Assessments: map[string]models.Assessment{"wand": mkAssess("wand"), "eucsf": mkAssess("eucsf")}},
+		{TargetID: "t2", Domain: "b.example", Kind: models.TargetKindDomain,
+			Assessments: map[string]models.Assessment{"wand": mkAssess("wand")}},
+		{TargetID: "t3", Domain: "host-foo", Kind: models.TargetKindHost,
+			Assessments: map[string]models.Assessment{"eucsf": mkAssess("eucsf")}},
+	}
+	scans := []store.ScanRow{
+		{ID: "s1", Domain: "a.example", StartedAt: t0},
+		{ID: "s2", Domain: "a.example", StartedAt: t0.Add(time.Hour)},
+		{ID: "s3", Domain: "b.example", StartedAt: t0.Add(2 * time.Hour)},
+		{ID: "s4", Domain: "host-foo", StartedAt: t0.Add(3 * time.Hour)},
+		{ID: "s5", Domain: "host-foo", StartedAt: t0.Add(4 * time.Hour)},
+	}
+	got := BuildHeadline(snaps, scans)
+	if got.TotalScans != 5 {
+		t.Errorf("TotalScans = %d, want 5", got.TotalScans)
+	}
+	if got.PerimeterTargets != 2 {
+		t.Errorf("PerimeterTargets = %d, want 2", got.PerimeterTargets)
+	}
+	if got.AgentHostTargets != 1 {
+		t.Errorf("AgentHostTargets = %d, want 1", got.AgentHostTargets)
+	}
+	if !got.LastScanAt.Equal(scans[4].StartedAt) {
+		t.Errorf("LastScanAt = %s, want %s", got.LastScanAt, scans[4].StartedAt)
+	}
+	if len(got.Frameworks) != 2 || got.Frameworks[0] != "eucsf" || got.Frameworks[1] != "wand" {
+		t.Errorf("Frameworks = %v, want sorted [eucsf wand]", got.Frameworks)
+	}
+}
+
+func TestBuildHeadline_EmptyStore(t *testing.T) {
+	got := BuildHeadline(nil, nil)
+	if got.TotalScans != 0 || got.PerimeterTargets != 0 || got.AgentHostTargets != 0 {
+		t.Errorf("counts not zero on empty store: %+v", got)
+	}
+	if !got.LastScanAt.IsZero() {
+		t.Errorf("LastScanAt should be zero for empty store, got %s", got.LastScanAt)
+	}
+	if len(got.Frameworks) != 0 {
+		t.Errorf("Frameworks should be empty, got %v", got.Frameworks)
+	}
+}
+
+func TestBuildHeadline_EmptyKindCountedAsDomain(t *testing.T) {
+	// A snapshot with empty Kind field defaults to perimeter —
+	// matches the pkg/models.Target validation behaviour.
+	snaps := []TargetSnapshot{{TargetID: "t1", Domain: "a.example" /* Kind: "" */}}
+	got := BuildHeadline(snaps, nil)
+	if got.PerimeterTargets != 1 {
+		t.Errorf("empty Kind should count as perimeter, got %d", got.PerimeterTargets)
+	}
+}
+
+func TestPostureCountsByKind_FiltersCorrectly(t *testing.T) {
+	mkAssess := func(score models.Score) models.Assessment {
+		return models.Assessment{Framework: "wand", Dimensions: []models.DimensionScore{{
+			Dimension: models.DimensionJuridisch, Score: score,
+		}}}
+	}
+	snaps := []TargetSnapshot{
+		{TargetID: "t1", Domain: "a", Kind: models.TargetKindDomain,
+			Assessments: map[string]models.Assessment{"wand": mkAssess(models.ScoreSoeverein)}},
+		{TargetID: "t2", Domain: "b", Kind: models.TargetKindDomain,
+			Assessments: map[string]models.Assessment{"wand": mkAssess(models.ScoreAfhankelijk)}},
+		{TargetID: "t3", Domain: "host-1", Kind: models.TargetKindHost,
+			Assessments: map[string]models.Assessment{"wand": mkAssess(models.ScoreVoldoende)}},
+	}
+	external := PostureCountsByKind(snaps, models.TargetKindDomain)
+	if external["wand"][models.ScoreSoeverein] != 1 || external["wand"][models.ScoreAfhankelijk] != 1 {
+		t.Errorf("external counts wrong: %+v", external["wand"])
+	}
+	if external["wand"][models.ScoreVoldoende] != 0 {
+		t.Errorf("external should not include host-only target: %+v", external["wand"])
+	}
+	internal := PostureCountsByKind(snaps, models.TargetKindHost)
+	if internal["wand"][models.ScoreVoldoende] != 1 {
+		t.Errorf("internal should have 1 voldoende, got %+v", internal["wand"])
+	}
+	if internal["wand"][models.ScoreSoeverein] != 0 {
+		t.Errorf("internal should not include domain targets: %+v", internal["wand"])
+	}
+}

@@ -142,10 +142,13 @@ func TestDashboard_PostureSummary(t *testing.T) {
 	body, _ := io.ReadAll(resp.Body)
 	bodyStr := string(body)
 	for _, want := range []string{
-		"Posture summary",
+		"External posture",
+		"Internal posture",
 		"1 soeverein",
 		"1 afhankelijk",
 		"1 onbekend",
+		"External coverage",
+		"Internal coverage",
 	} {
 		if !strings.Contains(bodyStr, want) {
 			t.Errorf("dashboard missing %q; body:\n%s", want, bodyStr)
