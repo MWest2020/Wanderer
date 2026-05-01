@@ -17,61 +17,101 @@ import (
 	"github.com/MWest2020/wanderer/internal/probe"
 	"github.com/MWest2020/wanderer/internal/scanner"
 	"github.com/MWest2020/wanderer/internal/scheduler"
+	"github.com/MWest2020/wanderer/internal/serveconfig"
 	"github.com/MWest2020/wanderer/internal/store"
 	"github.com/MWest2020/wanderer/internal/ui"
 )
 
 // runServe starts the HTTP API and (optionally) the cron scheduler.
+//
+// Settings come from four layers, applied highest-precedence first:
+// CLI flag > env var > YAML config (via --config) > hard default.
+// When --config is unset, the binary behaves byte-identically to
+// the no-YAML form — no surprise behaviour for operators who never
+// adopt the file.
 func runServe(args []string) int {
 	fs := flag.NewFlagSet("serve", flag.ContinueOnError)
-	addr := fs.String("addr", envOr("WANDERER_LISTEN", ":8080"), "HTTP listen address")
-	dbPath := fs.String("db", envOr("WANDERER_DB", "wanderer.db"), "Path to SQLite database")
-	geoipPath, geoipCountry, noGeoIP := registerGeoIPFlags(fs)
-	perProbe := fs.Duration("per-probe-timeout", scanner.DefaultPerProbeTimeout, "Per-probe timeout")
-	globalTO := fs.Duration("budget", scanner.DefaultGlobalBudget, "Global scan timeout budget")
-	ua := fs.String("user-agent", "Wanderer/0.x", "User-Agent for HTTP probes")
+	// Empty / zero defaults so the resolver can distinguish
+	// "operator passed the flag" from "operator left it alone".
+	addr := fs.String("addr", "", "HTTP listen address (default :8080)")
+	dbPath := fs.String("db", "", "Path to SQLite database (default wanderer.db)")
+	geoipPath := fs.String("geoip", "", "Path to GeoLite2-ASN mmdb (ASN + country)")
+	geoipCountry := fs.String("geoip-country", "", "Optional GeoLite2-Country mmdb (defaults to --geoip)")
+	noGeoIP := fs.Bool("no-geoip", false, "Silence the startup warning when GeoLite2 is intentionally absent (CI, offline labs)")
+	perProbe := fs.Duration("per-probe-timeout", 0, "Per-probe timeout (default "+scanner.DefaultPerProbeTimeout.String()+")")
+	globalTO := fs.Duration("budget", 0, "Global scan timeout budget (default "+scanner.DefaultGlobalBudget.String()+")")
+	ua := fs.String("user-agent", "", "User-Agent for HTTP probes (default Wanderer/0.x)")
 	allowPrivate := fs.Bool("allow-private-targets", false, "Allow scanning RFC1918 / loopback / cloud-metadata addresses (default off)")
-	schedulesPath := fs.String("schedules", envOr("WANDERER_SCHEDULES", ""), "Optional cron schedules YAML file")
+	schedulesPath := fs.String("schedules", "", "Optional cron schedules YAML file")
 	uiEnabled := fs.Bool("ui", false, "Mount the read-only UI at /ui/ (default off)")
-	uiHtpasswd := fs.String("ui-htpasswd", envOr("WANDERER_UI_HTPASSWD", ""), "Path to an htpasswd file (bcrypt entries) protecting /ui/")
+	uiHtpasswd := fs.String("ui-htpasswd", "", "Path to an htpasswd file (bcrypt entries) protecting /ui/")
+	configPath := fs.String("config", envOr("WANDERER_CONFIG", ""), "Optional YAML config file (see docs/operator.md)")
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}
+	setFlags := serveconfig.SetFlags(fs)
 
-	warnIfGeoIPMissing(os.Stderr, *geoipPath, *noGeoIP)
+	// Load the YAML if --config was given; missing path is a hard
+	// error (operator pointed at it explicitly).
+	var cfg *serveconfig.Config
+	if *configPath != "" {
+		var err error
+		cfg, err = serveconfig.Load(*configPath)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "wanderer: %v\n", err)
+			return 1
+		}
+	}
+
+	// Resolve every setting through the precedence stack. cfg may
+	// be nil; the helpers below treat a nil cfg as "no YAML layer".
+	listen := serveconfig.ResolveString(setFlags, "addr", *addr, "WANDERER_LISTEN", cfgListen(cfg), ":8080")
+	db := serveconfig.ResolveString(setFlags, "db", *dbPath, "WANDERER_DB", cfgDB(cfg), "wanderer.db")
+	asn := serveconfig.ResolveString(setFlags, "geoip", *geoipPath, "WANDERER_GEOIP_ASN", cfgGeoIPASN(cfg), "")
+	country := serveconfig.ResolveString(setFlags, "geoip-country", *geoipCountry, "WANDERER_GEOIP_COUNTRY", cfgGeoIPCountry(cfg), "")
+	skipGeoWarn := serveconfig.ResolveBool(setFlags, "no-geoip", *noGeoIP, "WANDERER_GEOIP_OPTIONAL", cfgGeoIPOptional(cfg), cfg != nil, false)
+	probeTO := serveconfig.ResolveDuration(setFlags, "per-probe-timeout", *perProbe, "WANDERER_PER_PROBE_TIMEOUT", cfgPerProbe(cfg), scanner.DefaultPerProbeTimeout)
+	budget := serveconfig.ResolveDuration(setFlags, "budget", *globalTO, "WANDERER_BUDGET", cfgBudget(cfg), scanner.DefaultGlobalBudget)
+	userAgent := serveconfig.ResolveString(setFlags, "user-agent", *ua, "WANDERER_USER_AGENT", cfgUserAgent(cfg), "Wanderer/0.x")
+	allowPrivateTargets := serveconfig.ResolveBool(setFlags, "allow-private-targets", *allowPrivate, "WANDERER_ALLOW_PRIVATE_TARGETS", cfgAllowPrivate(cfg), cfg != nil, false)
+	schedules := serveconfig.ResolveString(setFlags, "schedules", *schedulesPath, "WANDERER_SCHEDULES", cfgSchedules(cfg), "")
+	uiOn := serveconfig.ResolveBool(setFlags, "ui", *uiEnabled, "WANDERER_UI_ENABLED", cfgUIEnabled(cfg), cfg != nil, false)
+	htpasswd := serveconfig.ResolveString(setFlags, "ui-htpasswd", *uiHtpasswd, "WANDERER_UI_HTPASSWD", cfgUIHtpasswd(cfg), "")
+
+	warnIfGeoIPMissing(os.Stderr, asn, skipGeoWarn)
 
 	logger := newLogger(true)
 	slog.SetDefault(logger)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	st, err := store.Open(ctx, "file:"+filepath.Clean(*dbPath))
+	st, err := store.Open(ctx, "file:"+filepath.Clean(db))
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "wanderer: open store: %v\n", err)
 		return 1
 	}
 	defer st.Close()
 
-	probes, err := buildProbes(*geoipPath, *geoipCountry)
+	probes, err := buildProbes(asn, country)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "wanderer: %v\n", err)
 		return 1
 	}
-	sc := scanner.New(st, probes, probe.Config{PerProbeTimeout: *perProbe, UserAgent: *ua, AllowPrivateTargets: *allowPrivate})
+	sc := scanner.New(st, probes, probe.Config{PerProbeTimeout: probeTO, UserAgent: userAgent, AllowPrivateTargets: allowPrivateTargets})
 	sc.Logger = logger
-	sc.GlobalBudget = *globalTO
+	sc.GlobalBudget = budget
 
 	// Schedules: load and validate before listening so a bad cron
 	// expression fails the process at startup, not silently.
 	var sched *scheduler.Scheduler
-	if *schedulesPath != "" {
-		cfg, err := scheduler.LoadConfig(*schedulesPath)
+	if schedules != "" {
+		schedCfg, err := scheduler.LoadConfig(schedules)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "wanderer: schedules: %v\n", err)
 			return 1
 		}
 		sched = scheduler.New(st, sc, logger)
-		if err := sched.Reload(cfg); err != nil {
+		if err := sched.Reload(schedCfg); err != nil {
 			fmt.Fprintf(os.Stderr, "wanderer: schedules: %v\n", err)
 			return 1
 		}
@@ -81,17 +121,17 @@ func runServe(args []string) int {
 
 	root := http.NewServeMux()
 	root.Handle("/", api.Router(st, sc, logger))
-	if *uiEnabled {
-		uiHandler, err := ui.Handler(st, *uiHtpasswd)
+	if uiOn {
+		uiHandler, err := ui.Handler(st, htpasswd)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "wanderer: ui: %v\n", err)
 			return 1
 		}
 		root.Handle("/ui/", http.StripPrefix("/ui", uiHandler))
-		logger.Info("ui.mounted", "htpasswd", *uiHtpasswd != "")
+		logger.Info("ui.mounted", "htpasswd", htpasswd != "")
 	}
 	srv := &http.Server{
-		Addr:              *addr,
+		Addr:              listen,
 		Handler:           root,
 		ReadHeaderTimeout: 5 * time.Second,
 	}
@@ -103,23 +143,23 @@ func runServe(args []string) int {
 		signal.Notify(hup, syscall.SIGHUP)
 		go func() {
 			for range hup {
-				cfg, err := scheduler.LoadConfig(*schedulesPath)
+				schedCfg, err := scheduler.LoadConfig(schedules)
 				if err != nil {
 					logger.Error("schedules.reload_error", "err", err)
 					continue
 				}
-				if err := sched.Reload(cfg); err != nil {
+				if err := sched.Reload(schedCfg); err != nil {
 					logger.Error("schedules.reload_error", "err", err)
 					continue
 				}
 				sched.Start()
-				logger.Info("schedules.reloaded", "schedules", len(cfg.Schedules))
+				logger.Info("schedules.reloaded", "schedules", len(schedCfg.Schedules))
 			}
 		}()
 	}
 
 	go func() {
-		logger.Info("serve.start", "addr", *addr, "schedules", *schedulesPath)
+		logger.Info("serve.start", "addr", listen, "schedules", schedules)
 		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			logger.Error("serve.error", "err", err)
 			cancel()
@@ -135,4 +175,92 @@ func runServe(args []string) int {
 	defer scancel()
 	_ = srv.Shutdown(shutdownCtx)
 	return 0
+}
+
+// cfgX accessors return the YAML value for one setting, or the
+// zero value when no config file was loaded. The resolver layer
+// treats zero as "not set" so a nil cfg falls cleanly through to
+// env / default.
+func cfgListen(c *serveconfig.Config) string {
+	if c == nil {
+		return ""
+	}
+	return c.Listen
+}
+
+func cfgDB(c *serveconfig.Config) string {
+	if c == nil {
+		return ""
+	}
+	return c.DB
+}
+
+func cfgGeoIPASN(c *serveconfig.Config) string {
+	if c == nil {
+		return ""
+	}
+	return c.GeoIP.ASN
+}
+
+func cfgGeoIPCountry(c *serveconfig.Config) string {
+	if c == nil {
+		return ""
+	}
+	return c.GeoIP.Country
+}
+
+func cfgGeoIPOptional(c *serveconfig.Config) bool {
+	if c == nil {
+		return false
+	}
+	return c.GeoIP.Optional
+}
+
+func cfgPerProbe(c *serveconfig.Config) time.Duration {
+	if c == nil {
+		return 0
+	}
+	return c.Scan.PerProbeTimeout
+}
+
+func cfgBudget(c *serveconfig.Config) time.Duration {
+	if c == nil {
+		return 0
+	}
+	return c.Scan.Budget
+}
+
+func cfgUserAgent(c *serveconfig.Config) string {
+	if c == nil {
+		return ""
+	}
+	return c.Scan.UserAgent
+}
+
+func cfgAllowPrivate(c *serveconfig.Config) bool {
+	if c == nil {
+		return false
+	}
+	return c.Scan.AllowPrivateTargets
+}
+
+func cfgSchedules(c *serveconfig.Config) string {
+	if c == nil {
+		return ""
+	}
+	return c.Schedules
+}
+
+func cfgUIEnabled(c *serveconfig.Config) bool {
+	if c == nil {
+		return false
+	}
+	return c.UI.Enabled
+}
+
+func cfgUIHtpasswd(c *serveconfig.Config) string {
+	if c == nil {
+		return ""
+	}
+	return c.UI.Htpasswd
 }

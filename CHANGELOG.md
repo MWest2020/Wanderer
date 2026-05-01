@@ -11,6 +11,21 @@ once a first release is cut. Until then every entry lives under
 
 ### Added
 
+- YAML config file for `wanderer serve`. New `--config <path>`
+  flag (and `WANDERER_CONFIG` env var) loads a YAML covering every
+  operator-tunable setting: `listen`, `db`, `geoip`, `ui`,
+  `schedules`, and the `scan.*` block. Setting precedence is
+  flag > env > YAML > default, so `serve.yaml` is the durable
+  source of truth and a one-off `--addr :7070` still wins
+  cleanly. The parser is strict — typos like `htpasswrd` fail
+  at startup with an error naming the bad field. New package
+  `internal/serveconfig/` with full unit-test coverage of every
+  resolver layer. `docs/operator.md` carries the schema, an
+  example config, and a sample systemd unit. When `--config` is
+  unset, `wanderer serve` behaves byte-identically to today.
+
+### Added
+
 - arm64 BPF build target for the egress flow probe. `gen.go` now
   passes `-target amd64,arm64` to bpf2go; both
   `connect_x86_bpfel.{go,o}` and `connect_arm64_bpfel.{go,o}` ship

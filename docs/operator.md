@@ -20,6 +20,89 @@ Or run directly with `go run`:
 go run ./cmd/wanderer scan example.nl
 ```
 
+## Config file for `wanderer serve`
+
+For long-running deployments — systemd, Compose, anywhere a wall
+of CLI flags is awkward — point `wanderer serve` at a YAML config
+file:
+
+```sh
+wanderer serve --config /etc/wanderer/serve.yaml
+```
+
+The same can be set via the `WANDERER_CONFIG` env var. Every
+field is optional; an empty file is equivalent to no `--config`
+at all.
+
+```yaml
+# /etc/wanderer/serve.yaml
+listen: "127.0.0.1:8080"
+db: "/var/lib/wanderer/wanderer.db"
+
+geoip:
+  asn:     "/var/lib/wanderer/geoip/GeoLite2-ASN.mmdb"
+  country: "/var/lib/wanderer/geoip/GeoLite2-Country.mmdb"
+  optional: false      # equivalent to --no-geoip
+
+ui:
+  enabled:  true
+  htpasswd: "/etc/wanderer/htpasswd"
+
+schedules: "/etc/wanderer/schedules.yaml"
+
+scan:
+  per_probe_timeout:     30s
+  budget:                2m
+  user_agent:            "Wanderer/1.0"
+  allow_private_targets: false
+```
+
+The parser is **strict**: a typo like `htpasswrd` for `htpasswd`
+fails the process at startup with an error naming the bad field,
+never silently dropped to a default.
+
+### Setting precedence
+
+When the same setting is provided in more than one place, the
+highest-precedence layer wins:
+
+1. **CLI flag** explicitly passed (`--addr :9090`)
+2. **Environment variable** explicitly set (`WANDERER_LISTEN`)
+3. **YAML config** value
+4. **Hard-coded default**
+
+So an operator can lay down `serve.yaml` as the durable source of
+truth, then override one knob from a one-off invocation without
+editing the file:
+
+```sh
+wanderer serve --config /etc/wanderer/serve.yaml --addr :7070
+# YAML says :8080, flag wins → server listens on :7070
+```
+
+A flag explicitly set to its default value (e.g.
+`--ui=false`) still counts as "explicitly set" and overrides a
+YAML `ui.enabled: true`.
+
+### Sample systemd unit
+
+```ini
+# /etc/systemd/system/wanderer.service
+[Unit]
+Description=Wanderer sovereignty monitor
+After=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/wanderer serve --config /etc/wanderer/serve.yaml
+Restart=on-failure
+User=wanderer
+Group=wanderer
+
+[Install]
+WantedBy=multi-user.target
+```
+
 ## GeoLite2 setup
 
 The IP probe resolves observed IPs to ASN + country via MaxMind's
