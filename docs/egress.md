@@ -174,8 +174,16 @@ After editing `internal/probe/egress/flow/bpf/connect.bpf.c`:
 ```sh
 ./scripts/bpf-build.sh
 git add internal/probe/egress/flow/connect_x86_bpfel.{go,o}
+git add internal/probe/egress/flow/connect_arm64_bpfel.{go,o}
 git commit -m "bpf: regenerate connect program"
 ```
+
+The script emits one artefact pair per build target listed in
+`gen.go::go:generate` (currently `amd64,arm64`). Each pair carries
+its own Go build constraint (`//go:build amd64`, `//go:build
+arm64`) so a `wanderer agent` binary built for either GOARCH
+embeds the matching `.o`. No runtime selection logic; selection
+falls out of `go build`.
 
 The script uses a pinned `build/bpf-builder/Dockerfile` (Fedora 42
 + clang 20 + libbpf-devel 1.5 + bpf2go), so the host needs only

@@ -11,6 +11,21 @@ once a first release is cut. Until then every entry lives under
 
 ### Added
 
+- arm64 BPF build target for the egress flow probe. `gen.go` now
+  passes `-target amd64,arm64` to bpf2go; both
+  `connect_x86_bpfel.{go,o}` and `connect_arm64_bpfel.{go,o}` ship
+  in the repo. Selection between the two artefacts is a build-time
+  concern resolved by `//go:build` constraints, so a `wanderer
+  agent` binary built for either GOARCH carries exactly one BPF
+  object — no runtime detection logic. Closes the arm64
+  follow-up named in ADR-0010; the addendum to that ADR records
+  the landing. Verified at change time with native `go build
+  ./...` plus `GOARCH=arm64 go build
+  ./internal/probe/egress/flow/...`. A CI matrix for the cross
+  build is intentionally out of scope and tracked separately.
+
+### Added
+
 - Optional reverse DNS annotation on flow Findings. When the
   operator sets `egress.flow.reverse_dns.enabled: true`, each unique
   destination IP in the sampling window is resolved via the host's

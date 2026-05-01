@@ -111,6 +111,39 @@ runs plain `go build ./...` and gets a working binary.
   the host integration test instead (run as root: see
   `docs/egress.md` "runtime flow probe" section).
 
+## 2026-05-01 addendum — arm64 build target
+
+The original deferred-work list named "arm64 target" as a
+one-line change. Landed on 2026-05-01: `gen.go` now passes
+`-target amd64,arm64` to bpf2go. The pinned bpf-builder
+container handles both targets in the same `go generate` run, and
+both `connect_x86_bpfel.{go,o}` and `connect_arm64_bpfel.{go,o}`
+ship in the repo so `go build ./...` keeps working on developer
+hosts without the eBPF toolchain.
+
+Selection between the two artefacts is a build-time concern:
+`bpf2go` emits `//go:build amd64` / `//go:build arm64`
+constraints, so a Go binary built for either GOARCH carries
+exactly one BPF object. No runtime detection logic. CO-RE
+relocations are still resolved against the running kernel's BTF
+at load time, regardless of which `bpfel` blob shipped, so the
+two arches share the same kernel-version contract and the same
+deferred loader-integration-test follow-up (needs root + a real
+kernel, not in CI).
+
+Verification at landing time: native `go build ./...` plus
+`GOARCH=arm64 go build ./internal/probe/egress/flow/...` both
+clean on an x86_64 developer host. A CI matrix that runs the
+arm64 build on every PR is intentionally out of scope here — a
+separate operational decision.
+
+**References.**
+
+- Proposal:
+  `openspec/changes/archive/2026-05-01-add-arm64-bpf-target/proposal.md`
+- Spec delta applied to:
+  `openspec/specs/egress-probe/spec.md`
+
 ## 2026-05-01 addendum — reverse DNS annotation (opt-in)
 
 The original deferred-work list named "reverse DNS annotation for

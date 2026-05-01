@@ -13,4 +13,4 @@
 
 package flow
 
-//go:generate bpf2go -cc clang -cflags "-O2 -g -Wall -I bpf" -target amd64 Connect bpf/connect.bpf.c
+//go:generate bpf2go -cc clang -cflags "-O2 -g -Wall -I bpf" -target amd64,arm64 Connect bpf/connect.bpf.c
