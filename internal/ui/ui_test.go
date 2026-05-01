@@ -516,3 +516,66 @@ func TestNoMutatingHandlersInPackage(t *testing.T) {
 		}
 	}
 }
+
+func TestReporting_Index_ListsRules(t *testing.T) {
+	srv, st := newServer(t, "")
+	_, scanID := seed(t, st)
+	seedAssessment(t, st, scanID, "wand", "eucsf")
+	resp, err := http.Get(srv.URL + "/ui/reporting")
+	if err != nil {
+		t.Fatalf("get: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != 200 {
+		t.Fatalf("status = %d", resp.StatusCode)
+	}
+	body, _ := io.ReadAll(resp.Body)
+	bodyStr := string(body)
+	for _, want := range []string{
+		"Reporting · per-rule cross-target view",
+		"wand.juridisch.cert_issuer_eea",
+		"eucsf.sov2.cert_issuer_eu",
+		"soeverein",
+	} {
+		if !strings.Contains(bodyStr, want) {
+			t.Errorf("reporting index missing %q", want)
+		}
+	}
+}
+
+func TestReporting_Rule_RendersTargets(t *testing.T) {
+	srv, st := newServer(t, "")
+	_, scanID := seed(t, st)
+	seedAssessment(t, st, scanID, "wand")
+	resp, err := http.Get(srv.URL + "/ui/reporting/wand/wand.juridisch.cert_issuer_eea")
+	if err != nil {
+		t.Fatalf("get: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != 200 {
+		t.Fatalf("status = %d", resp.StatusCode)
+	}
+	body, _ := io.ReadAll(resp.Body)
+	bodyStr := string(body)
+	for _, want := range []string{
+		"wand.juridisch.cert_issuer_eea",
+		"cert issued in NL (EEA)", // verdict text from seedAssessment
+		"score-soeverein",
+	} {
+		if !strings.Contains(bodyStr, want) {
+			t.Errorf("reporting rule page missing %q", want)
+		}
+	}
+}
+
+func TestReporting_Rule_UnknownReturns404(t *testing.T) {
+	srv, _ := newServer(t, "")
+	resp, err := http.Get(srv.URL + "/ui/reporting/wand/wand.juridisch.does_not_exist")
+	if err != nil {
+		t.Fatalf("get: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != 404 {
+		t.Errorf("status = %d, want 404", resp.StatusCode)
+	}
+}

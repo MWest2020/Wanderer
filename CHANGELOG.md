@@ -9,6 +9,24 @@ once a first release is cut. Until then every entry lives under
 
 ## [Unreleased]
 
+### Added
+
+- Per-check Reporting page in the operator UI. New routes
+  `/ui/reporting` (list every rule that has fired across the
+  persisted Assessments, with distinct-target counts per
+  `soeverein` / `voldoende` / `afhankelijk` / `onbekend`) and
+  `/ui/reporting/{framework}/{ruleID}` (per-rule deep dive: the
+  rule's description and rationale plus every target the rule
+  fired on, with a back-link to the originating scan's
+  assessment page). The Reporting tab in the cross-page nav now
+  lights up — `redesign-dashboard-pontificaal` reserved the slot;
+  this change wires it. New aggregator helpers `RuleSummary` and
+  `RuleTargetRows` in `internal/ui/aggregate.go`. Distinct-target
+  counts mirror the dashboard's Top concerns convention: a rule
+  firing twice on one target counts once. Spec delta in
+  `openspec/specs/web-ui/spec.md` adds the index and detail
+  contracts with scenarios.
+
 ### Changed
 
 - The read-only operator UI's `/ui/` page is now a Dashboard in

@@ -72,6 +72,8 @@ func Handler(st *store.Store, htpasswdPath string) (http.Handler, error) {
 	r.Get("/scans/{id}", scanHandler(st, tmpl))
 	r.Get("/scans/{id}/assessment", assessmentHandler(st, tmpl))
 	r.Get("/targets/{id}/drift", driftHandler(st, tmpl))
+	r.Get("/reporting", reportingIndexHandler(st, tmpl))
+	r.Get("/reporting/{framework}/{ruleID}", reportingRuleHandler(st, tmpl))
 	return r, nil
 }
 
@@ -226,8 +228,9 @@ func dashboardHandler(st *store.Store, tmpl *template.Template) http.HandlerFunc
 		headline := BuildHeadline(snaps, scans)
 
 		view := dashboardView{
-			GeneratedAt: time.Now().UTC().Format(time.RFC3339),
-			HasData:     len(scans) > 0,
+			GeneratedAt:  time.Now().UTC().Format(time.RFC3339),
+			HasData:      len(scans) > 0,
+			HasReporting: true,
 			Headline: headlineRenderView{
 				TotalScans:       headline.TotalScans,
 				PerimeterTargets: headline.PerimeterTargets,
@@ -276,6 +279,56 @@ func dashboardHandler(st *store.Store, tmpl *template.Template) http.HandlerFunc
 		}
 		render(w, tmpl, "dashboard.tmpl", view)
 	}
+}
+
+// buildSnapshots builds the per-target snapshot list shared by
+// the dashboard and reporting pages: one snapshot per Target, the
+// most recent scan, the most recent Assessment per framework, and
+// the resolved Kind. Returns the underlying scans slice too so a
+// caller that also needs RecentActivity / TotalScans can share
+// the same store roundtrip.
+func buildSnapshots(ctx context.Context, st *store.Store) (snaps []TargetSnapshot, scans []store.ScanRow, err error) {
+	scans, err = st.ListScans(ctx, store.Selectors{})
+	if err != nil {
+		return nil, nil, err
+	}
+	type latest struct {
+		scan store.ScanRow
+		when time.Time
+	}
+	byTarget := map[string]latest{}
+	for _, s := range scans {
+		cur, ok := byTarget[s.TargetID]
+		if !ok || s.StartedAt.After(cur.when) {
+			byTarget[s.TargetID] = latest{scan: s, when: s.StartedAt}
+		}
+	}
+	snaps = make([]TargetSnapshot, 0, len(byTarget))
+	for _, l := range byTarget {
+		var kind models.TargetKind
+		if t, terr := st.GetTarget(ctx, l.scan.TargetID); terr == nil && t != nil {
+			kind = t.Kind
+		}
+		snap := TargetSnapshot{
+			TargetID:    l.scan.TargetID,
+			Domain:      l.scan.Domain,
+			Kind:        kind,
+			LastScanID:  l.scan.ID,
+			LastScanAt:  l.when,
+			LastStatus:  l.scan.Status,
+			Assessments: map[string]models.Assessment{},
+		}
+		if list, lerr := st.ListAssessmentsForScan(ctx, l.scan.ID); lerr == nil {
+			for _, a := range list {
+				cur, ok := snap.Assessments[a.Framework]
+				if !ok || a.CreatedAt.After(cur.CreatedAt) {
+					snap.Assessments[a.Framework] = a
+				}
+			}
+		}
+		snaps = append(snaps, snap)
+	}
+	return snaps, scans, nil
 }
 
 // renderPostureBlocks turns a PostureSummary into the slice the
@@ -620,5 +673,114 @@ func render(w http.ResponseWriter, tmpl *template.Template, name string, data an
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	if err := tmpl.ExecuteTemplate(w, name, data); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+}
+
+// reportingView is the shape consumed by reporting.tmpl — the
+// per-check cross-target index page.
+type reportingView struct {
+	GeneratedAt  string
+	HasReporting bool
+	Rows         []reportingRowView
+}
+
+type reportingRowView struct {
+	Framework      string
+	CriteriumID    string
+	Description    string
+	SoevereinCount int
+	VoldoendeCount int
+	AfhankelijkCount int
+	OnbekendCount  int
+}
+
+func reportingIndexHandler(st *store.Store, tmpl *template.Template) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		ctx := r.Context()
+		snaps, _, err := buildSnapshots(ctx, st)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		summary := RuleSummary(snaps, lookupRule)
+		view := reportingView{
+			GeneratedAt:  time.Now().UTC().Format(time.RFC3339),
+			HasReporting: true,
+			Rows:         make([]reportingRowView, 0, len(summary)),
+		}
+		for _, row := range summary {
+			view.Rows = append(view.Rows, reportingRowView{
+				Framework:        row.Framework,
+				CriteriumID:      row.CriteriumID,
+				Description:      row.Description,
+				SoevereinCount:   row.Counts[models.ScoreSoeverein],
+				VoldoendeCount:   row.Counts[models.ScoreVoldoende],
+				AfhankelijkCount: row.Counts[models.ScoreAfhankelijk],
+				OnbekendCount:    row.Counts[models.ScoreOnbekend],
+			})
+		}
+		render(w, tmpl, "reporting.tmpl", view)
+	}
+}
+
+// reportingRuleView is the shape consumed by reporting_rule.tmpl —
+// the per-rule deep dive.
+type reportingRuleView struct {
+	GeneratedAt  string
+	HasReporting bool
+	Framework    string
+	CriteriumID  string
+	Dimension    string
+	Description  string
+	Rationale    string
+	Rows         []reportingRuleRowView
+}
+
+type reportingRuleRowView struct {
+	TargetID string
+	Domain   string
+	ScanID   string
+	Score    string
+	Verdict  string
+	When     string
+}
+
+func reportingRuleHandler(st *store.Store, tmpl *template.Template) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		framework := chi.URLParam(r, "framework")
+		ruleID := chi.URLParam(r, "ruleID")
+		rule, ok := lookupRule(framework, ruleID)
+		if !ok {
+			http.NotFound(w, r)
+			return
+		}
+		ctx := r.Context()
+		snaps, _, err := buildSnapshots(ctx, st)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		rows := RuleTargetRows(snaps, framework, ruleID)
+		view := reportingRuleView{
+			GeneratedAt:  time.Now().UTC().Format(time.RFC3339),
+			HasReporting: true,
+			Framework:    framework,
+			CriteriumID:  ruleID,
+			Dimension:    string(rule.Dimension),
+			Description:  rule.Description,
+			Rationale:    rule.Rationale,
+			Rows:         make([]reportingRuleRowView, 0, len(rows)),
+		}
+		for _, rw := range rows {
+			view.Rows = append(view.Rows, reportingRuleRowView{
+				TargetID: rw.TargetID,
+				Domain:   rw.Domain,
+				ScanID:   rw.ScanID,
+				Score:    string(rw.Score),
+				Verdict:  rw.Verdict,
+				When:     rw.When.UTC().Format(time.RFC3339),
+			})
+		}
+		render(w, tmpl, "reporting_rule.tmpl", view)
 	}
 }

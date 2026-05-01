@@ -289,3 +289,111 @@ func TestPostureCountsByKind_FiltersCorrectly(t *testing.T) {
 		t.Errorf("internal should not include domain targets: %+v", internal["wand"])
 	}
 }
+
+// snap is a tiny helper for the reporting tests below.
+func snap(targetID, domain string, fw string, dimRationales ...models.Rationale) TargetSnapshot {
+	return TargetSnapshot{
+		TargetID:    targetID,
+		Domain:      domain,
+		Kind:        models.TargetKindDomain,
+		LastScanID:  "scan-" + targetID,
+		LastScanAt:  time.Now(),
+		Assessments: map[string]models.Assessment{
+			fw: {
+				Framework: fw,
+				Dimensions: []models.DimensionScore{{
+					Dimension: models.DimensionJuridisch,
+					Rationale: dimRationales,
+				}},
+			},
+		},
+	}
+}
+
+func TestRuleSummary_DistinctTargetCountsPerScore(t *testing.T) {
+	rule := "wand.juridisch.cert_issuer_eea"
+	snaps := []TargetSnapshot{
+		snap("t1", "a.example", "wand", models.Rationale{CriteriumID: rule, Score: models.ScoreSoeverein, Verdict: "EU"}),
+		snap("t2", "b.example", "wand", models.Rationale{CriteriumID: rule, Score: models.ScoreAfhankelijk, Verdict: "US"}),
+	}
+	got := RuleSummary(snaps, nil)
+	if len(got) != 1 {
+		t.Fatalf("expected 1 rule, got %d", len(got))
+	}
+	if got[0].Counts[models.ScoreSoeverein] != 1 || got[0].Counts[models.ScoreAfhankelijk] != 1 {
+		t.Errorf("counts wrong: %+v", got[0].Counts)
+	}
+	if got[0].Counts[models.ScoreVoldoende] != 0 || got[0].Counts[models.ScoreOnbekend] != 0 {
+		t.Errorf("unset scores should be zero: %+v", got[0].Counts)
+	}
+}
+
+func TestRuleSummary_TwiceOnSameTargetCountsOnce(t *testing.T) {
+	rule := "wand.data_ai.mx_jurisdiction"
+	// One target's Assessment fires the same rule twice (multi-host
+	// dimension). Distinct-target convention means count = 1.
+	snaps := []TargetSnapshot{
+		snap("t1", "a.example", "wand",
+			models.Rationale{CriteriumID: rule, Score: models.ScoreAfhankelijk, Verdict: "MX1"},
+			models.Rationale{CriteriumID: rule, Score: models.ScoreAfhankelijk, Verdict: "MX2"},
+		),
+	}
+	got := RuleSummary(snaps, nil)
+	if len(got) != 1 {
+		t.Fatalf("expected 1 rule")
+	}
+	if got[0].Counts[models.ScoreAfhankelijk] != 1 {
+		t.Errorf("count = %d, want 1 (distinct targets)", got[0].Counts[models.ScoreAfhankelijk])
+	}
+}
+
+func TestRuleSummary_StableOrder_WandBeforeEUCSF(t *testing.T) {
+	snaps := []TargetSnapshot{
+		snap("t1", "a", "eucsf", models.Rationale{CriteriumID: "eucsf.sov2.apex_jurisdiction", Score: models.ScoreSoeverein}),
+		snap("t2", "b", "wand", models.Rationale{CriteriumID: "wand.juridisch.cert_issuer_eea", Score: models.ScoreSoeverein}),
+	}
+	got := RuleSummary(snaps, nil)
+	if len(got) != 2 {
+		t.Fatalf("expected 2 rows, got %d", len(got))
+	}
+	if got[0].Framework != "wand" {
+		t.Errorf("first row should be wand, got %s", got[0].Framework)
+	}
+	if got[1].Framework != "eucsf" {
+		t.Errorf("second row should be eucsf, got %s", got[1].Framework)
+	}
+}
+
+func TestRuleTargetRows_FiltersByRule(t *testing.T) {
+	rule := "wand.juridisch.cert_issuer_eea"
+	other := "wand.juridisch.something_else"
+	snaps := []TargetSnapshot{
+		snap("t1", "a.example", "wand", models.Rationale{CriteriumID: rule, Score: models.ScoreSoeverein}),
+		snap("t2", "b.example", "wand", models.Rationale{CriteriumID: other, Score: models.ScoreAfhankelijk}),
+		snap("t3", "c.example", "wand", models.Rationale{CriteriumID: rule, Score: models.ScoreAfhankelijk}),
+	}
+	got := RuleTargetRows(snaps, "wand", rule)
+	if len(got) != 2 {
+		t.Fatalf("expected 2 rows for the rule, got %d", len(got))
+	}
+	for _, r := range got {
+		if r.Domain == "b.example" {
+			t.Errorf("b.example should be absent — different rule")
+		}
+	}
+}
+
+func TestRuleTargetRows_AfhankelijkBeforeSoeverein(t *testing.T) {
+	rule := "wand.juridisch.cert_issuer_eea"
+	snaps := []TargetSnapshot{
+		snap("t1", "a.example", "wand", models.Rationale{CriteriumID: rule, Score: models.ScoreSoeverein}),
+		snap("t2", "b.example", "wand", models.Rationale{CriteriumID: rule, Score: models.ScoreAfhankelijk}),
+	}
+	got := RuleTargetRows(snaps, "wand", rule)
+	if len(got) != 2 {
+		t.Fatalf("expected 2 rows, got %d", len(got))
+	}
+	if got[0].Score != models.ScoreAfhankelijk {
+		t.Errorf("afhankelijk should sort first, got %s first", got[0].Score)
+	}
+}

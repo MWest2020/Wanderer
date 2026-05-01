@@ -81,6 +81,12 @@ a:hover { text-decoration: underline; }
 }
 .scope-label::before { content: "· "; }
 
+/* Reporting page — per-rule cross-target table. */
+.reporting-rules td.num,
+.reporting-rules th.num { text-align: right; width: 5em; }
+.small { font-size: 0.875rem; }
+.rule-description { font-size: 1rem; color: var(--fg); margin: 0.5rem 0 0 0; }
+
 table {
   width: 100%;
   border-collapse: collapse;

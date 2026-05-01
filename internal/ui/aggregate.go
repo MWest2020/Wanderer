@@ -235,3 +235,149 @@ var AllScores = []models.Score{
 	models.ScoreAfhankelijk,
 	models.ScoreOnbekend,
 }
+
+// RuleSummaryRow is one row on /ui/reporting — a rule that has
+// fired across the persisted Assessments, with distinct-target
+// counts per score. A rule firing twice on the same target
+// counts once (the dashboard's TopConcerns convention applied
+// across every score, not just `afhankelijk`).
+type RuleSummaryRow struct {
+	Framework   string
+	CriteriumID string
+	Description string
+	Counts      map[models.Score]int
+}
+
+// RuleTargetRow is one row on /ui/reporting/{framework}/{ruleID}
+// — the per-rule deep dive. Each row links the operator back to
+// the originating scan's assessment page.
+type RuleTargetRow struct {
+	TargetID string
+	Domain   string
+	ScanID   string
+	Score    models.Score
+	Verdict  string
+	When     time.Time
+}
+
+// reportingFrameworkRank gives wand priority over eucsf and
+// alphabetical for any new pack. Used by RuleSummary's stable
+// row order.
+func reportingFrameworkRank(fw string) int {
+	switch fw {
+	case "wand":
+		return 0
+	case "eucsf":
+		return 1
+	default:
+		return 2
+	}
+}
+
+// RuleSummary returns one row per rule that has fired across the
+// snapshots. ruleLookup attaches Description from the registry
+// when the rule is registered (it always is for current frameworks
+// but the helper is nil-safe for future packs the UI does not
+// know about yet).
+func RuleSummary(snaps []TargetSnapshot, ruleLookup func(framework, criteriumID string) (assessor.Rule, bool)) []RuleSummaryRow {
+	type key struct{ fw, id string }
+	// Per (fw, id, score) collect the set of distinct target IDs.
+	// Sets, not bags — same convention as TopConcerns.
+	type bucket struct {
+		perScore map[models.Score]map[string]struct{}
+	}
+	buckets := map[key]*bucket{}
+	for _, s := range snaps {
+		for fw, a := range s.Assessments {
+			for _, d := range a.Dimensions {
+				for _, r := range d.Rationale {
+					k := key{fw, r.CriteriumID}
+					b := buckets[k]
+					if b == nil {
+						b = &bucket{perScore: map[models.Score]map[string]struct{}{}}
+						buckets[k] = b
+					}
+					if b.perScore[r.Score] == nil {
+						b.perScore[r.Score] = map[string]struct{}{}
+					}
+					b.perScore[r.Score][s.TargetID] = struct{}{}
+				}
+			}
+		}
+	}
+	rows := make([]RuleSummaryRow, 0, len(buckets))
+	for k, b := range buckets {
+		row := RuleSummaryRow{
+			Framework:   k.fw,
+			CriteriumID: k.id,
+			Counts:      map[models.Score]int{},
+		}
+		for sc, targetIDs := range b.perScore {
+			row.Counts[sc] = len(targetIDs)
+		}
+		if ruleLookup != nil {
+			if rule, ok := ruleLookup(k.fw, k.id); ok {
+				row.Description = rule.Description
+			}
+		}
+		rows = append(rows, row)
+	}
+	sort.Slice(rows, func(i, j int) bool {
+		if reportingFrameworkRank(rows[i].Framework) != reportingFrameworkRank(rows[j].Framework) {
+			return reportingFrameworkRank(rows[i].Framework) < reportingFrameworkRank(rows[j].Framework)
+		}
+		if rows[i].Framework != rows[j].Framework {
+			return rows[i].Framework < rows[j].Framework
+		}
+		return rows[i].CriteriumID < rows[j].CriteriumID
+	})
+	return rows
+}
+
+// RuleTargetRows returns the per-target rows for one rule on the
+// detail page. A target with no Rationale for the rule is absent
+// from the result. Newest-Assessment-wins is implicit: the
+// snapshot's Assessments map already holds only the most recent
+// Assessment per framework (built that way in dashboardHandler).
+//
+// Rows are ordered by score severity — afhankelijk first so the
+// operator sees pain points immediately, then voldoende,
+// soeverein, onbekend. Within a score bucket, alphabetical by
+// domain.
+func RuleTargetRows(snaps []TargetSnapshot, framework, ruleID string) []RuleTargetRow {
+	out := make([]RuleTargetRow, 0)
+	for _, s := range snaps {
+		a, ok := s.Assessments[framework]
+		if !ok {
+			continue
+		}
+		for _, d := range a.Dimensions {
+			for _, r := range d.Rationale {
+				if r.CriteriumID != ruleID {
+					continue
+				}
+				out = append(out, RuleTargetRow{
+					TargetID: s.TargetID,
+					Domain:   s.Domain,
+					ScanID:   s.LastScanID,
+					Score:    r.Score,
+					Verdict:  r.Verdict,
+					When:     s.LastScanAt,
+				})
+			}
+		}
+	}
+	severityRank := map[models.Score]int{
+		models.ScoreAfhankelijk: 0,
+		models.ScoreVoldoende:   1,
+		models.ScoreSoeverein:   2,
+		models.ScoreOnbekend:    3,
+	}
+	sort.Slice(out, func(i, j int) bool {
+		if severityRank[out[i].Score] != severityRank[out[j].Score] {
+			return severityRank[out[i].Score] < severityRank[out[j].Score]
+		}
+		return out[i].Domain < out[j].Domain
+	})
+	return out
+}

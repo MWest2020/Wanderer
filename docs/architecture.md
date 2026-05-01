@@ -196,9 +196,11 @@ The UI is layered as **DAR — Dashboard, Analysis, Reporting**:
   `/ui/scans/{id}/assessment`, `/ui/targets/{id}/drift`) is the
   per-target / per-scan deep-dive surface where an operator
   drills into specific evidence.
-- **Reporting** (`/ui/reporting`) is the per-rule cross-target
-  view, populated when the sibling `add-reporting-per-check`
-  proposal lands.
+- **Reporting** (`/ui/reporting`, `/ui/reporting/{framework}/{ruleID}`)
+  is the per-rule cross-target view: every rule that has fired
+  with per-score target counts, plus a per-rule detail page that
+  lists every target the rule fired on, with a back-link to the
+  originating scan's assessment page.
 
 A small `nav.tmpl` partial renders the same Dashboard / Analysis /
 Reporting tabs across every page, so the operator's mental model
