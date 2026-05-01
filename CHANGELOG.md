@@ -9,6 +9,21 @@ once a first release is cut. Until then every entry lives under
 
 ## [Unreleased]
 
+### Added
+
+- Optional reverse DNS annotation on flow Findings. When the
+  operator sets `egress.flow.reverse_dns.enabled: true`, each unique
+  destination IP in the sampling window is resolved via the host's
+  resolver and the resulting Finding gets a `reverse_dns:
+  "<hostname>"` attribute. Off by default — a PTR query leaks the
+  observation back through the host's DNS path, which a sovereignty
+  monitor cannot default-on without consent. Per-IP cache inside
+  the Aggregator window guarantees one PTR query per unique IP per
+  tick. ADR-0010 carries the privacy-tradeoff addendum; spec delta
+  in `openspec/specs/egress-probe/spec.md`. Configurable
+  `egress.flow.reverse_dns.timeout` (default 500ms) caps each
+  individual lookup.
+
 ### Changed (breaking)
 
 - The first-party rule pack — formerly named **`dictu`** after the

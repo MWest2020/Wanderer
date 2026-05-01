@@ -34,7 +34,7 @@ func TestAggregator_DedupsBySrcDestPair(t *testing.T) {
 	a.Add(flow.Event{DestIP: ip, DestPort: 443, PID: 2, Comm: "curl"}) // duplicate
 	a.Add(flow.Event{DestIP: ip, DestPort: 80, PID: 3, Comm: "wget"})  // different port
 
-	got := a.Findings(nil)
+	got := a.Findings(context.Background(), nil, nil)
 	if len(got) != 2 {
 		t.Fatalf("findings = %d, want 2", len(got))
 	}
@@ -56,7 +56,7 @@ func TestAggregator_FindingShape(t *testing.T) {
 		PID:      4242,
 		Comm:     "agent",
 	})
-	got := a.Findings(nil)
+	got := a.Findings(context.Background(), nil, nil)
 	if len(got) != 1 {
 		t.Fatalf("findings = %d", len(got))
 	}
@@ -84,7 +84,7 @@ func TestAggregator_FindingShape(t *testing.T) {
 func TestAggregator_IgnoresZeroPort(t *testing.T) {
 	a := flow.NewAggregator()
 	a.Add(flow.Event{DestIP: net.ParseIP("203.0.113.5"), DestPort: 0})
-	if got := a.Findings(nil); len(got) != 0 {
+	if got := a.Findings(context.Background(), nil, nil); len(got) != 0 {
 		t.Errorf("port-0 events should be skipped, got %d", len(got))
 	}
 }
@@ -92,7 +92,7 @@ func TestAggregator_IgnoresZeroPort(t *testing.T) {
 func TestAggregator_IgnoresNilIP(t *testing.T) {
 	a := flow.NewAggregator()
 	a.Add(flow.Event{DestPort: 443})
-	if got := a.Findings(nil); len(got) != 0 {
+	if got := a.Findings(context.Background(), nil, nil); len(got) != 0 {
 		t.Errorf("nil-IP events should be skipped, got %d", len(got))
 	}
 }
@@ -103,7 +103,7 @@ func TestAggregator_ResolverAnnotates(t *testing.T) {
 
 	// Stub resolver returns a fixed annotation.
 	resolver := stubResolver{asn: 64500, org: "example", country: "NL"}
-	got := a.Findings(resolver)
+	got := a.Findings(context.Background(), resolver, nil)
 	if len(got) != 1 {
 		t.Fatal("resolver annotation should not change finding count")
 	}
@@ -190,7 +190,7 @@ func TestFlow_ClassifierReuse_HTTPSGoesToObjectStorageWhenAWS(t *testing.T) {
 	// flow path emits egress.flow.unknown rather than misclassifying
 	// raw IPs as a vendor.
 	a.Add(flow.Event{DestIP: net.ParseIP("52.218.0.1"), DestPort: 443, Comm: "agent"})
-	got := a.Findings(nil)
+	got := a.Findings(context.Background(), nil, nil)
 	if len(got) != 1 {
 		t.Fatalf("findings = %d", len(got))
 	}

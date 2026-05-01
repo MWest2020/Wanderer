@@ -94,6 +94,9 @@ func buildFlowProbe(cfg *agent.Config) *flow.Flow {
 		return nil
 	}
 	f := &flow.Flow{Window: cfg.Egress.Flow.Window}
+	if cfg.Egress.Flow.ReverseDNS.Enabled {
+		f.ReverseResolver = flow.NewReverseDNSResolver(cfg.Egress.Flow.ReverseDNS.Timeout)
+	}
 	src, err := flow.NewKernelSource()
 	if err != nil {
 		f.SourceErr = err

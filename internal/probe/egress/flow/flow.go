@@ -82,6 +82,11 @@ type Flow struct {
 	// Resolver annotates each Finding with ASN/country attributes
 	// when wired (the existing GeoLite2 path).
 	Resolver egress.HostResolver
+	// ReverseResolver annotates each Finding with a best-effort
+	// reverse DNS hostname when wired. Off by default — opt-in via
+	// egress.flow.reverse_dns.enabled — because PTR queries leak the
+	// observation back through the host's DNS path.
+	ReverseResolver ReverseDNSResolver
 }
 
 // ID is the inspector identifier used in ProbeID prefixes.
@@ -193,7 +198,7 @@ collect:
 		// agent's slog and continue with the findings we have.
 		_ = err
 	}
-	return agg.Findings(f.Resolver), nil
+	return agg.Findings(ctx, f.Resolver, f.ReverseResolver), nil
 }
 
 // hasBPFCap checks for CAP_BPF + CAP_PERFMON on the current process.
@@ -214,11 +219,12 @@ func hasBPFCap() bool { return false }
 type Aggregator struct {
 	mu   sync.Mutex
 	seen map[string]Event
+	ptr  *ptrCache
 }
 
 // NewAggregator returns an empty Aggregator.
 func NewAggregator() *Aggregator {
-	return &Aggregator{seen: map[string]Event{}}
+	return &Aggregator{seen: map[string]Event{}, ptr: newPTRCache()}
 }
 
 // Add records one event. If the (DestIP, DestPort) pair has already
@@ -236,15 +242,22 @@ func (a *Aggregator) Add(ev Event) {
 	}
 }
 
-// Findings emits one Finding per unique destination. The resolver,
-// when non-nil, annotates each Finding with ASN/country attributes
-// using the same GeoLite2 path the static egress probe uses.
-func (a *Aggregator) Findings(resolver egress.HostResolver) []models.Finding {
+// Findings emits one Finding per unique destination.
+//
+// The host resolver, when non-nil, annotates each Finding with
+// ASN/organisation/country attributes from GeoLite2 (offline).
+// The reverse-DNS resolver, when non-nil, annotates each Finding
+// with a `reverse_dns` attribute via the host's resolver — opt-in
+// only because PTR queries leak the observation outward. Per-IP
+// memoisation through the Aggregator's ptrCache guarantees one
+// PTR query per unique destination IP within the window.
+func (a *Aggregator) Findings(ctx context.Context, resolver egress.HostResolver, reverse ReverseDNSResolver) []models.Finding {
 	a.mu.Lock()
 	uniques := make([]Event, 0, len(a.seen))
 	for _, ev := range a.seen {
 		uniques = append(uniques, ev)
 	}
+	cache := a.ptr
 	a.mu.Unlock()
 	sort.Slice(uniques, func(i, j int) bool {
 		return flowKey(uniques[i]) < flowKey(uniques[j])
@@ -252,7 +265,7 @@ func (a *Aggregator) Findings(resolver egress.HostResolver) []models.Finding {
 
 	out := make([]models.Finding, 0, len(uniques))
 	for _, ev := range uniques {
-		out = append(out, buildFlowFinding(ev, resolver))
+		out = append(out, buildFlowFinding(ctx, ev, resolver, reverse, cache))
 	}
 	return out
 }
@@ -265,7 +278,7 @@ func flowKey(ev Event) string {
 // classifier so the wire format stays consistent with the static
 // egress probe. We synthesise a fake "key" name (`flow.connect`) so
 // classifiers that branch on key still get a stable input.
-func buildFlowFinding(ev Event, resolver egress.HostResolver) models.Finding {
+func buildFlowFinding(ctx context.Context, ev Event, resolver egress.HostResolver, reverse ReverseDNSResolver, cache *ptrCache) models.Finding {
 	target := ev.DestIP.String()
 	cls := egress.Classify("flow.connect", target)
 	probeID := "egress.flow." + cls.Category
@@ -304,6 +317,11 @@ func buildFlowFinding(ev Event, resolver egress.HostResolver) models.Finding {
 			attrs["asn"] = asn
 			attrs["organisation"] = org
 			attrs["country"] = country
+		}
+	}
+	if reverse != nil && cache != nil {
+		if host, ok := cache.Lookup(ctx, reverse, target); ok && host != "" {
+			attrs["reverse_dns"] = host
 		}
 	}
 	return models.Finding{

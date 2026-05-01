@@ -41,8 +41,18 @@ type EgressConfig struct {
 // host the inspector currently surfaces as
 // inventory.egress.flow.unavailable when enabled.
 type EgressFlow struct {
+	Enabled    bool                 `yaml:"enabled"`
+	Window     time.Duration        `yaml:"window,omitempty"`
+	ReverseDNS EgressFlowReverseDNS `yaml:"reverse_dns,omitempty"`
+}
+
+// EgressFlowReverseDNS toggles best-effort PTR annotation on flow
+// Findings. Default off: a PTR query leaks the observation back
+// through the host's resolver, which a sovereignty monitor cannot
+// default-on without consent. See ADR-0010 for the tradeoff.
+type EgressFlowReverseDNS struct {
 	Enabled bool          `yaml:"enabled"`
-	Window  time.Duration `yaml:"window,omitempty"`
+	Timeout time.Duration `yaml:"timeout,omitempty"`
 }
 
 // EgressConfigFiles enumerates the directories the configfiles

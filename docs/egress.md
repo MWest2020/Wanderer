@@ -190,6 +190,47 @@ agent emits no `egress.flow.*` Findings (not even `unavailable`).
 That keeps the absence-of-evidence path quiet on hosts where the
 operator never asked for runtime flow observation.
 
+### Reverse DNS annotation (opt-in)
+
+The flow probe records destinations as `(IP, port)` pairs. When the
+vendor classifier in `vendors.yaml` matches the IP, the Finding
+carries `provider`, `region`, and (with GeoLite2 wired) `asn` /
+`organisation` / `country`. When the classifier does **not** match
+— generic cloud ranges, customer infrastructure, anything not in
+the table — the Finding is `egress.flow.unknown` with only the raw
+IP. Accurate, but lossy.
+
+Optional reverse-DNS annotation recovers a hostname hint:
+
+```yaml
+egress:
+  flow:
+    enabled: true
+    reverse_dns:
+      enabled: false   # default — opt-in only
+      timeout: 500ms   # per-lookup
+```
+
+When enabled, each unique destination IP in the sampling window is
+resolved via `net.DefaultResolver.LookupAddr`. On success the
+Finding's Attributes gain `reverse_dns: "<hostname>"`. On failure
+(NXDOMAIN, timeout, refused, transport error) nothing is added —
+no error Finding, no `reverse_dns: null`. Reverse DNS is best-effort
+enrichment, not a probe in its own right.
+
+Multiple ports to the same IP within one window produce exactly
+one PTR query (per-IP cache). The cache lifetime is one tick.
+
+**Why opt-in.** A PTR query leaks the observation back through the
+host's DNS path — the resolver, every cache between, and the
+authoritative server for the reverse zone all learn that *this host
+saw IP X*. In a sovereignty monitor whose explicit purpose is
+reducing data flight, that side-channel is non-trivial. Operators
+in tight sovereignty contexts leave the toggle off and accept
+IP-only Findings; operators in closed labs flip it on for richer
+labels. See [ADR-0010](decisions/0010-ebpf-flow-probe.md) for the
+full tradeoff.
+
 ## Customising the vendor list
 
 The classifier's vendor / region / regex table is loaded from

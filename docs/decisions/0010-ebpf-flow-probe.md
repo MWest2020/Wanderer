@@ -110,7 +110,38 @@ runs plain `go build ./...` and gets a working binary.
   the kernel attach (no root in CI), so the loader is covered by
   the host integration test instead (run as root: see
   `docs/egress.md` "runtime flow probe" section).
-- Reverse DNS annotation for IP-only destinations.
+
+## 2026-05-01 addendum — reverse DNS annotation (opt-in)
+
+The original deferred-work list named "reverse DNS annotation for
+IP-only destinations" without weighing the privacy cost. Landing
+the feature forced that decision: a PTR query leaks the
+observation back through the host's resolver, which a sovereignty
+monitor cannot default-on without consent.
+
+**Decision.** Reverse DNS annotation is opt-in via
+`egress.flow.reverse_dns.enabled: true`, mirroring the flow probe's
+own opt-in toggle. The default-off posture aligns with the
+"safest, most defensible default" principle that already governs
+the flow probe.
+
+**Wire shape.** On success the Finding's Attributes gain
+`reverse_dns: "<hostname>"`. On failure (NXDOMAIN, timeout,
+refused, transport error) nothing is added — no error Finding, no
+`reverse_dns: null`. PTR records are advisory labels, not trust
+anchors; FCrDNS / DNSSEC are out of scope.
+
+**Cache lifetime.** One sampling window. A per-IP cache inside the
+Aggregator guarantees one PTR query per unique destination IP per
+tick; the cache resets across ticks to bound memory and prevent
+stale labels from drifting across long-running agents.
+
+**References.**
+
+- Proposal:
+  `openspec/changes/archive/2026-05-01-add-flow-reverse-dns/proposal.md`
+- Spec delta applied to:
+  `openspec/specs/egress-probe/spec.md`
 
 **Why now.** The static egress probe shipped with a known gap;
 landing the userspace half + the auditable C source makes the
