@@ -1,12 +1,5 @@
 # Delta for scanner
 
-> **Note:** This delta documents the *target end-state* of the
-> Organisation pivot. The implementation PR (`add-organisation-pivot`)
-> will land the requirements; archiving this change before that PR
-> exists would create a spec the code does not satisfy. Hold this
-> change as **active** (not archived) until the implementation
-> change opens.
-
 ## ADDED Requirements
 
 ### Requirement: Organisations group Targets

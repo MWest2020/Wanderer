@@ -1,9 +1,9 @@
 # Proposal: Organisation as a first-class concept
 
-> **Status:** Design proposal only. No implementation in this
-> change. Schema migrations need a human read-through before code.
-> See `tasks.md` — every task is a `[ ]` design checkpoint, not a
-> code item.
+> **Status:** Implementation. The design pass landed
+> 2026-05-01; Mark approved every recommendation in the
+> open-questions table on 2026-05-03 and this change ships the
+> code.
 
 ## Intent
 
@@ -89,12 +89,41 @@ focused PR.
 - Renaming or deleting organisations. v1 is add-only; remove or
   rename is a future migration if the need is real.
 
-## Open questions for review
+## Resolved decisions
 
-These are the points where Mark's input shapes the design.
+Mark approved every recommendation on 2026-05-03. The decisions
+are summarised here; the full options + pros/cons walk-through
+that produced them is preserved verbatim below this section as
+the historical design record.
+
+| # | Decision                       | Choice | Reason |
+|---|--------------------------------|--------|--------|
+| 1 | Default-org migration          | `default` slug + first-run nudge | Smooth upgrade with explicit hint to rename |
+| 2 | Agent-host modelling           | Target with Kind=host | Discriminator does the work; promote later if needed |
+| 3 | Scan organisation selection    | flag > env > yaml > default | Same precedence as serve-config |
+| 4 | Schedule organisation handling | per-schedule with fallback | Same precedence as Q3 |
+| 5 | Asset-discovery seed           | generic YAML only | Don't pin third-party output formats |
+| 6 | MCP exposure                   | same PR as CLI/UI | Schema-as-documentation for AI agents |
+
+Concrete consequences for the implementation:
+
+- `org rename` ships in v1 (Q1 escape hatch)
+- `scan.organisation` is added to `serve.yaml` (Q3 fallback)
+- Each schedule entry takes an optional `organisation:` field;
+  unset uses `scan.organisation`; both unset → startup error
+  naming the schedule (Q4)
+- `wanderer org add --from-yaml` ships in v1 (Q5)
+- MCP gains `org.list`, `org.show`, `org.targets` (Q6)
+
+---
+
+## Open questions (resolved — preserved as design record)
+
+These are the points where Mark's input shaped the design.
 Each question is laid out as: the decision being made, the
-realistic options, pros and cons of each, and my recommendation
-with reasoning.
+realistic options, pros and cons of each, and the chosen path
+with reasoning. They are kept here so future readers can see
+the trade-offs we walked through.
 
 ### Q1. How does the migration treat existing Targets?
 
