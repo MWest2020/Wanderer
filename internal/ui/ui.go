@@ -68,6 +68,7 @@ func Handler(st *store.Store, htpasswdPath string) (http.Handler, error) {
 	}
 	r.Handle("/static/*", http.StripPrefix("/static/", http.FileServer(http.FS(staticFS))))
 	r.Get("/", dashboardHandler(st, tmpl))
+	r.Get("/orgs/{slug}", dashboardOrgHandler(st, tmpl))
 	r.Get("/targets", targetsHandler(st, tmpl))
 	r.Get("/scans/{id}", scanHandler(st, tmpl))
 	r.Get("/scans/{id}/assessment", assessmentHandler(st, tmpl))
@@ -122,11 +123,22 @@ type dashboardView struct {
 	GeneratedAt           string
 	HasData               bool // true when at least one scan exists
 	Headline              headlineRenderView
+	OrganisationsList     []organisationLinkView // populated only on the instance-wide /ui/
+	ScopedOrganisation    *organisationLinkView  // populated only on /ui/orgs/{slug}
 	ExternalPostureBlocks []postureBlockView
 	InternalPostureBlocks []postureBlockView
 	HasReporting          bool // controls whether the Reporting nav link renders
 	TopConcerns           []ConcernRow
 	Activity              []activityRowView
+}
+
+// organisationLinkView is one row in the dashboard's organisation
+// list: slug, display name, and the URL to the per-org dashboard.
+type organisationLinkView struct {
+	Slug       string
+	Name       string
+	URL        string
+	TargetCount int
 }
 
 // headlineRenderView is the pontificaal section's render shape —
@@ -160,72 +172,62 @@ type activityRowView struct {
 
 func dashboardHandler(st *store.Store, tmpl *template.Template) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context()
-		scans, err := st.ListScans(ctx, store.Selectors{})
+		renderDashboard(w, r, st, tmpl, nil)
+	}
+}
+
+// dashboardOrgHandler renders the per-organisation dashboard at
+// /ui/orgs/{slug}. The view filters scans + snapshots to that
+// organisation's Targets; the headline is rebadged with the org
+// name, and the OrganisationsList sub-section is suppressed (the
+// operator is already inside one organisation's view).
+func dashboardOrgHandler(st *store.Store, tmpl *template.Template) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		slug := chi.URLParam(r, "slug")
+		o, err := st.GetOrganisationBySlug(r.Context(), slug)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			http.NotFound(w, r)
 			return
 		}
-		// Build per-target snapshots: most recent scan per target,
-		// most recent Assessment per (target, framework). The same
-		// shape feeds PostureCounts and TopConcerns.
-		type latest struct {
-			scan store.ScanRow
-			when time.Time
-		}
-		byTarget := map[string]latest{}
-		for _, s := range scans {
-			cur, ok := byTarget[s.TargetID]
-			if !ok || s.StartedAt.After(cur.when) {
-				byTarget[s.TargetID] = latest{scan: s, when: s.StartedAt}
-			}
-		}
-		snaps := make([]TargetSnapshot, 0, len(byTarget))
-		assessmentsByScan := map[string]bool{}
-		for _, l := range byTarget {
-			// Resolve Kind so the headline and per-scope posture can
-			// split perimeter (domain) from agent host (host) targets.
-			// Missing or zero Kind defaults to domain in the model.
-			var kind models.TargetKind
-			if t, err := st.GetTarget(ctx, l.scan.TargetID); err == nil && t != nil {
-				kind = t.Kind
-			}
-			snap := TargetSnapshot{
-				TargetID:    l.scan.TargetID,
-				Domain:      l.scan.Domain,
-				Kind:        kind,
-				LastScanID:  l.scan.ID,
-				LastScanAt:  l.when,
-				LastStatus:  l.scan.Status,
-				Assessments: map[string]models.Assessment{},
-			}
-			if list, err := st.ListAssessmentsForScan(ctx, l.scan.ID); err == nil {
-				for _, a := range list {
-					assessmentsByScan[l.scan.ID] = true
-					cur, ok := snap.Assessments[a.Framework]
-					if !ok || a.CreatedAt.After(cur.CreatedAt) {
-						snap.Assessments[a.Framework] = a
-					}
-				}
-			}
-			snaps = append(snaps, snap)
-		}
-		// Activity needs HasAssessment lookups for ALL scans, not
-		// just the most-recent-per-target subset.
-		activityHas := func(scanID string) bool {
-			if assessmentsByScan[scanID] {
-				return true
-			}
-			if list, err := st.ListAssessmentsForScan(ctx, scanID); err == nil && len(list) > 0 {
-				assessmentsByScan[scanID] = true
-				return true
-			}
-			return false
-		}
+		renderDashboard(w, r, st, tmpl, o)
+	}
+}
 
-		concerns := TopConcerns(snaps, lookupRule, 5)
-		activity := RecentActivity(scans, activityHas, 5)
-		headline := BuildHeadline(snaps, scans)
+// renderDashboard fills the dashboardView struct + executes the
+// template. When org is nil, the view is the instance-wide global;
+// when org is set, snapshots are filtered to that organisation and
+// the headline is rebadged.
+func renderDashboard(w http.ResponseWriter, r *http.Request, st *store.Store, tmpl *template.Template, org *models.Organisation) {
+	ctx := r.Context()
+	orgID := ""
+	if org != nil {
+		orgID = org.ID
+	}
+	snaps, scans, err := buildSnapshots(ctx, st, orgID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	assessmentsByScan := map[string]bool{}
+	for _, s := range snaps {
+		if len(s.Assessments) > 0 {
+			assessmentsByScan[s.LastScanID] = true
+		}
+	}
+	activityHas := func(scanID string) bool {
+		if assessmentsByScan[scanID] {
+			return true
+		}
+		if list, err := st.ListAssessmentsForScan(ctx, scanID); err == nil && len(list) > 0 {
+			assessmentsByScan[scanID] = true
+			return true
+		}
+		return false
+	}
+
+	concerns := TopConcerns(snaps, lookupRule, 5)
+	activity := RecentActivity(scans, activityHas, 5)
+	headline := BuildHeadline(snaps, scans)
 
 		view := dashboardView{
 			GeneratedAt:  time.Now().UTC().Format(time.RFC3339),
@@ -277,8 +279,30 @@ func dashboardHandler(st *store.Store, tmpl *template.Template) http.HandlerFunc
 				HasAssessment: a.HasAssessment,
 			})
 		}
+		// Organisation-aware metadata: per-org dashboards carry the
+		// scoped org's slug + name so the template can rebadge the
+		// headline; the instance-wide view carries the full list of
+		// registered orgs as drill-in links.
+		if org != nil {
+			view.ScopedOrganisation = &organisationLinkView{
+				Slug: org.Slug,
+				Name: org.Name,
+				URL:  "/ui/orgs/" + org.Slug,
+			}
+		} else {
+			if orgs, listErr := st.ListOrganisations(ctx); listErr == nil {
+				for _, o := range orgs {
+					targets, _ := st.ListTargetsByOrganisation(ctx, o.ID)
+					view.OrganisationsList = append(view.OrganisationsList, organisationLinkView{
+						Slug:        o.Slug,
+						Name:        o.Name,
+						URL:         "/ui/orgs/" + o.Slug,
+						TargetCount: len(targets),
+					})
+				}
+			}
+		}
 		render(w, tmpl, "dashboard.tmpl", view)
-	}
 }
 
 // buildSnapshots builds the per-target snapshot list shared by
@@ -287,8 +311,16 @@ func dashboardHandler(st *store.Store, tmpl *template.Template) http.HandlerFunc
 // the resolved Kind. Returns the underlying scans slice too so a
 // caller that also needs RecentActivity / TotalScans can share
 // the same store roundtrip.
-func buildSnapshots(ctx context.Context, st *store.Store) (snaps []TargetSnapshot, scans []store.ScanRow, err error) {
-	scans, err = st.ListScans(ctx, store.Selectors{})
+//
+// orgID, when non-empty, filters scans to those whose Target
+// belongs to that organisation. Used by /ui/orgs/{slug} and the
+// `?org=` query parameter on /ui/reporting.
+func buildSnapshots(ctx context.Context, st *store.Store, orgID string) (snaps []TargetSnapshot, scans []store.ScanRow, err error) {
+	sel := store.Selectors{}
+	if orgID != "" {
+		sel.OrganisationID = orgID
+	}
+	scans, err = st.ListScans(ctx, sel)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -329,6 +361,23 @@ func buildSnapshots(ctx context.Context, st *store.Store) (snaps []TargetSnapsho
 		snaps = append(snaps, snap)
 	}
 	return snaps, scans, nil
+}
+
+// resolveOrgQueryParam parses the optional `?org=<slug>` query
+// parameter. Returns ("", nil, true) when no slug given. On an
+// unknown slug, writes a 404 and returns ok=false so the caller
+// can short-circuit.
+func resolveOrgQueryParam(ctx context.Context, st *store.Store, w http.ResponseWriter, r *http.Request) (orgID string, org *models.Organisation, ok bool) {
+	slug := r.URL.Query().Get("org")
+	if slug == "" {
+		return "", nil, true
+	}
+	o, err := st.GetOrganisationBySlug(ctx, slug)
+	if err != nil {
+		http.NotFound(w, r)
+		return "", nil, false
+	}
+	return o.ID, o, true
 }
 
 // renderPostureBlocks turns a PostureSummary into the slice the
@@ -697,11 +746,16 @@ type reportingRowView struct {
 func reportingIndexHandler(st *store.Store, tmpl *template.Template) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
-		snaps, _, err := buildSnapshots(ctx, st)
+		orgID, scopedOrg, ok := resolveOrgQueryParam(ctx, st, w, r)
+		if !ok {
+			return
+		}
+		snaps, _, err := buildSnapshots(ctx, st, orgID)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
+		_ = scopedOrg // currently the index page does not show the scope label
 		summary := RuleSummary(snaps, lookupRule)
 		view := reportingView{
 			GeneratedAt:  time.Now().UTC().Format(time.RFC3339),
@@ -755,7 +809,11 @@ func reportingRuleHandler(st *store.Store, tmpl *template.Template) http.Handler
 			return
 		}
 		ctx := r.Context()
-		snaps, _, err := buildSnapshots(ctx, st)
+		orgID, _, ok := resolveOrgQueryParam(ctx, st, w, r)
+		if !ok {
+			return
+		}
+		snaps, _, err := buildSnapshots(ctx, st, orgID)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return

@@ -20,6 +20,7 @@ import (
 	"github.com/MWest2020/wanderer/internal/serveconfig"
 	"github.com/MWest2020/wanderer/internal/store"
 	"github.com/MWest2020/wanderer/internal/ui"
+	"github.com/MWest2020/wanderer/pkg/models"
 )
 
 // runServe starts the HTTP API and (optionally) the cron scheduler.
@@ -77,6 +78,7 @@ func runServe(args []string) int {
 	schedules := serveconfig.ResolveString(setFlags, "schedules", *schedulesPath, "WANDERER_SCHEDULES", cfgSchedules(cfg), "")
 	uiOn := serveconfig.ResolveBool(setFlags, "ui", *uiEnabled, "WANDERER_UI_ENABLED", cfgUIEnabled(cfg), cfg != nil, false)
 	htpasswd := serveconfig.ResolveString(setFlags, "ui-htpasswd", *uiHtpasswd, "WANDERER_UI_HTPASSWD", cfgUIHtpasswd(cfg), "")
+	defaultOrgSlug := serveconfig.ResolveString(setFlags, "organisation", "", "WANDERER_ORGANISATION", cfgOrganisation(cfg), models.DefaultOrganisationSlug)
 
 	warnIfGeoIPMissing(os.Stderr, asn, skipGeoWarn)
 
@@ -111,6 +113,7 @@ func runServe(args []string) int {
 			return 1
 		}
 		sched = scheduler.New(st, sc, logger)
+		sched.SetDefaultOrganisation(defaultOrgSlug)
 		if err := sched.Reload(schedCfg); err != nil {
 			fmt.Fprintf(os.Stderr, "wanderer: schedules: %v\n", err)
 			return 1
@@ -263,4 +266,11 @@ func cfgUIHtpasswd(c *serveconfig.Config) string {
 		return ""
 	}
 	return c.UI.Htpasswd
+}
+
+func cfgOrganisation(c *serveconfig.Config) string {
+	if c == nil {
+		return ""
+	}
+	return c.Scan.Organisation
 }

@@ -171,7 +171,20 @@ func runAgentLocal(logger *slog.Logger, cfg *agent.Config, inspectors []inventor
 	}
 	defer st.Close()
 
-	tgt := &models.Target{Domain: cfg.Hostname, Kind: models.TargetKindHost}
+	// Resolve the organisation slug → ID so the host attaches to the
+	// right organisation. Empty slug falls back to the seeded
+	// `default` org (matches the `wanderer scan` ergonomics —
+	// see add-organisation-pivot Q3). Unknown slug fails fast.
+	orgSlug := cfg.Core.Organisation
+	if orgSlug == "" {
+		orgSlug = models.DefaultOrganisationSlug
+	}
+	org, err := st.GetOrganisationBySlug(ctx, orgSlug)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "wanderer agent: organisation %q: %v\n", orgSlug, err)
+		return 1
+	}
+	tgt := &models.Target{Domain: cfg.Hostname, Kind: models.TargetKindHost, OrganisationID: org.ID}
 	if err := st.UpsertTarget(ctx, tgt); err != nil {
 		fmt.Fprintf(os.Stderr, "wanderer agent: upsert target: %v\n", err)
 		return 1

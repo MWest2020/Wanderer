@@ -6,6 +6,25 @@ structured `Finding` records, then derives sovereignty assessments
 from those findings. Probes do not score. Assessors do not probe. The
 `Finding` schema is the wire between them.
 
+## Organisations group everything
+
+Every Target — perimeter domain or agent host — belongs to exactly
+one **Organisation**. The operator picks the organisation at scan
+time (`--organisation`), in the agent config (`core.organisation`),
+or via the serve fallback (`scan.organisation` in `serve.yaml`).
+A seeded `default` organisation picks up any Target that doesn't
+carry an explicit slug, so single-customer deployments need no
+configuration.
+
+The pivot exists because Wanderer is intended to be run by
+operators who watch *their* portfolio — a Conduction-style
+delivery shop watching multiple customer organisations on one
+instance, or a single ministry watching its own estate. The
+dashboard, reporting, MCP surface, and CLI all carry the
+organisation through, so an operator picks one organisation and
+sees *its* sovereignty story rather than the instance-wide soup.
+Operator-side details: `docs/operator.md` "Organisations".
+
 ## Three modi
 
 Wanderer ships one binary that runs in three operating modi. Each modus

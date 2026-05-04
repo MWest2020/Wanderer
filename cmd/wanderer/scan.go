@@ -33,6 +33,7 @@ func runScan(args []string) int {
 	allowPrivate := fs.Bool("allow-private-targets", false, "Allow scanning RFC1918 / loopback / cloud-metadata addresses (default off)")
 	amassPath := fs.String("amass", "", "Optional path to an Amass `enum -json` output file; FQDNs are merged into target.Related")
 	jsonLogs := fs.Bool("json-logs", false, "Emit logs as JSON (default text)")
+	orgSlug := fs.String("organisation", envOr("WANDERER_ORGANISATION", ""), "Organisation slug to attach the scan to; defaults to 'default'")
 	positional, err := parseFlagsInterspersed(fs, args)
 	if err != nil {
 		return 2
@@ -44,6 +45,10 @@ func runScan(args []string) int {
 	domain := positional[0]
 
 	warnIfGeoIPMissing(os.Stderr, *geoipPath, *noGeoIP)
+	if *orgSlug == "" {
+		*orgSlug = models.DefaultOrganisationSlug
+		warnIfDefaultOrganisation(os.Stderr)
+	}
 
 	logger := newLogger(*jsonLogs)
 	slog.SetDefault(logger)
@@ -57,6 +62,16 @@ func runScan(args []string) int {
 		return 1
 	}
 	defer st.Close()
+
+	// Resolve the organisation slug → ID up front so the scanner can
+	// stamp every Target with the right organisation. Unknown slug
+	// fails fast — better than half-attaching the scan and surfacing
+	// the error after probes have already fired.
+	org, err := st.GetOrganisationBySlug(ctx, *orgSlug)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "wanderer: organisation %q: %v\n", *orgSlug, err)
+		return 1
+	}
 
 	probes, err := buildProbes(*geoipPath, *geoipCountry)
 	if err != nil {
@@ -77,7 +92,7 @@ func runScan(args []string) int {
 		fmt.Fprintf(os.Stderr, "wanderer: %v\n", err)
 		return 1
 	}
-	scan, err := sc.Scan(ctx, models.Target{Domain: domain, Related: related})
+	scan, err := sc.Scan(ctx, models.Target{Domain: domain, Related: related, OrganisationID: org.ID})
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "wanderer: scan: %v\n", err)
 		return 1
@@ -187,6 +202,18 @@ func envOr(key, fallback string) string {
 		return v
 	}
 	return fallback
+}
+
+// warnIfDefaultOrganisation prints the Q1 first-run nudge — emitted
+// once per invocation when the operator did not pass --organisation
+// and no env / config value pointed elsewhere, so they fall back to
+// the seeded `default` org. Silenced by setting any of the other
+// precedence layers (flag, env, yaml).
+func warnIfDefaultOrganisation(out *os.File) {
+	fmt.Fprintln(out, "warning: scan attached to the default organisation. Pass --organisation <slug>")
+	fmt.Fprintln(out, "(or set WANDERER_ORGANISATION) to attach to a specific organisation. Run")
+	fmt.Fprintln(out, "`wanderer org rename --slug default --new-slug <real> --name <Real>` to convert")
+	fmt.Fprintln(out, "the seeded default into your real organisation in place.")
 }
 
 func newLogger(jsonLogs bool) *slog.Logger {

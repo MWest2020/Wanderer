@@ -579,3 +579,80 @@ func TestReporting_Rule_UnknownReturns404(t *testing.T) {
 		t.Errorf("status = %d, want 404", resp.StatusCode)
 	}
 }
+
+func TestDashboard_Org_PerOrgPageRebadgesHeadline(t *testing.T) {
+	srv, st := newServer(t, "")
+	o := &models.Organisation{Slug: "acme", Name: "ACME B.V."}
+	if err := st.UpsertOrganisation(context.Background(), o); err != nil {
+		t.Fatal(err)
+	}
+	tgt := &models.Target{Domain: "a.example", OrganisationID: o.ID}
+	if err := st.UpsertTarget(context.Background(), tgt); err != nil {
+		t.Fatal(err)
+	}
+	resp, err := http.Get(srv.URL + "/ui/orgs/acme")
+	if err != nil {
+		t.Fatalf("get: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != 200 {
+		t.Fatalf("status = %d", resp.StatusCode)
+	}
+	body, _ := io.ReadAll(resp.Body)
+	bodyStr := string(body)
+	for _, want := range []string{
+		"ACME B.V.",      // headline rebadged
+		"all organisations", // back-link to instance-wide
+	} {
+		if !strings.Contains(bodyStr, want) {
+			t.Errorf("per-org page missing %q", want)
+		}
+	}
+}
+
+func TestDashboard_Org_UnknownReturns404(t *testing.T) {
+	srv, _ := newServer(t, "")
+	resp, err := http.Get(srv.URL + "/ui/orgs/nope")
+	if err != nil {
+		t.Fatalf("get: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != 404 {
+		t.Errorf("status = %d, want 404", resp.StatusCode)
+	}
+}
+
+func TestDashboard_Global_ListsOrganisationsWhenMultiple(t *testing.T) {
+	srv, st := newServer(t, "")
+	for _, slug := range []string{"acme", "beta"} {
+		o := &models.Organisation{Slug: slug, Name: slug}
+		if err := st.UpsertOrganisation(context.Background(), o); err != nil {
+			t.Fatal(err)
+		}
+	}
+	// Seed at least one scan so HasData=true and the org list block renders.
+	tgt := &models.Target{Domain: "a.example"}
+	if err := st.UpsertTarget(context.Background(), tgt); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := st.CreateScan(context.Background(), tgt.ID); err != nil {
+		t.Fatal(err)
+	}
+	resp, err := http.Get(srv.URL + "/ui/")
+	if err != nil {
+		t.Fatalf("get: %v", err)
+	}
+	defer resp.Body.Close()
+	body, _ := io.ReadAll(resp.Body)
+	bodyStr := string(body)
+	for _, want := range []string{
+		"<h2>Organisations</h2>",
+		"/ui/orgs/acme",
+		"/ui/orgs/beta",
+		"all organisations",
+	} {
+		if !strings.Contains(bodyStr, want) {
+			t.Errorf("global dashboard missing %q", want)
+		}
+	}
+}

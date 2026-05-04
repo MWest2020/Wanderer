@@ -9,8 +9,13 @@
 <body>
 {{template "nav.tmpl" dict "Active" "dashboard" "HasReporting" .HasReporting}}
 <header class="headline">
-  <h1>Wanderer · sovereignty observation</h1>
+  {{if .ScopedOrganisation}}
+  <h1>Wanderer · {{.ScopedOrganisation.Name}} · sovereignty observation</h1>
+  <p class="meta">Generated {{.GeneratedAt}} · <a href="/ui/">← all organisations</a></p>
+  {{else}}
+  <h1>Wanderer · all organisations · sovereignty observation</h1>
   <p class="meta">Generated {{.GeneratedAt}}</p>
+  {{end}}
   <dl class="headline-stats">
     <div>
       <dt>Last scan</dt>
@@ -42,6 +47,26 @@
   page load.
 </p>
 {{else}}
+
+{{if .OrganisationsList}}
+<section class="dashboard-section">
+  <h2>Organisations</h2>
+  <table class="organisations">
+    <thead>
+      <tr><th>Slug</th><th>Name</th><th class="num">Targets</th></tr>
+    </thead>
+    <tbody>
+      {{range .OrganisationsList}}
+      <tr>
+        <td><a href="{{.URL}}"><code>{{.Slug}}</code></a></td>
+        <td>{{.Name}}</td>
+        <td class="num">{{.TargetCount}}</td>
+      </tr>
+      {{end}}
+    </tbody>
+  </table>
+</section>
+{{end}}
 
 <section class="dashboard-section">
   <h2>External posture <span class="scope-label">perimeter scans</span></h2>

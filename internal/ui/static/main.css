@@ -87,6 +87,10 @@ a:hover { text-decoration: underline; }
 .small { font-size: 0.875rem; }
 .rule-description { font-size: 1rem; color: var(--fg); margin: 0.5rem 0 0 0; }
 
+/* Organisations table — listed on the instance-wide dashboard. */
+.organisations td.num,
+.organisations th.num { text-align: right; width: 6em; }
+
 table {
   width: 100%;
   border-collapse: collapse;

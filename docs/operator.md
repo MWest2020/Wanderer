@@ -103,6 +103,116 @@ Group=wanderer
 WantedBy=multi-user.target
 ```
 
+## Organisations
+
+Wanderer groups Targets — perimeter domains and agent hosts — under
+**organisations**. Every Target belongs to exactly one organisation.
+A fresh database starts with one seeded organisation (slug
+`default`); operators with one customer rename it to their real
+handle, operators with many add organisations as needed.
+
+### First-run
+
+`wanderer scan example.nl` without `--organisation` attaches the
+scan to the seeded `default` organisation and emits a one-line
+stderr nudge pointing at the flag and the rename command.
+
+```sh
+wanderer org rename --slug default --new-slug acme --name "ACME B.V."
+```
+
+That converts the seed in place — every existing Target keeps the
+same ID, just under the new slug + name.
+
+### Day-to-day
+
+```sh
+wanderer org add --slug customer1 --name "Customer One"
+wanderer org list
+wanderer org show acme
+wanderer scan --organisation acme example.nl
+```
+
+Bulk seeding from a YAML file (idempotent — running it twice
+updates names but does not duplicate):
+
+```yaml
+# /etc/wanderer/orgs.yaml
+organisations:
+  - slug: customer1
+    name: Customer One
+  - slug: customer2
+    name: Customer Two
+    description: Pilot deployment
+```
+
+```sh
+wanderer org add --from-yaml /etc/wanderer/orgs.yaml
+```
+
+### Organisation precedence in `wanderer scan`
+
+The flag `--organisation <slug>` wins over `WANDERER_ORGANISATION`
+in the env, which wins over `scan.organisation` in `serve.yaml`,
+which falls back to `default`. So an operator can lay down the
+config once and only override per-invocation when they need to.
+
+### Schedules
+
+Each entry in the schedules YAML can carry `organisation: <slug>`.
+Entries without a slug fall back to `scan.organisation` in
+`serve.yaml`, then to `default`. The scheduler resolves the slug at
+each tick — `wanderer org rename` takes effect without restarting
+the server.
+
+```yaml
+# /etc/wanderer/schedules.yaml
+schedules:
+  - name: customer1-daily
+    cron: "0 3 * * *"
+    target:
+      domain: customer1.example
+    organisation: customer1   # explicit override
+
+  - name: acme-internal
+    cron: "0 4 * * *"
+    target:
+      domain: app.acme.internal
+    # uses scan.organisation from serve.yaml
+```
+
+### Agent
+
+Hosts running `wanderer agent` declare their organisation in the
+agent YAML:
+
+```yaml
+core:
+  mode: local
+  db: /var/lib/wanderer/wanderer.db
+  organisation: acme
+```
+
+An empty `organisation` falls back to `default`; an unknown slug
+fails fast at agent startup, before any Findings land.
+
+### UI
+
+`/ui/` lists every registered organisation with a target count and
+a drill-in link. Per-organisation dashboards live at
+`/ui/orgs/{slug}` — same DAR shape (Dashboard / Analysis /
+Reporting) but filtered to that organisation. The Reporting page
+takes an optional `?org=<slug>` query parameter to filter the
+cross-target view.
+
+### MCP
+
+Three new methods cover the AI-agent surface:
+
+- `org_list` — every organisation with metadata
+- `org_show` — one organisation by slug
+- `org_targets` — Targets attached to an organisation
+
 ## GeoLite2 setup
 
 The IP probe resolves observed IPs to ASN + country via MaxMind's

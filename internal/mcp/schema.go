@@ -37,3 +37,18 @@ var SchemaAssessScan = map[string]any{
 	"properties": map[string]any{"scan_id": map[string]any{"type": "string"}},
 	"required":   []string{"scan_id"},
 }
+
+// SchemaSlugOnly is the canonical {"slug": string} input shape used
+// by org_show and org_targets.
+var SchemaSlugOnly = map[string]any{
+	"type":       "object",
+	"properties": map[string]any{"slug": map[string]any{"type": "string"}},
+	"required":   []string{"slug"},
+}
+
+// SchemaEmptyObject is the canonical no-input shape — org_list takes
+// no parameters but the tools/call protocol still requires an object.
+var SchemaEmptyObject = map[string]any{
+	"type":       "object",
+	"properties": map[string]any{},
+}

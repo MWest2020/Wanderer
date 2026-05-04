@@ -11,6 +11,25 @@ once a first release is cut. Until then every entry lives under
 
 ### Added
 
+- **Organisations** as a first-class concept. Every Target
+  (perimeter domain or agent host) now belongs to exactly one
+  Organisation; a seeded `default` Organisation picks up any
+  pre-existing or unspecified Target. Migration 005 lands the
+  schema (new `organisations` table, `targets.organisation_id`
+  column, `o_default` seed). The full surface ships in one
+  change: CLI (`wanderer org add/list/show/rename` plus
+  `--from-yaml` bulk seed), `--organisation <slug>` flag on
+  `wanderer scan` with `flag > env > yaml > default` precedence,
+  `core.organisation` field in the agent YAML, `scan.organisation`
+  fallback in `serve.yaml`, optional per-schedule
+  `organisation:` field, instance-wide `/ui/` listing every
+  organisation with drill-in links, per-organisation dashboard
+  at `/ui/orgs/{slug}`, optional `?org=<slug>` filter on
+  `/ui/reporting`, and three MCP methods (`org_list`,
+  `org_show`, `org_targets`). Mark approved every recommendation
+  in the design pass on 2026-05-03; the resolved-decisions
+  table is preserved in
+  `openspec/changes/archive/2026-05-04-add-organisation-pivot/proposal.md`.
 - Per-check Reporting page in the operator UI. New routes
   `/ui/reporting` (list every rule that has fired across the
   persisted Assessments, with distinct-target counts per

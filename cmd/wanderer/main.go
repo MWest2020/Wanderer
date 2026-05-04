@@ -39,6 +39,8 @@ func main() {
 		os.Exit(runDiff(args))
 	case "agent":
 		os.Exit(runAgent(args))
+	case "org":
+		os.Exit(runOrg(args))
 	case "mcp":
 		os.Exit(runMCP(args))
 	case "serve":
@@ -53,7 +55,7 @@ func main() {
 }
 
 func usage(w *os.File) {
-	fmt.Fprintln(w, "usage: wanderer <scan|assess|export|diff|serve|agent|mcp|version> [args...]")
+	fmt.Fprintln(w, "usage: wanderer <scan|assess|export|diff|serve|agent|org|mcp|version> [args...]")
 	fmt.Fprintln(w, "")
 	fmt.Fprintln(w, "  scan <domain>      Run a scan and print the findings")
 	fmt.Fprintln(w, "  assess <scan-id>   Score a scan against the DICTU rule set")
@@ -61,6 +63,7 @@ func usage(w *os.File) {
 	fmt.Fprintln(w, "  diff <a> <b>       Print drift between two stored scans (read-only)")
 	fmt.Fprintln(w, "  serve              Start the HTTP API (with optional cron schedules)")
 	fmt.Fprintln(w, "  agent              Run the host-side inventory/egress inspectors")
+	fmt.Fprintln(w, "  org                Manage organisations (add|list|show|rename)")
 	fmt.Fprintln(w, "  mcp                Speak the Model Context Protocol over stdio")
 	fmt.Fprintln(w, "  version            Print the build version")
 }

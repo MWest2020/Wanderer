@@ -83,11 +83,16 @@ type GeoIPConfig struct {
 
 // CoreConfig is where the agent ships its findings.
 type CoreConfig struct {
-	Mode           string `yaml:"mode"`            // local | remote
-	DB             string `yaml:"db,omitempty"`    // mode=local
-	URL            string `yaml:"url,omitempty"`   // mode=remote
+	Mode           string `yaml:"mode"`          // local | remote
+	DB             string `yaml:"db,omitempty"`  // mode=local
+	URL            string `yaml:"url,omitempty"` // mode=remote
 	HMACSecretFile string `yaml:"hmac_secret_file,omitempty"`
 	TargetID       string `yaml:"target_id,omitempty"`
+	// Organisation is the slug the agent's host attaches to. Empty
+	// falls back to the seeded `default` organisation; in remote
+	// mode the control plane validates the slug exists and rejects
+	// unknown ones with a 4xx.
+	Organisation string `yaml:"organisation,omitempty"`
 	// OutboxDir is the directory the remote-mode agent uses to
 	// persist failed batches between ticks. Empty defaults to
 	// `/var/lib/wanderer/agent/outbox`. Mode=local ignores this.

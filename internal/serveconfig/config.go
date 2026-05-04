@@ -47,6 +47,11 @@ type ScanSection struct {
 	Budget              time.Duration `yaml:"budget,omitempty"`
 	UserAgent           string        `yaml:"user_agent,omitempty"`
 	AllowPrivateTargets bool          `yaml:"allow_private_targets,omitempty"`
+	// Organisation is the fallback slug for scans that don't
+	// specify one — schedules without an `organisation:` key, and
+	// API POST /scans calls without an `organisation` body field.
+	// Empty falls through to the seeded `default` organisation.
+	Organisation string `yaml:"organisation,omitempty"`
 }
 
 // Load reads and parses a YAML config file. A non-existent path

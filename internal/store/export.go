@@ -14,11 +14,12 @@ import (
 // Selectors narrow which records an export pulls out of the store.
 // Zero-valued fields are treated as "no filter".
 type Selectors struct {
-	ScanID    string
-	ProbePref string // matched as "probe_id LIKE prefix.%", trivially also matches probe_id == prefix
-	Dimension string
-	Since     time.Time
-	Until     time.Time
+	ScanID         string
+	ProbePref      string // matched as "probe_id LIKE prefix.%", trivially also matches probe_id == prefix
+	Dimension      string
+	OrganisationID string // limits ListScans to scans whose Target belongs to this org
+	Since          time.Time
+	Until          time.Time
 }
 
 // whereAndArgs turns a Selectors into a SQL fragment and the matching
@@ -124,6 +125,16 @@ type ScanRow struct {
 // ListScans streams a flat row per scan matching sel.
 func (s *Store) ListScans(ctx context.Context, sel Selectors) ([]ScanRow, error) {
 	where, args := sel.whereAndArgs("scans.id", "", "", "scans.started_at")
+	if sel.OrganisationID != "" {
+		// Append the organisation filter manually so existing whereAndArgs
+		// callers don't have to know about the targets join.
+		if where == "" {
+			where = " WHERE targets.organisation_id = ?"
+		} else {
+			where += " AND targets.organisation_id = ?"
+		}
+		args = append(args, sel.OrganisationID)
+	}
 	q := `SELECT scans.id, scans.target_id, targets.domain, scans.started_at, scans.ended_at, scans.status, COALESCE(scans.error,''),
 	             (SELECT COUNT(*) FROM findings WHERE findings.scan_id = scans.id)
 	      FROM scans LEFT JOIN targets ON targets.id = scans.target_id` + where + ` ORDER BY scans.started_at, scans.id`

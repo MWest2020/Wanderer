@@ -119,6 +119,36 @@ SET framework  = 'wand',
 WHERE framework = 'dictu';
 `,
 	},
+	{
+		Version: 5,
+		Name:    "add_organisations",
+		Up: `-- Organisation pivot — see add-organisation-pivot OpenSpec change.
+--
+-- Step 1: create the organisations table with the seed default row.
+CREATE TABLE organisations (
+    id          TEXT PRIMARY KEY,
+    slug        TEXT NOT NULL UNIQUE,
+    name        TEXT NOT NULL,
+    description TEXT NOT NULL DEFAULT '',
+    created_at  DATETIME NOT NULL
+);
+
+INSERT INTO organisations (id, slug, name, description, created_at)
+VALUES ('o_default', 'default', 'Default organisation', '', CURRENT_TIMESTAMP);
+
+-- Step 2: add organisation_id to targets, backfilled to o_default.
+-- SQLite supports ADD COLUMN with a non-null default, so the
+-- backfill is implicit. Every existing Target attaches to the
+-- default org; the wanderer-serve / wanderer-scan first-run nudge
+-- (and wanderer org rename) is the operator's escape hatch.
+ALTER TABLE targets ADD COLUMN organisation_id TEXT NOT NULL DEFAULT 'o_default'
+    REFERENCES organisations(id);
+
+-- Step 3: index lookups by organisation_id (UI per-org dashboard,
+-- MCP org.targets, store ListTargetsByOrganisation).
+CREATE INDEX idx_targets_organisation_id ON targets(organisation_id);
+`,
+	},
 }
 
 // runMigrations applies every migration whose Version is not already

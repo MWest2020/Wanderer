@@ -16,9 +16,18 @@ import (
 	"github.com/MWest2020/wanderer/pkg/models"
 )
 
+// SetDefaultOrganisation records the serve-config fallback slug so
+// schedules without their own `organisation:` field have somewhere
+// to go. Called by the serve startup once the precedence resolver
+// has chosen the right value.
+func (s *Scheduler) SetDefaultOrganisation(slug string) {
+	s.defaultOrgSlug = slug
+}
+
 // Scheduler owns the in-process cron and the fan-out into the
 // scanner. Lifecycle: New → Reload → Start → (SIGHUP → Reload) → Stop.
 type Scheduler struct {
+	defaultOrgSlug string
 	store   *store.Store
 	scanner *scanner.Scanner
 	logger  *slog.Logger
@@ -124,8 +133,24 @@ func (s *Scheduler) makeJob(sched Schedule) func() {
 		}()
 		ctx, cancel := context.WithTimeout(context.Background(), s.scheduleTimeout(sched))
 		defer cancel()
-		target := models.Target{Domain: sched.Target.Domain, Related: sched.Target.Related}
-		s.logger.Info("scheduler.tick", "name", sched.Name, "domain", target.Domain)
+		// Resolve organisation: per-schedule slug overrides the
+		// serve-config fallback, which in turn falls back to the
+		// seeded `default` org. Lookup happens per-tick so a fresh
+		// `wanderer org rename` takes effect without restarting.
+		orgSlug := sched.Organisation
+		if orgSlug == "" {
+			orgSlug = s.defaultOrgSlug
+		}
+		if orgSlug == "" {
+			orgSlug = models.DefaultOrganisationSlug
+		}
+		org, err := s.store.GetOrganisationBySlug(ctx, orgSlug)
+		if err != nil {
+			s.logger.Error("scheduler.org_lookup", "name", sched.Name, "slug", orgSlug, "err", err)
+			return
+		}
+		target := models.Target{Domain: sched.Target.Domain, Related: sched.Target.Related, OrganisationID: org.ID}
+		s.logger.Info("scheduler.tick", "name", sched.Name, "domain", target.Domain, "organisation", org.Slug)
 		scan, err := s.scanner.Scan(ctx, target)
 		if err != nil {
 			s.logger.Error("scheduler.scan_error", "name", sched.Name, "err", err)

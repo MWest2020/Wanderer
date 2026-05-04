@@ -75,27 +75,32 @@ func newID(prefix string) string {
 // UpsertTarget inserts a new target or returns the existing one by
 // domain. The domain is normalised by Target.Validate first; the
 // Kind column round-trips so an existing host-mode Target keeps its
-// kind on subsequent upserts.
+// kind on subsequent upserts. An empty OrganisationID falls back
+// to models.DefaultOrganisationID so callers that pre-date the
+// organisation pivot keep working unchanged.
 func (s *Store) UpsertTarget(ctx context.Context, t *models.Target) error {
 	if err := t.Validate(); err != nil {
 		return err
+	}
+	if t.OrganisationID == "" {
+		t.OrganisationID = models.DefaultOrganisationID
 	}
 	rel, err := json.Marshal(t.Related)
 	if err != nil {
 		return fmt.Errorf("store: marshal related: %w", err)
 	}
 	row := s.db.QueryRowContext(ctx,
-		`SELECT id, created_at, kind FROM targets WHERE domain = ?`, t.Domain)
+		`SELECT id, created_at, kind, organisation_id FROM targets WHERE domain = ?`, t.Domain)
 	var id string
 	var createdAt time.Time
-	var kind string
-	switch err := row.Scan(&id, &createdAt, &kind); {
+	var kind, orgID string
+	switch err := row.Scan(&id, &createdAt, &kind, &orgID); {
 	case errors.Is(err, sql.ErrNoRows):
 		t.ID = newID("t")
 		t.CreatedAt = time.Now().UTC()
 		_, err := s.db.ExecContext(ctx,
-			`INSERT INTO targets (id, domain, related, kind, created_at) VALUES (?,?,?,?,?)`,
-			t.ID, t.Domain, string(rel), string(t.Kind), t.CreatedAt)
+			`INSERT INTO targets (id, domain, related, kind, organisation_id, created_at) VALUES (?,?,?,?,?,?)`,
+			t.ID, t.Domain, string(rel), string(t.Kind), t.OrganisationID, t.CreatedAt)
 		if err != nil {
 			return fmt.Errorf("store: insert target: %w", err)
 		}
@@ -106,6 +111,7 @@ func (s *Store) UpsertTarget(ctx context.Context, t *models.Target) error {
 	t.ID = id
 	t.CreatedAt = createdAt
 	t.Kind = models.TargetKind(kind)
+	t.OrganisationID = orgID
 	return nil
 }
 
@@ -114,10 +120,10 @@ func (s *Store) UpsertTarget(ctx context.Context, t *models.Target) error {
 // lookup.
 func (s *Store) GetTarget(ctx context.Context, id string) (*models.Target, error) {
 	row := s.db.QueryRowContext(ctx,
-		`SELECT id, domain, related, COALESCE(kind,'domain'), created_at FROM targets WHERE id = ?`, id)
+		`SELECT id, domain, related, COALESCE(kind,'domain'), COALESCE(organisation_id,'o_default'), created_at FROM targets WHERE id = ?`, id)
 	t := &models.Target{}
-	var rel, kind string
-	if err := row.Scan(&t.ID, &t.Domain, &rel, &kind, &t.CreatedAt); err != nil {
+	var rel, kind, orgID string
+	if err := row.Scan(&t.ID, &t.Domain, &rel, &kind, &orgID, &t.CreatedAt); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, ErrNotFound
 		}
@@ -129,6 +135,7 @@ func (s *Store) GetTarget(ctx context.Context, id string) (*models.Target, error
 		}
 	}
 	t.Kind = models.TargetKind(kind)
+	t.OrganisationID = orgID
 	return t, nil
 }
 

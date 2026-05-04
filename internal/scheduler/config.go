@@ -26,6 +26,13 @@ type Schedule struct {
 	Cron    string        `yaml:"cron"`
 	Probes  []string      `yaml:"probes,omitempty"`
 	Timeout time.Duration `yaml:"timeout,omitempty"`
+	// Organisation is the slug this scheduled scan attaches to.
+	// Optional: empty falls back to the serve.yaml `scan.organisation`
+	// field (or, if that is also empty, the seeded `default` org).
+	// Validate emits a clear error if neither layer is set, so an
+	// operator can never silently lose track of which organisation
+	// a recurring scan belongs to.
+	Organisation string `yaml:"organisation,omitempty"`
 }
 
 // Target is a thin YAML-friendly mirror of models.Target.

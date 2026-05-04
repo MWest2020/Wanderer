@@ -27,6 +27,9 @@ func BuildTools(d Deps) []Tool {
 		listScansTool(d),
 		assessScanTool(d),
 		getAssessmentTool(d),
+		orgListTool(d),
+		orgShowTool(d),
+		orgTargetsTool(d),
 	}
 }
 
@@ -163,6 +166,76 @@ func getAssessmentTool(d Deps) Tool {
 				return ToolResult{}, err
 			}
 			return jsonContent(a)
+		},
+	}
+}
+
+func orgListTool(d Deps) Tool {
+	return Tool{
+		Name:        "org_list",
+		Description: "List every Wanderer organisation: slug, name, ID, description, created_at.",
+		InputSchema: SchemaEmptyObject,
+		Handler: func(ctx context.Context, _ json.RawMessage) (ToolResult, error) {
+			orgs, err := d.Store.ListOrganisations(ctx)
+			if err != nil {
+				return ToolResult{}, err
+			}
+			return jsonContent(map[string]any{"organisations": orgs})
+		},
+	}
+}
+
+func orgShowTool(d Deps) Tool {
+	return Tool{
+		Name:        "org_show",
+		Description: "Return one organisation by slug.",
+		InputSchema: SchemaSlugOnly,
+		Handler: func(ctx context.Context, params json.RawMessage) (ToolResult, error) {
+			var p struct {
+				Slug string `json:"slug"`
+			}
+			if err := json.Unmarshal(params, &p); err != nil {
+				return ToolResult{}, fmt.Errorf("invalid params: %w", err)
+			}
+			if p.Slug == "" {
+				return ToolResult{}, errors.New("slug is required")
+			}
+			o, err := d.Store.GetOrganisationBySlug(ctx, p.Slug)
+			if err != nil {
+				return ToolResult{}, err
+			}
+			return jsonContent(o)
+		},
+	}
+}
+
+func orgTargetsTool(d Deps) Tool {
+	return Tool{
+		Name:        "org_targets",
+		Description: "List the Targets attached to one organisation, ordered by domain.",
+		InputSchema: SchemaSlugOnly,
+		Handler: func(ctx context.Context, params json.RawMessage) (ToolResult, error) {
+			var p struct {
+				Slug string `json:"slug"`
+			}
+			if err := json.Unmarshal(params, &p); err != nil {
+				return ToolResult{}, fmt.Errorf("invalid params: %w", err)
+			}
+			if p.Slug == "" {
+				return ToolResult{}, errors.New("slug is required")
+			}
+			o, err := d.Store.GetOrganisationBySlug(ctx, p.Slug)
+			if err != nil {
+				return ToolResult{}, err
+			}
+			targets, err := d.Store.ListTargetsByOrganisation(ctx, o.ID)
+			if err != nil {
+				return ToolResult{}, err
+			}
+			return jsonContent(map[string]any{
+				"organisation": o,
+				"targets":      targets,
+			})
 		},
 	}
 }

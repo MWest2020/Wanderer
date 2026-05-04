@@ -27,11 +27,12 @@ const (
 // related domains that will be treated as part of the same
 // organisational footprint (e.g. the .com variant of a .nl primary).
 type Target struct {
-	ID        string     `json:"id,omitempty"`
-	Domain    string     `json:"domain"`
-	Related   []string   `json:"related,omitempty"`
-	Kind      TargetKind `json:"kind,omitempty"`
-	CreatedAt time.Time  `json:"created_at,omitempty"`
+	ID             string     `json:"id,omitempty"`
+	Domain         string     `json:"domain"`
+	Related        []string   `json:"related,omitempty"`
+	Kind           TargetKind `json:"kind,omitempty"`
+	OrganisationID string     `json:"organisation_id,omitempty"`
+	CreatedAt      time.Time  `json:"created_at,omitempty"`
 }
 
 // NormaliseDomain lower-cases, trims, and strips a leading scheme or
