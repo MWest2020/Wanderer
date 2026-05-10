@@ -204,22 +204,26 @@ browse belongs behind a reverse proxy.
 
 The UI is layered as **DAR — Dashboard, Analysis, Reporting**:
 
-- **Dashboard** (`/ui/`) is a single-page overview of the
-  instance: a pontificaal headline (last scan, total scans,
-  external + internal coverage counts, frameworks scored), an
-  External posture block (perimeter targets, `Kind=domain`), an
-  Internal posture block (agent-host targets, `Kind=host`) with
-  an explicit empty-state when no agent is reporting yet, plus
-  Top concerns and Recent activity.
-- **Analysis** (`/ui/targets`, `/ui/scans/{id}`,
-  `/ui/scans/{id}/assessment`, `/ui/targets/{id}/drift`) is the
-  per-target / per-scan deep-dive surface where an operator
-  drills into specific evidence.
+- **Dashboard** (`/ui/`, `/ui/orgs/{slug}`) answers the single
+  question *"is dit goed of niet"*: a pontificaal headline
+  (last scan, total scans, external + internal coverage counts,
+  frameworks scored), one verdict pill per framework (the worst
+  score reached across all targets in scope), and the
+  Organisations list (instance-wide view only). The Dashboard
+  is deliberately thin — the steering content lives on Analysis.
+- **Analysis** (`/ui/analysis`, `/ui/targets`, `/ui/scans/{id}`,
+  `/ui/scans/{id}/assessment`, `/ui/targets/{id}/drift`) is
+  where the operator steers. The centerpiece is `/ui/analysis`:
+  a rule × score-counts matrix (soeverein / voldoende /
+  afhankelijk / onbekend distinct-target counts per rule), with
+  the org filter and a "per-target view →" link to
+  `/ui/targets`. The per-scan and per-assessment pages are
+  deeper drill-downs.
 - **Reporting** (`/ui/reporting`, `/ui/reporting/{framework}/{ruleID}`)
-  is the per-rule cross-target view: every rule that has fired
-  with per-score target counts, plus a per-rule detail page that
-  lists every target the rule fired on, with a back-link to the
-  originating scan's assessment page.
+  is the rule reference. `/ui/reporting` is a catalogue: every
+  registered rule with framework, dimension, description, and
+  rationale — no scoring data. The per-rule detail page shows
+  how each target scores on that rule.
 
 A small `nav.tmpl` partial renders the same Dashboard / Analysis /
 Reporting tabs across every page, so the operator's mental model

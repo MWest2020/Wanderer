@@ -9,6 +9,33 @@ once a first release is cut. Until then every entry lives under
 
 ## [Unreleased]
 
+### Changed
+
+- **DAR layer roles refined.** Mark refined the model on
+  2026-05-10: *"bij dashboarding enkel goed/niet goed, analysis
+  zie je de matrix en reporting de regels."* The UI now
+  reflects that:
+  - **Dashboard** stays slim: per-framework verdict pills
+    (worst-score reached) plus the headline-stats strip plus
+    the organisations list. The External / Internal posture
+    blocks, Top concerns table, and Recent activity table are
+    removed from the Dashboard — they answered steering
+    questions that belong on Analysis.
+  - **Analysis** moves to `/ui/analysis` (with `?org=<slug>`
+    filter). It's the rule × score-counts matrix that
+    previously lived at `/ui/reporting`. The per-target slice
+    (`/ui/targets`) is reachable as "per-target view →" from
+    the matrix page.
+  - **Reporting** at `/ui/reporting` becomes a rule catalogue:
+    every registered rule with framework, dimension,
+    description, and rationale — no scoring data. The per-rule
+    detail page at `/ui/reporting/{framework}/{ruleID}` keeps
+    its existing shape.
+  Spec delta in `openspec/specs/web-ui/spec.md` adds the new
+  layer requirements with scenarios; `docs/architecture.md`
+  rewrites the "Read-only operator UI" section around the
+  refined roles.
+
 ### Fixed
 
 - The DAR cross-page navigation now persists the active

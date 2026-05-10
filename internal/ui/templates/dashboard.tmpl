@@ -48,6 +48,32 @@
 </p>
 {{else}}
 
+<section class="dashboard-section">
+  <h2>Verdict <span class="scope-label">is this OK?</span></h2>
+  {{if .Verdicts}}
+  <div class="verdict-grid">
+    {{range .Verdicts}}
+    <div class="verdict-block">
+      <div class="verdict-framework"><code>{{.Framework}}</code></div>
+      <span class="badge verdict-pill score-{{.Score}}">{{.Score}}</span>
+      <p class="meta">
+        {{if eq .Score "soeverein"}}
+        all {{.Total}} target{{if ne .Total 1}}s{{end}} sovereign — no action needed.
+        {{else if eq .Score "onbekend"}}
+        {{.Total}} target{{if ne .Total 1}}s{{end}} assessed but no clear signal yet — likely a missing probe (GeoLite2, IP, etc.).
+        {{else}}
+        worst-case score reached on {{.AtWorst}} of {{.Total}} target{{if ne .Total 1}}s{{end}}.
+        Drill into <a href="/ui/analysis{{if $.OrgSlug}}?org={{$.OrgSlug}}{{end}}">analysis →</a> to steer.
+        {{end}}
+      </p>
+    </div>
+    {{end}}
+  </div>
+  {{else}}
+  <p class="muted">No assessments yet. Run <code>wanderer assess &lt;scan-id&gt; --framework both</code>.</p>
+  {{end}}
+</section>
+
 {{if .OrganisationsList}}
 <section class="dashboard-section">
   <h2>Organisations</h2>
@@ -67,125 +93,6 @@
   </table>
 </section>
 {{end}}
-
-<section class="dashboard-section">
-  <h2>External posture <span class="scope-label">perimeter scans</span></h2>
-  {{if .ExternalPostureBlocks}}
-  <div class="posture-grid">
-    {{range .ExternalPostureBlocks}}
-    <div class="posture-block">
-      <h3>{{.Framework}}</h3>
-      <ul class="posture-counts">
-        {{range .Counts}}
-        <li><span class="badge score-{{.Score}}">{{.Count}} {{.Score}}</span></li>
-        {{end}}
-      </ul>
-      <p class="meta">{{.Total}} target{{if ne .Total 1}}s{{end}} assessed</p>
-    </div>
-    {{end}}
-  </div>
-  {{else}}
-  <p class="muted">
-    No perimeter Assessments yet. Run
-    <code>wanderer assess &lt;scan-id&gt; --framework both</code> after a
-    <code>wanderer scan &lt;domain&gt;</code>.
-  </p>
-  {{end}}
-</section>
-
-<section class="dashboard-section">
-  <h2>Internal posture <span class="scope-label">agent host inspectors</span></h2>
-  {{if .InternalPostureBlocks}}
-  <div class="posture-grid">
-    {{range .InternalPostureBlocks}}
-    <div class="posture-block">
-      <h3>{{.Framework}}</h3>
-      <ul class="posture-counts">
-        {{range .Counts}}
-        <li><span class="badge score-{{.Score}}">{{.Count}} {{.Score}}</span></li>
-        {{end}}
-      </ul>
-      <p class="meta">{{.Total}} host{{if ne .Total 1}}s{{end}} assessed</p>
-    </div>
-    {{end}}
-  </div>
-  {{else}}
-  <p class="muted">
-    No agent hosts reporting yet. Run
-    <code>wanderer agent --config &lt;path&gt;</code> on a host to onboard
-    one; the agent's inventory and egress inspectors land Findings
-    in the same store and surface here.
-  </p>
-  {{end}}
-</section>
-
-<section class="dashboard-section">
-  <h2>Top concerns</h2>
-  {{if .TopConcerns}}
-  <table class="concerns">
-    <thead>
-      <tr>
-        <th>Framework</th>
-        <th>Rule</th>
-        <th>Targets</th>
-      </tr>
-    </thead>
-    <tbody>
-      {{range .TopConcerns}}
-      <tr>
-        <td>{{.Framework}}</td>
-        <td>
-          <code>{{.CriteriumID}}</code>
-          {{if .Description}}
-          <details class="why">
-            <summary>{{.Description}}</summary>
-            {{if .Rationale}}<p class="rationale-text">{{.Rationale}}</p>{{end}}
-          </details>
-          {{end}}
-        </td>
-        <td><span class="badge score-afhankelijk">{{.TargetCount}}</span></td>
-      </tr>
-      {{end}}
-    </tbody>
-  </table>
-  {{else}}
-  <p class="muted">No `afhankelijk` rationales recorded yet.</p>
-  {{end}}
-</section>
-
-<section class="dashboard-section">
-  <h2>Recent activity</h2>
-  {{if .Activity}}
-  <table>
-    <thead>
-      <tr>
-        <th>When</th>
-        <th>Domain</th>
-        <th>Status</th>
-        <th>Open</th>
-      </tr>
-    </thead>
-    <tbody>
-      {{range .Activity}}
-      <tr>
-        <td><code>{{.StartedAt}}</code></td>
-        <td>{{.Domain}}</td>
-        <td><span class="status-{{.Status}}">{{.Status}}</span></td>
-        <td>
-          {{if .HasAssessment}}
-          <a href="/ui/scans/{{.ScanID}}/assessment">assessment →</a>
-          {{else}}
-          <a href="/ui/scans/{{.ScanID}}">findings →</a>
-          {{end}}
-        </td>
-      </tr>
-      {{end}}
-    </tbody>
-  </table>
-  {{else}}
-  <p class="muted">No scans yet.</p>
-  {{end}}
-</section>
 
 {{end}}
 </main>

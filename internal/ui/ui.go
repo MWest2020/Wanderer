@@ -73,7 +73,8 @@ func Handler(st *store.Store, htpasswdPath string) (http.Handler, error) {
 	r.Get("/scans/{id}", scanHandler(st, tmpl))
 	r.Get("/scans/{id}/assessment", assessmentHandler(st, tmpl))
 	r.Get("/targets/{id}/drift", driftHandler(st, tmpl))
-	r.Get("/reporting", reportingIndexHandler(st, tmpl))
+	r.Get("/analysis", analysisHandler(st, tmpl))
+	r.Get("/reporting", reportingCatalogueHandler(tmpl))
 	r.Get("/reporting/{framework}/{ruleID}", reportingRuleHandler(st, tmpl))
 	return r, nil
 }
@@ -120,17 +121,25 @@ func verifyAgainst(creds map[string]string, user, pass string) bool {
 // render from their own field; templates that find an empty slice
 // emit empty-state copy rather than nothing.
 type dashboardView struct {
-	GeneratedAt           string
-	HasData               bool // true when at least one scan exists
-	Headline              headlineRenderView
-	OrganisationsList     []organisationLinkView // populated only on the instance-wide /ui/
-	ScopedOrganisation    *organisationLinkView  // populated only on /ui/orgs/{slug}
-	ExternalPostureBlocks []postureBlockView
-	InternalPostureBlocks []postureBlockView
-	HasReporting          bool // controls whether the Reporting nav link renders
-	OrgSlug               string // active org for nav-link scope persistence
-	TopConcerns           []ConcernRow
-	Activity              []activityRowView
+	GeneratedAt        string
+	HasData            bool // true when at least one scan exists
+	Headline           headlineRenderView
+	OrganisationsList  []organisationLinkView // populated only on the instance-wide /ui/
+	ScopedOrganisation *organisationLinkView  // populated only on /ui/orgs/{slug}
+	Verdicts           []verdictRenderView    // per-framework "is this OK" pill
+	HasReporting       bool                   // controls whether the Reporting nav link renders
+	OrgSlug            string                 // active org for nav-link scope persistence
+}
+
+// verdictRenderView is the per-framework verdict pill on the
+// Dashboard. Score is the worst score reached across every
+// assessed target in scope; AtWorst is how many targets are at
+// that score; Total is how many targets contributed.
+type verdictRenderView struct {
+	Framework string
+	Score     string
+	AtWorst   int
+	Total     int
 }
 
 // organisationLinkView is one row in the dashboard's organisation
@@ -209,83 +218,37 @@ func renderDashboard(w http.ResponseWriter, r *http.Request, st *store.Store, tm
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	assessmentsByScan := map[string]bool{}
-	for _, s := range snaps {
-		if len(s.Assessments) > 0 {
-			assessmentsByScan[s.LastScanID] = true
-		}
-	}
-	activityHas := func(scanID string) bool {
-		if assessmentsByScan[scanID] {
-			return true
-		}
-		if list, err := st.ListAssessmentsForScan(ctx, scanID); err == nil && len(list) > 0 {
-			assessmentsByScan[scanID] = true
-			return true
-		}
-		return false
-	}
-
-	concerns := TopConcerns(snaps, lookupRule, 5)
-	activity := RecentActivity(scans, activityHas, 5)
 	headline := BuildHeadline(snaps, scans)
+	verdicts := WorstByFramework(snaps)
 
-		orgSlug := ""
-		if org != nil {
-			orgSlug = org.Slug
-		}
-		view := dashboardView{
-			GeneratedAt:  time.Now().UTC().Format(time.RFC3339),
-			HasData:      len(scans) > 0,
-			HasReporting: true,
-			OrgSlug:      orgSlug,
-			Headline: headlineRenderView{
-				TotalScans:       headline.TotalScans,
-				PerimeterTargets: headline.PerimeterTargets,
-				AgentHostTargets: headline.AgentHostTargets,
-				Frameworks:       headline.Frameworks,
-			},
-			TopConcerns: concerns,
-		}
-		if !headline.LastScanAt.IsZero() {
-			view.Headline.LastScanAt = headline.LastScanAt.UTC().Format(time.RFC3339)
-		}
-		// Stable framework order: wand, eucsf, then alphabetical.
-		// Pre-rename "dictu" rows are rendered by their persisted key
-		// for one release; the lookup table accepts both.
-		fwOrder := func(a, b string) bool {
-			if a == "wand" {
-				return true
-			}
-			if b == "wand" {
-				return false
-			}
-			if a == "dictu" {
-				return true
-			}
-			if b == "dictu" {
-				return false
-			}
-			if a == "eucsf" {
-				return true
-			}
-			if b == "eucsf" {
-				return false
-			}
-			return a < b
-		}
-		view.ExternalPostureBlocks = renderPostureBlocks(PostureCountsByKind(snaps, models.TargetKindDomain), fwOrder)
-		view.InternalPostureBlocks = renderPostureBlocks(PostureCountsByKind(snaps, models.TargetKindHost), fwOrder)
-		for _, a := range activity {
-			view.Activity = append(view.Activity, activityRowView{
-				ScanID:        a.ScanID,
-				Domain:        a.Domain,
-				StartedAt:     a.StartedAt.UTC().Format(time.RFC3339),
-				Status:        a.Status,
-				HasAssessment: a.HasAssessment,
-			})
-		}
-		// Organisation-aware metadata: per-org dashboards carry the
+	orgSlug := ""
+	if org != nil {
+		orgSlug = org.Slug
+	}
+	view := dashboardView{
+		GeneratedAt:  time.Now().UTC().Format(time.RFC3339),
+		HasData:      len(scans) > 0,
+		HasReporting: true,
+		OrgSlug:      orgSlug,
+		Headline: headlineRenderView{
+			TotalScans:       headline.TotalScans,
+			PerimeterTargets: headline.PerimeterTargets,
+			AgentHostTargets: headline.AgentHostTargets,
+			Frameworks:       headline.Frameworks,
+		},
+	}
+	if !headline.LastScanAt.IsZero() {
+		view.Headline.LastScanAt = headline.LastScanAt.UTC().Format(time.RFC3339)
+	}
+	for _, v := range verdicts {
+		view.Verdicts = append(view.Verdicts, verdictRenderView{
+			Framework: v.Framework,
+			Score:     string(v.Score),
+			AtWorst:   v.TargetsAtWorst,
+			Total:     v.TotalAssessed,
+		})
+	}
+	// Organisation-aware metadata: per-org dashboards carry the
 		// scoped org's slug + name so the template can rebadge the
 		// headline; the instance-wide view carries the full list of
 		// registered orgs as drill-in links.
@@ -808,7 +771,28 @@ type reportingRowView struct {
 	OnbekendCount  int
 }
 
-func reportingIndexHandler(st *store.Store, tmpl *template.Template) http.HandlerFunc {
+// ruleCatalogueView is the shape consumed by reporting.tmpl
+// after the 2026-05-10 layer restructure: a rule reference
+// page with no scoring data.
+type ruleCatalogueView struct {
+	GeneratedAt  string
+	HasReporting bool
+	OrgSlug      string
+	Rows         []ruleCatalogueRow
+}
+
+type ruleCatalogueRow struct {
+	Framework   string
+	CriteriumID string
+	Dimension   string
+	Description string
+	Rationale   string
+}
+
+// analysisHandler renders the Analysis page — the rule × score
+// matrix that operators steer with. This was the content of the
+// old /ui/reporting before the 2026-05-10 layer restructure.
+func analysisHandler(st *store.Store, tmpl *template.Template) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 		orgID, scopedOrg, ok := resolveOrgQueryParam(ctx, st, w, r)
@@ -844,6 +828,34 @@ func reportingIndexHandler(st *store.Store, tmpl *template.Template) http.Handle
 				AfhankelijkCount: row.Counts[models.ScoreAfhankelijk],
 				OnbekendCount:    row.Counts[models.ScoreOnbekend],
 			})
+		}
+		render(w, tmpl, "analysis.tmpl", view)
+	}
+}
+
+// reportingCatalogueHandler renders /ui/reporting as a rule
+// catalogue — every registered rule with its description and
+// rationale, no scoring data. This is the "what is being
+// measured" reference surface; the per-rule deep dive at
+// /ui/reporting/{framework}/{ruleID} is the "how is each target
+// doing on this rule" surface.
+func reportingCatalogueHandler(tmpl *template.Template) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		all := ListAllRules()
+		rows := make([]ruleCatalogueRow, 0, len(all))
+		for _, c := range all {
+			rows = append(rows, ruleCatalogueRow{
+				Framework:   c.Framework,
+				CriteriumID: c.Rule.ID,
+				Dimension:   string(c.Rule.Dimension),
+				Description: c.Rule.Description,
+				Rationale:   c.Rule.Rationale,
+			})
+		}
+		view := ruleCatalogueView{
+			GeneratedAt:  time.Now().UTC().Format(time.RFC3339),
+			HasReporting: true,
+			Rows:         rows,
 		}
 		render(w, tmpl, "reporting.tmpl", view)
 	}

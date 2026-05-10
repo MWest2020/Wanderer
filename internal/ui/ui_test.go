@@ -95,10 +95,12 @@ func TestDashboard_EmptyStoreRendersEmptyHint(t *testing.T) {
 	}
 }
 
-func TestDashboard_PostureSummary(t *testing.T) {
+func TestDashboard_VerdictPill_PerFramework(t *testing.T) {
+	// After the 2026-05-10 layer restructure, Dashboard renders
+	// per-framework verdict pills (worst-score) — no posture
+	// distribution blocks, no Top concerns table, no Recent
+	// activity table.
 	srv, st := newServer(t, "")
-	// Seed three targets each with one DICTU Assessment whose worst
-	// dimension is soeverein, afhankelijk, and onbekend respectively.
 	for i, score := range []models.Score{models.ScoreSoeverein, models.ScoreAfhankelijk, models.ScoreOnbekend} {
 		domain := []string{"a.example", "b.example", "c.example"}[i]
 		tgt := &models.Target{Domain: domain}
@@ -120,11 +122,6 @@ func TestDashboard_PostureSummary(t *testing.T) {
 				Dimension:    models.DimensionJuridisch,
 				Score:        score,
 				Completeness: comp,
-				Rationale: []models.Rationale{{
-					CriteriumID: "wand.juridisch.cert_issuer_eea",
-					Verdict:     "test",
-					Score:       score,
-				}},
 			}},
 		}
 		if err := st.CreateAssessment(context.Background(), a); err != nil {
@@ -136,102 +133,26 @@ func TestDashboard_PostureSummary(t *testing.T) {
 		t.Fatalf("get: %v", err)
 	}
 	defer resp.Body.Close()
-	if resp.StatusCode != 200 {
-		t.Fatalf("status = %d", resp.StatusCode)
-	}
 	body, _ := io.ReadAll(resp.Body)
 	bodyStr := string(body)
 	for _, want := range []string{
-		"External posture",
-		"Internal posture",
-		"1 soeverein",
-		"1 afhankelijk",
-		"1 onbekend",
-		"External coverage",
-		"Internal coverage",
+		"Verdict",
+		"verdict-pill",
+		"score-afhankelijk", // worst across {soeverein, afhankelijk, onbekend}
 	} {
 		if !strings.Contains(bodyStr, want) {
-			t.Errorf("dashboard missing %q; body:\n%s", want, bodyStr)
+			t.Errorf("dashboard missing %q", want)
 		}
 	}
-}
-
-func TestDashboard_TopConcerns_TargetCounted(t *testing.T) {
-	srv, st := newServer(t, "")
-	// Five distinct targets each scoring afhankelijk on the same rule.
-	for i := 0; i < 5; i++ {
-		domain := []string{"t1.example", "t2.example", "t3.example", "t4.example", "t5.example"}[i]
-		tgt := &models.Target{Domain: domain}
-		if err := st.UpsertTarget(context.Background(), tgt); err != nil {
-			t.Fatal(err)
+	for _, mustNotHave := range []string{
+		"External posture",
+		"Internal posture",
+		"Top concerns",
+		"Recent activity",
+	} {
+		if strings.Contains(bodyStr, mustNotHave) {
+			t.Errorf("dashboard MUST NOT contain %q after the 2026-05-10 layer restructure", mustNotHave)
 		}
-		sc, err := st.CreateScan(context.Background(), tgt.ID)
-		if err != nil {
-			t.Fatal(err)
-		}
-		a := &models.Assessment{
-			ScanID:    sc.ID,
-			Framework: "wand",
-			Dimensions: []models.DimensionScore{{
-				Dimension:    models.DimensionJuridisch,
-				Score:        models.ScoreAfhankelijk,
-				Completeness: models.CompletenessComplete,
-				Rationale: []models.Rationale{{
-					CriteriumID: "wand.juridisch.cert_issuer_eea",
-					Verdict:     "afhankelijk",
-					Score:       models.ScoreAfhankelijk,
-				}},
-			}},
-		}
-		if err := st.CreateAssessment(context.Background(), a); err != nil {
-			t.Fatal(err)
-		}
-	}
-	resp, err := http.Get(srv.URL + "/ui/")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer resp.Body.Close()
-	body, _ := io.ReadAll(resp.Body)
-	bodyStr := string(body)
-	if !strings.Contains(bodyStr, "wand.juridisch.cert_issuer_eea") {
-		t.Errorf("expected concern row with rule ID; body:\n%s", bodyStr)
-	}
-	// The badge contains the count "5" inside score-afhankelijk.
-	if !strings.Contains(bodyStr, "score-afhankelijk\">5</span>") {
-		t.Errorf("expected target count 5; body:\n%s", bodyStr)
-	}
-}
-
-func TestDashboard_RecentActivity(t *testing.T) {
-	srv, st := newServer(t, "")
-	// Seven scans across three targets — newest five should appear.
-	for i := 0; i < 7; i++ {
-		domain := []string{"t1.example", "t2.example", "t3.example"}[i%3]
-		tgt := &models.Target{Domain: domain}
-		_ = st.UpsertTarget(context.Background(), tgt)
-		_, err := st.CreateScan(context.Background(), tgt.ID)
-		if err != nil {
-			t.Fatal(err)
-		}
-	}
-	resp, err := http.Get(srv.URL + "/ui/")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer resp.Body.Close()
-	body, _ := io.ReadAll(resp.Body)
-	if !strings.Contains(string(body), "Recent activity") {
-		t.Errorf("expected Recent activity section")
-	}
-	// Count rows in the activity table — should be exactly 5
-	// findings/assessment links rendered.
-	rowCount := strings.Count(string(body), `href="/ui/scans/`)
-	// The dashboard's recent-activity links + concerns row
-	// (none here) + posture (none here) — all "/ui/scans/" links.
-	// Five scans → five anchors.
-	if rowCount != 5 {
-		t.Errorf("expected 5 scan links in activity, got %d", rowCount)
 	}
 }
 
@@ -517,10 +438,10 @@ func TestNoMutatingHandlersInPackage(t *testing.T) {
 	}
 }
 
-func TestReporting_Index_ListsRules(t *testing.T) {
-	srv, st := newServer(t, "")
-	_, scanID := seed(t, st)
-	seedAssessment(t, st, scanID, "wand", "eucsf")
+func TestReporting_Catalogue_ListsRulesWithDescriptions(t *testing.T) {
+	// /ui/reporting is the rule catalogue after the 2026-05-10 layer
+	// restructure. No scoring data here; just rule descriptions.
+	srv, _ := newServer(t, "")
 	resp, err := http.Get(srv.URL + "/ui/reporting")
 	if err != nil {
 		t.Fatalf("get: %v", err)
@@ -532,13 +453,43 @@ func TestReporting_Index_ListsRules(t *testing.T) {
 	body, _ := io.ReadAll(resp.Body)
 	bodyStr := string(body)
 	for _, want := range []string{
-		"Reporting · per-rule cross-target view",
+		"Reporting · rule catalogue",
+		"wand.juridisch.cert_issuer_eea",
+		"eucsf.sov2.cert_issuer_eu",
+	} {
+		if !strings.Contains(bodyStr, want) {
+			t.Errorf("reporting catalogue missing %q", want)
+		}
+	}
+	// Catalogue must NOT carry scoring data — that lives on /ui/analysis.
+	if strings.Contains(bodyStr, ">soeverein<") {
+		t.Errorf("reporting catalogue must not include score columns")
+	}
+}
+
+func TestAnalysis_RulesMatrix(t *testing.T) {
+	// The rule × score matrix moved to /ui/analysis on 2026-05-10.
+	srv, st := newServer(t, "")
+	_, scanID := seed(t, st)
+	seedAssessment(t, st, scanID, "wand", "eucsf")
+	resp, err := http.Get(srv.URL + "/ui/analysis")
+	if err != nil {
+		t.Fatalf("get: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != 200 {
+		t.Fatalf("status = %d", resp.StatusCode)
+	}
+	body, _ := io.ReadAll(resp.Body)
+	bodyStr := string(body)
+	for _, want := range []string{
+		"Analysis · steering matrix",
 		"wand.juridisch.cert_issuer_eea",
 		"eucsf.sov2.cert_issuer_eu",
 		"soeverein",
 	} {
 		if !strings.Contains(bodyStr, want) {
-			t.Errorf("reporting index missing %q", want)
+			t.Errorf("analysis matrix missing %q", want)
 		}
 	}
 }
@@ -636,8 +587,12 @@ func TestNav_PerOrgPageThreadsScopeIntoNavLinks(t *testing.T) {
 	body, _ := io.ReadAll(resp.Body)
 	bodyStr := string(body)
 	for _, want := range []string{
-		`href="/ui/targets?org=acme"`,
-		`href="/ui/reporting?org=acme"`,
+		// Analysis tab threads the org filter; Reporting catalogue
+		// does not carry org filter (it's reference data, not
+		// scope-bound).
+		`href="/ui/analysis?org=acme"`,
+		`href="/ui/reporting"`,
+		`href="/ui/orgs/acme"`,
 	} {
 		if !strings.Contains(bodyStr, want) {
 			t.Errorf("per-org page nav missing %q", want)
@@ -666,13 +621,15 @@ func TestNav_AnalysisPagesIncludeReportingTab(t *testing.T) {
 	}
 }
 
-func TestReporting_Index_ShowsScopeLabelWhenFiltered(t *testing.T) {
+func TestAnalysis_ShowsScopeLabelWhenFiltered(t *testing.T) {
+	// The scope label moved with the matrix from /ui/reporting to
+	// /ui/analysis (2026-05-10 layer restructure).
 	srv, st := newServer(t, "")
 	o := &models.Organisation{Slug: "acme", Name: "ACME B.V."}
 	if err := st.UpsertOrganisation(context.Background(), o); err != nil {
 		t.Fatal(err)
 	}
-	resp, err := http.Get(srv.URL + "/ui/reporting?org=acme")
+	resp, err := http.Get(srv.URL + "/ui/analysis?org=acme")
 	if err != nil {
 		t.Fatalf("get: %v", err)
 	}
@@ -684,7 +641,7 @@ func TestReporting_Index_ShowsScopeLabelWhenFiltered(t *testing.T) {
 		`ACME B.V.`,
 	} {
 		if !strings.Contains(bodyStr, want) {
-			t.Errorf("reporting page missing scope label %q", want)
+			t.Errorf("analysis page missing scope label %q", want)
 		}
 	}
 }

@@ -225,6 +225,81 @@ func RecentActivity(scans []store.ScanRow, hasAssessment func(scanID string) boo
 	return out
 }
 
+// FrameworkVerdict is the Dashboard's "is dit goed of niet"
+// signal per framework: the worst score reached across all
+// targets in scope, plus how many targets are at that worst
+// score. When zero targets have been assessed under the
+// framework, Score is empty and TargetsAtWorst is 0.
+type FrameworkVerdict struct {
+	Framework      string
+	Score          models.Score
+	TargetsAtWorst int
+	TotalAssessed  int
+}
+
+// WorstByFramework computes one FrameworkVerdict per framework
+// present in the snapshots. Worst score uses Rank — the lowest
+// non-onbekend rank wins. If every assessed target is onbekend,
+// the verdict is onbekend with TargetsAtWorst = TotalAssessed.
+func WorstByFramework(snaps []TargetSnapshot) []FrameworkVerdict {
+	type bucket struct {
+		worst   models.Score
+		atWorst int
+		total   int
+	}
+	buckets := map[string]*bucket{}
+	for _, s := range snaps {
+		for fw, a := range s.Assessments {
+			b := buckets[fw]
+			if b == nil {
+				b = &bucket{worst: models.ScoreOnbekend}
+				buckets[fw] = b
+			}
+			b.total++
+			score := WorstScore(a.Dimensions)
+			// Score with the lowest Rank (excluding 0 / onbekend
+			// which Rank() returns for unknown) is the worst.
+			if score.Rank() > 0 {
+				if b.worst == models.ScoreOnbekend || score.Rank() < b.worst.Rank() {
+					b.worst = score
+					b.atWorst = 1
+				} else if score == b.worst {
+					b.atWorst++
+				}
+			} else if b.worst == models.ScoreOnbekend {
+				b.atWorst++
+			}
+		}
+	}
+	out := make([]FrameworkVerdict, 0, len(buckets))
+	for fw, b := range buckets {
+		out = append(out, FrameworkVerdict{
+			Framework:      fw,
+			Score:          b.worst,
+			TargetsAtWorst: b.atWorst,
+			TotalAssessed:  b.total,
+		})
+	}
+	sort.Slice(out, func(i, j int) bool {
+		// wand first, then eucsf, then alphabetical.
+		rank := func(fw string) int {
+			switch fw {
+			case "wand":
+				return 0
+			case "eucsf":
+				return 1
+			default:
+				return 2
+			}
+		}
+		if rank(out[i].Framework) != rank(out[j].Framework) {
+			return rank(out[i].Framework) < rank(out[j].Framework)
+		}
+		return out[i].Framework < out[j].Framework
+	})
+	return out
+}
+
 // AllScores is the canonical iteration order for posture-summary
 // rendering: best to worst, with onbekend at the end so an
 // unevaluated bucket reads as "we don't know yet" rather than

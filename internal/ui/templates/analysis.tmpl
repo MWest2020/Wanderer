@@ -1,0 +1,63 @@
+{{define "analysis.tmpl"}}<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Wanderer — analysis</title>
+<link rel="stylesheet" href="/ui/static/main.css">
+</head>
+<body>
+{{template "nav.tmpl" dict "Active" "analysis" "HasReporting" .HasReporting "OrgSlug" .OrgSlug}}
+<header>
+  <h1>Analysis · steering matrix</h1>
+  <p class="meta">
+    Generated {{.GeneratedAt}}
+    {{if .ScopedOrganisation}}
+    · <span class="scope-pill">Scope: <a href="{{.ScopedOrganisation.URL}}">{{.ScopedOrganisation.Name}}</a></span>
+    · <a href="/ui/analysis">show all organisations →</a>
+    {{else}}
+    · <span class="muted">all organisations</span>
+    {{end}}
+    · <a href="/ui/targets{{if .OrgSlug}}?org={{.OrgSlug}}{{end}}">per-target view →</a>
+  </p>
+</header>
+<main>
+{{if .Rows}}
+<table class="reporting-rules">
+  <thead>
+    <tr>
+      <th>Framework</th>
+      <th>Rule</th>
+      <th class="num">soeverein</th>
+      <th class="num">voldoende</th>
+      <th class="num">afhankelijk</th>
+      <th class="num">onbekend</th>
+    </tr>
+  </thead>
+  <tbody>
+    {{range .Rows}}
+    <tr>
+      <td>{{.Framework}}</td>
+      <td>
+        <a href="/ui/reporting/{{.Framework}}/{{.CriteriumID}}{{if $.OrgSlug}}?org={{$.OrgSlug}}{{end}}"><code>{{.CriteriumID}}</code></a>
+        {{if .Description}}<div class="muted small">{{.Description}}</div>{{end}}
+      </td>
+      <td class="num">{{if .SoevereinCount}}<span class="badge score-soeverein">{{.SoevereinCount}}</span>{{else}}<span class="muted">—</span>{{end}}</td>
+      <td class="num">{{if .VoldoendeCount}}<span class="badge score-voldoende">{{.VoldoendeCount}}</span>{{else}}<span class="muted">—</span>{{end}}</td>
+      <td class="num">{{if .AfhankelijkCount}}<span class="badge score-afhankelijk">{{.AfhankelijkCount}}</span>{{else}}<span class="muted">—</span>{{end}}</td>
+      <td class="num">{{if .OnbekendCount}}<span class="badge score-onbekend">{{.OnbekendCount}}</span>{{else}}<span class="muted">—</span>{{end}}</td>
+    </tr>
+    {{end}}
+  </tbody>
+</table>
+{{else}}
+<p class="empty-state">
+  No rules have produced rationales yet. Run
+  <code>wanderer assess &lt;scan-id&gt; --framework both</code> after at least one
+  <code>wanderer scan &lt;domain&gt;</code>.
+</p>
+{{end}}
+</main>
+</body>
+</html>
+{{end}}

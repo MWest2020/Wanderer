@@ -103,6 +103,35 @@ a:hover { text-decoration: underline; }
 }
 .scope-pill a { color: inherit; font-weight: 500; }
 
+/* Dashboard verdict pills — one per framework, "is this OK?". */
+.verdict-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1rem;
+}
+.verdict-block {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 1rem;
+}
+.verdict-framework {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  color: var(--muted);
+  letter-spacing: 0.05em;
+  margin-bottom: 0.5rem;
+}
+.verdict-pill {
+  font-size: 1.125rem;
+  padding: 0.375rem 0.875rem;
+  font-weight: 600;
+}
+
+/* Rule catalogue — Reporting layer's reference page. */
+.rule-catalogue td { vertical-align: top; }
+.rule-catalogue details.why { margin-top: 0.25rem; }
+.rule-catalogue details.why summary { cursor: pointer; }
+
 table {
   width: 100%;
   border-collapse: collapse;

@@ -9,52 +9,41 @@
 <body>
 {{template "nav.tmpl" dict "Active" "reporting" "HasReporting" .HasReporting "OrgSlug" .OrgSlug}}
 <header>
-  <h1>Reporting · per-rule cross-target view</h1>
+  <h1>Reporting · rule catalogue</h1>
   <p class="meta">
-    Generated {{.GeneratedAt}}
-    {{if .ScopedOrganisation}}
-    · <span class="scope-pill">Scope: <a href="{{.ScopedOrganisation.URL}}">{{.ScopedOrganisation.Name}}</a></span>
-    · <a href="/ui/reporting">show all organisations →</a>
-    {{else}}
-    · <span class="muted">all organisations</span>
-    {{end}}
+    Every metric Wanderer measures, with the dimension it informs
+    and the rationale that explains why it matters. Click a row
+    to see how each target scores on the rule.
+    · Generated {{.GeneratedAt}}
   </p>
 </header>
 <main>
 {{if .Rows}}
-<table class="reporting-rules">
+<table class="rule-catalogue">
   <thead>
     <tr>
       <th>Framework</th>
+      <th>Dimension</th>
       <th>Rule</th>
-      <th class="num">soeverein</th>
-      <th class="num">voldoende</th>
-      <th class="num">afhankelijk</th>
-      <th class="num">onbekend</th>
+      <th>What it measures</th>
     </tr>
   </thead>
   <tbody>
     {{range .Rows}}
     <tr>
-      <td>{{.Framework}}</td>
+      <td><code>{{.Framework}}</code></td>
+      <td><code>{{.Dimension}}</code></td>
+      <td><a href="/ui/reporting/{{.Framework}}/{{.CriteriumID}}"><code>{{.CriteriumID}}</code></a></td>
       <td>
-        <a href="/ui/reporting/{{.Framework}}/{{.CriteriumID}}"><code>{{.CriteriumID}}</code></a>
-        {{if .Description}}<div class="muted small">{{.Description}}</div>{{end}}
+        <strong>{{.Description}}</strong>
+        {{if .Rationale}}<details class="why"><summary class="muted small">why this matters</summary><p class="rationale-text">{{.Rationale}}</p></details>{{end}}
       </td>
-      <td class="num">{{if .SoevereinCount}}<span class="badge score-soeverein">{{.SoevereinCount}}</span>{{else}}<span class="muted">—</span>{{end}}</td>
-      <td class="num">{{if .VoldoendeCount}}<span class="badge score-voldoende">{{.VoldoendeCount}}</span>{{else}}<span class="muted">—</span>{{end}}</td>
-      <td class="num">{{if .AfhankelijkCount}}<span class="badge score-afhankelijk">{{.AfhankelijkCount}}</span>{{else}}<span class="muted">—</span>{{end}}</td>
-      <td class="num">{{if .OnbekendCount}}<span class="badge score-onbekend">{{.OnbekendCount}}</span>{{else}}<span class="muted">—</span>{{end}}</td>
     </tr>
     {{end}}
   </tbody>
 </table>
 {{else}}
-<p class="empty-state">
-  No rules have produced rationales yet. Run
-  <code>wanderer assess &lt;scan-id&gt; --framework both</code> after at least one
-  <code>wanderer scan &lt;domain&gt;</code>.
-</p>
+<p class="empty-state">No rules registered.</p>
 {{end}}
 </main>
 </body>
