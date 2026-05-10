@@ -7,10 +7,18 @@
 <link rel="stylesheet" href="/ui/static/main.css">
 </head>
 <body>
-{{template "nav.tmpl" dict "Active" "reporting" "HasReporting" .HasReporting}}
+{{template "nav.tmpl" dict "Active" "reporting" "HasReporting" .HasReporting "OrgSlug" .OrgSlug}}
 <header>
   <h1>Reporting · per-rule cross-target view</h1>
-  <p class="meta">Generated {{.GeneratedAt}}</p>
+  <p class="meta">
+    Generated {{.GeneratedAt}}
+    {{if .ScopedOrganisation}}
+    · <span class="scope-pill">Scope: <a href="{{.ScopedOrganisation.URL}}">{{.ScopedOrganisation.Name}}</a></span>
+    · <a href="/ui/reporting">show all organisations →</a>
+    {{else}}
+    · <span class="muted">all organisations</span>
+    {{end}}
+  </p>
 </header>
 <main>
 {{if .Rows}}

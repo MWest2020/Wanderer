@@ -9,6 +9,24 @@ once a first release is cut. Until then every entry lives under
 
 ## [Unreleased]
 
+### Fixed
+
+- The DAR cross-page navigation now persists the active
+  organisation scope across every tab. Selecting an org and
+  clicking Analysis or Reporting no longer dumps the operator
+  out of their context — Dashboard threads to
+  `/ui/orgs/<slug>`, Analysis to `/ui/targets?org=<slug>`,
+  Reporting to `/ui/reporting?org=<slug>`. The Reporting
+  index, rule-detail, and Targets pages render a "Scope:
+  {orgName}" pill in the header so the filtered view is
+  visibly distinct from the global one. The Reporting nav
+  tab now appears on Analysis pages too (was previously
+  omitted because those handlers passed `HasReporting=false`,
+  left over from when Reporting did not yet exist).
+- The `/ui/targets` page accepts `?org=<slug>` to filter the
+  targets list to one organisation, mirroring the existing
+  filter on `/ui/reporting`. Unknown slug → 404.
+
 ### Added
 
 - **Organisations** as a first-class concept. Every Target

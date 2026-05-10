@@ -7,14 +7,19 @@
 <link rel="stylesheet" href="/ui/static/main.css">
 </head>
 <body>
-{{template "nav.tmpl" dict "Active" "reporting" "HasReporting" .HasReporting}}
+{{template "nav.tmpl" dict "Active" "reporting" "HasReporting" .HasReporting "OrgSlug" .OrgSlug}}
 <header>
-  <p class="meta"><a href="/ui/reporting">← reporting index</a></p>
+  <p class="meta">
+    {{if .OrgSlug}}<a href="/ui/reporting?org={{.OrgSlug}}">← reporting index</a>{{else}}<a href="/ui/reporting">← reporting index</a>{{end}}
+  </p>
   <h1><code>{{.CriteriumID}}</code></h1>
   <p class="meta">
     Framework <code>{{.Framework}}</code>
     · Dimension <code>{{.Dimension}}</code>
     · Generated {{.GeneratedAt}}
+    {{if .ScopedOrganisation}}
+    · <span class="scope-pill">Scope: <a href="{{.ScopedOrganisation.URL}}">{{.ScopedOrganisation.Name}}</a></span>
+    {{end}}
   </p>
   {{if .Description}}<p class="rule-description">{{.Description}}</p>{{end}}
   {{if .Rationale}}<p class="rationale-text">{{.Rationale}}</p>{{end}}

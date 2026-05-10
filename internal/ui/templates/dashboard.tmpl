@@ -7,7 +7,7 @@
 <link rel="stylesheet" href="/ui/static/main.css">
 </head>
 <body>
-{{template "nav.tmpl" dict "Active" "dashboard" "HasReporting" .HasReporting}}
+{{template "nav.tmpl" dict "Active" "dashboard" "HasReporting" .HasReporting "OrgSlug" .OrgSlug}}
 <header class="headline">
   {{if .ScopedOrganisation}}
   <h1>Wanderer · {{.ScopedOrganisation.Name}} · sovereignty observation</h1>

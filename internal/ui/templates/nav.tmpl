@@ -1,7 +1,11 @@
 {{define "nav.tmpl"}}
+{{- $q := "" -}}
+{{- if .OrgSlug -}}{{- $q = printf "?org=%s" .OrgSlug -}}{{- end -}}
+{{- $dashHref := "/ui/" -}}
+{{- if .OrgSlug -}}{{- $dashHref = printf "/ui/orgs/%s" .OrgSlug -}}{{- end -}}
 <nav class="nav-bar">
-  <a class="nav-link {{if eq .Active "dashboard"}}is-active{{end}}" href="/ui/">Dashboard</a>
-  <a class="nav-link {{if eq .Active "analysis"}}is-active{{end}}" href="/ui/targets">Analysis</a>
-  {{if .HasReporting}}<a class="nav-link {{if eq .Active "reporting"}}is-active{{end}}" href="/ui/reporting">Reporting</a>{{end}}
+  <a class="nav-link {{if eq .Active "dashboard"}}is-active{{end}}" href="{{$dashHref}}">Dashboard</a>
+  <a class="nav-link {{if eq .Active "analysis"}}is-active{{end}}" href="/ui/targets{{$q}}">Analysis</a>
+  {{if .HasReporting}}<a class="nav-link {{if eq .Active "reporting"}}is-active{{end}}" href="/ui/reporting{{$q}}">Reporting</a>{{end}}
 </nav>
 {{end}}

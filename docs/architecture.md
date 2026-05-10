@@ -226,6 +226,15 @@ Reporting tabs across every page, so the operator's mental model
 of "where am I" is reinforced everywhere. The Reporting tab is
 omitted from the rendered HTML when the route is not registered.
 
+**Scope persists across the nav.** When the operator selects an
+organisation (visits `/ui/orgs/{slug}`, or any Analysis or
+Reporting page with `?org=<slug>`), every nav link carries the
+same scope forward — Dashboard → `/ui/orgs/<slug>`, Analysis →
+`/ui/targets?org=<slug>`, Reporting → `/ui/reporting?org=<slug>`.
+The Reporting and Targets pages render a "Scope: {orgName}"
+pill in the header so the filtered view is visibly distinct
+from the global one.
+
 ## How to add a perimeter probe
 
 1. Create `internal/probe/<name>/` with a type implementing

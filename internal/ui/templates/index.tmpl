@@ -7,12 +7,17 @@
 <link rel="stylesheet" href="/ui/static/main.css">
 </head>
 <body>
-{{template "nav.tmpl" dict "Active" "analysis" "HasReporting" false}}
+{{template "nav.tmpl" dict "Active" "analysis" "HasReporting" .HasReporting "OrgSlug" .OrgSlug}}
 <header>
   <h1>Wanderer targets</h1>
   <p class="meta">
     Generated {{.GeneratedAt}}
+    {{if .ScopedOrganisation}}
+    · <span class="scope-pill">Scope: <a href="{{.ScopedOrganisation.URL}}">{{.ScopedOrganisation.Name}}</a></span>
+    · <a href="/ui/targets">show all organisations →</a>
+    {{else}}
     · <a href="/ui/">← dashboard</a>
+    {{end}}
   </p>
 </header>
 <main>

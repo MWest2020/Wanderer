@@ -622,6 +622,108 @@ func TestDashboard_Org_UnknownReturns404(t *testing.T) {
 	}
 }
 
+func TestNav_PerOrgPageThreadsScopeIntoNavLinks(t *testing.T) {
+	srv, st := newServer(t, "")
+	o := &models.Organisation{Slug: "acme", Name: "ACME B.V."}
+	if err := st.UpsertOrganisation(context.Background(), o); err != nil {
+		t.Fatal(err)
+	}
+	resp, err := http.Get(srv.URL + "/ui/orgs/acme")
+	if err != nil {
+		t.Fatalf("get: %v", err)
+	}
+	defer resp.Body.Close()
+	body, _ := io.ReadAll(resp.Body)
+	bodyStr := string(body)
+	for _, want := range []string{
+		`href="/ui/targets?org=acme"`,
+		`href="/ui/reporting?org=acme"`,
+	} {
+		if !strings.Contains(bodyStr, want) {
+			t.Errorf("per-org page nav missing %q", want)
+		}
+	}
+}
+
+func TestNav_AnalysisPagesIncludeReportingTab(t *testing.T) {
+	// Regression: scan/assessment/drift/targets pages used to pass
+	// HasReporting=false to nav.tmpl, omitting the Reporting link.
+	srv, st := newServer(t, "")
+	_, scanID := seed(t, st)
+	for _, path := range []string{"/ui/targets", "/ui/scans/" + scanID, "/ui/scans/" + scanID + "/assessment"} {
+		resp, err := http.Get(srv.URL + path)
+		if err != nil {
+			t.Fatalf("get %s: %v", path, err)
+		}
+		body, _ := io.ReadAll(resp.Body)
+		resp.Body.Close()
+		// Accept either `href="/ui/reporting"` or `href="/ui/reporting?org=...`
+		// — the latter happens whenever the page resolves a scope through
+		// the seeded `default` org. The point is the link is *present*.
+		if !strings.Contains(string(body), `href="/ui/reporting`) {
+			t.Errorf("%s: Reporting nav link missing", path)
+		}
+	}
+}
+
+func TestReporting_Index_ShowsScopeLabelWhenFiltered(t *testing.T) {
+	srv, st := newServer(t, "")
+	o := &models.Organisation{Slug: "acme", Name: "ACME B.V."}
+	if err := st.UpsertOrganisation(context.Background(), o); err != nil {
+		t.Fatal(err)
+	}
+	resp, err := http.Get(srv.URL + "/ui/reporting?org=acme")
+	if err != nil {
+		t.Fatalf("get: %v", err)
+	}
+	defer resp.Body.Close()
+	body, _ := io.ReadAll(resp.Body)
+	bodyStr := string(body)
+	for _, want := range []string{
+		`Scope:`,
+		`ACME B.V.`,
+	} {
+		if !strings.Contains(bodyStr, want) {
+			t.Errorf("reporting page missing scope label %q", want)
+		}
+	}
+}
+
+func TestTargets_Filtered_ByOrg(t *testing.T) {
+	srv, st := newServer(t, "")
+	acme := &models.Organisation{Slug: "acme", Name: "ACME B.V."}
+	if err := st.UpsertOrganisation(context.Background(), acme); err != nil {
+		t.Fatal(err)
+	}
+	tgtAcme := &models.Target{Domain: "a.example", OrganisationID: acme.ID}
+	if err := st.UpsertTarget(context.Background(), tgtAcme); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := st.CreateScan(context.Background(), tgtAcme.ID); err != nil {
+		t.Fatal(err)
+	}
+	tgtOther := &models.Target{Domain: "b.example"} // default org
+	if err := st.UpsertTarget(context.Background(), tgtOther); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := st.CreateScan(context.Background(), tgtOther.ID); err != nil {
+		t.Fatal(err)
+	}
+	resp, err := http.Get(srv.URL + "/ui/targets?org=acme")
+	if err != nil {
+		t.Fatalf("get: %v", err)
+	}
+	defer resp.Body.Close()
+	body, _ := io.ReadAll(resp.Body)
+	bodyStr := string(body)
+	if !strings.Contains(bodyStr, "a.example") {
+		t.Errorf("acme target a.example not in filtered list")
+	}
+	if strings.Contains(bodyStr, "b.example") {
+		t.Errorf("default-org target b.example leaked into acme view")
+	}
+}
+
 func TestDashboard_Global_ListsOrganisationsWhenMultiple(t *testing.T) {
 	srv, st := newServer(t, "")
 	for _, slug := range []string{"acme", "beta"} {

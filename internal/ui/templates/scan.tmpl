@@ -7,7 +7,7 @@
 <link rel="stylesheet" href="/ui/static/main.css">
 </head>
 <body>
-{{template "nav.tmpl" dict "Active" "analysis" "HasReporting" false}}
+{{template "nav.tmpl" dict "Active" "analysis" "HasReporting" .HasReporting "OrgSlug" .OrgSlug}}
 <header>
   <h1>Scan {{.ID}}</h1>
   <p class="meta">
@@ -16,8 +16,8 @@
     · Status <span class="status-{{.Status}}">{{.Status}}</span>
   </p>
   <p>
-    <a href="/ui/">← dashboard</a>
-    · <a href="/ui/targets">all targets</a>
+    {{if .OrgSlug}}<a href="/ui/orgs/{{.OrgSlug}}">← dashboard</a>{{else}}<a href="/ui/">← dashboard</a>{{end}}
+    · {{if .OrgSlug}}<a href="/ui/targets?org={{.OrgSlug}}">all targets</a>{{else}}<a href="/ui/targets">all targets</a>{{end}}
     {{if .HasAssessment}}
     · <a href="/ui/scans/{{.ID}}/assessment">Open assessment →</a>
     {{end}}

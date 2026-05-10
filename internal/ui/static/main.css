@@ -91,6 +91,18 @@ a:hover { text-decoration: underline; }
 .organisations td.num,
 .organisations th.num { text-align: right; width: 6em; }
 
+/* Scope pill — shown in page headers when a filter is active. */
+.scope-pill {
+  display: inline-block;
+  padding: 0.125rem 0.5rem;
+  background: #fff7e6;
+  border: 1px solid #ffd591;
+  border-radius: 999px;
+  font-size: 0.875rem;
+  color: #874d00;
+}
+.scope-pill a { color: inherit; font-weight: 500; }
+
 table {
   width: 100%;
   border-collapse: collapse;

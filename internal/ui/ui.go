@@ -128,6 +128,7 @@ type dashboardView struct {
 	ExternalPostureBlocks []postureBlockView
 	InternalPostureBlocks []postureBlockView
 	HasReporting          bool // controls whether the Reporting nav link renders
+	OrgSlug               string // active org for nav-link scope persistence
 	TopConcerns           []ConcernRow
 	Activity              []activityRowView
 }
@@ -229,10 +230,15 @@ func renderDashboard(w http.ResponseWriter, r *http.Request, st *store.Store, tm
 	activity := RecentActivity(scans, activityHas, 5)
 	headline := BuildHeadline(snaps, scans)
 
+		orgSlug := ""
+		if org != nil {
+			orgSlug = org.Slug
+		}
 		view := dashboardView{
 			GeneratedAt:  time.Now().UTC().Format(time.RFC3339),
 			HasData:      len(scans) > 0,
 			HasReporting: true,
+			OrgSlug:      orgSlug,
 			Headline: headlineRenderView{
 				TotalScans:       headline.TotalScans,
 				PerimeterTargets: headline.PerimeterTargets,
@@ -363,6 +369,25 @@ func buildSnapshots(ctx context.Context, st *store.Store, orgID string) (snaps [
 	return snaps, scans, nil
 }
 
+// scopeSlugForScan resolves the organisation slug attached to a
+// Target (via its scan), so Analysis-page handlers can thread the
+// scope through the cross-page nav. Returns empty when the
+// target's org cannot be resolved — UX-only data, never fatal.
+func scopeSlugForScan(ctx context.Context, st *store.Store, targetID string) string {
+	if targetID == "" {
+		return ""
+	}
+	t, err := st.GetTarget(ctx, targetID)
+	if err != nil || t == nil || t.OrganisationID == "" {
+		return ""
+	}
+	o, err := st.GetOrganisation(ctx, t.OrganisationID)
+	if err != nil || o == nil {
+		return ""
+	}
+	return o.Slug
+}
+
 // resolveOrgQueryParam parses the optional `?org=<slug>` query
 // parameter. Returns ("", nil, true) when no slug given. On an
 // unknown slug, writes a 404 and returns ok=false so the caller
@@ -408,8 +433,11 @@ func renderPostureBlocks(summary PostureSummary, fwOrder func(a, b string) bool)
 
 // targetsRowsView is the shape index.tmpl iterates over.
 type targetsRowsView struct {
-	GeneratedAt string
-	Rows        []targetRowView
+	GeneratedAt        string
+	OrgSlug            string
+	HasReporting       bool
+	ScopedOrganisation *organisationLinkView
+	Rows               []targetRowView
 }
 
 type targetRowView struct {
@@ -430,7 +458,15 @@ type frameworkRowView struct {
 func targetsHandler(st *store.Store, tmpl *template.Template) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
-		scans, err := st.ListScans(ctx, store.Selectors{})
+		orgID, scopedOrg, ok := resolveOrgQueryParam(ctx, st, w, r)
+		if !ok {
+			return
+		}
+		sel := store.Selectors{}
+		if orgID != "" {
+			sel.OrganisationID = orgID
+		}
+		scans, err := st.ListScans(ctx, sel)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -454,7 +490,18 @@ func targetsHandler(st *store.Store, tmpl *template.Template) http.HandlerFunc {
 		sort.Slice(ordered, func(i, j int) bool {
 			return ordered[i].scan.Domain < ordered[j].scan.Domain
 		})
-		view := targetsRowsView{GeneratedAt: time.Now().UTC().Format(time.RFC3339)}
+		view := targetsRowsView{
+			GeneratedAt:  time.Now().UTC().Format(time.RFC3339),
+			HasReporting: true,
+		}
+		if scopedOrg != nil {
+			view.OrgSlug = scopedOrg.Slug
+			view.ScopedOrganisation = &organisationLinkView{
+				Slug: scopedOrg.Slug,
+				Name: scopedOrg.Name,
+				URL:  "/ui/orgs/" + scopedOrg.Slug,
+			}
+		}
 		for _, l := range ordered {
 			row := targetRowView{
 				ID:           l.scan.TargetID,
@@ -511,6 +558,8 @@ type scanView struct {
 	StartedAt     string
 	EndedAt       string
 	Status        string
+	OrgSlug       string
+	HasReporting  bool
 	Probes        []probeGroupView
 	HasAssessment bool
 }
@@ -541,11 +590,17 @@ func scanHandler(st *store.Store, tmpl *template.Template) http.HandlerFunc {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
+		// Resolve scope from the scan's Target so the nav-bar threads
+		// the org through every Analysis-page click. Failure is
+		// non-fatal — scope persistence is a UX concern, not data.
+		orgSlug := scopeSlugForScan(r.Context(), st, scan.TargetID)
 		view := scanView{
-			ID:        scan.ID,
-			TargetID:  scan.TargetID,
-			StartedAt: scan.StartedAt.UTC().Format(time.RFC3339),
-			Status:    string(scan.Status),
+			ID:           scan.ID,
+			TargetID:     scan.TargetID,
+			StartedAt:    scan.StartedAt.UTC().Format(time.RFC3339),
+			Status:       string(scan.Status),
+			OrgSlug:      orgSlug,
+			HasReporting: true,
 		}
 		if scan.EndedAt != nil {
 			view.EndedAt = scan.EndedAt.UTC().Format(time.RFC3339)
@@ -578,9 +633,11 @@ func scanHandler(st *store.Store, tmpl *template.Template) http.HandlerFunc {
 }
 
 type driftView struct {
-	TargetID string
-	Since    string
-	Findings []findingRowView
+	TargetID     string
+	Since        string
+	OrgSlug      string
+	HasReporting bool
+	Findings     []findingRowView
 }
 
 func driftHandler(st *store.Store, tmpl *template.Template) http.HandlerFunc {
@@ -599,8 +656,10 @@ func driftHandler(st *store.Store, tmpl *template.Template) http.HandlerFunc {
 			return
 		}
 		view := driftView{
-			TargetID: targetID,
-			Since:    since.Format(time.RFC3339),
+			TargetID:     targetID,
+			Since:        since.Format(time.RFC3339),
+			OrgSlug:      scopeSlugForScan(r.Context(), st, targetID),
+			HasReporting: true,
 		}
 		for _, f := range findings {
 			view.Findings = append(view.Findings, findingRowView{
@@ -621,10 +680,12 @@ func driftHandler(st *store.Store, tmpl *template.Template) http.HandlerFunc {
 // Assessment exists the Frameworks slice is empty and the template
 // renders the "run wanderer assess" hint.
 type assessmentView struct {
-	ScanID     string
-	StartedAt  string
-	Status     string
-	Frameworks []frameworkCardView
+	ScanID       string
+	StartedAt    string
+	Status       string
+	OrgSlug      string
+	HasReporting bool
+	Frameworks   []frameworkCardView
 }
 
 type frameworkCardView struct {
@@ -668,9 +729,11 @@ func assessmentHandler(st *store.Store, tmpl *template.Template) http.HandlerFun
 			return
 		}
 		view := assessmentView{
-			ScanID:    scan.ID,
-			StartedAt: scan.StartedAt.UTC().Format(time.RFC3339),
-			Status:    string(scan.Status),
+			ScanID:       scan.ID,
+			StartedAt:    scan.StartedAt.UTC().Format(time.RFC3339),
+			Status:       string(scan.Status),
+			OrgSlug:      scopeSlugForScan(r.Context(), st, scan.TargetID),
+			HasReporting: true,
 		}
 		// Stable framework order: dictu first, then alphabetical.
 		sort.SliceStable(assessments, func(i, j int) bool {
@@ -728,9 +791,11 @@ func render(w http.ResponseWriter, tmpl *template.Template, name string, data an
 // reportingView is the shape consumed by reporting.tmpl — the
 // per-check cross-target index page.
 type reportingView struct {
-	GeneratedAt  string
-	HasReporting bool
-	Rows         []reportingRowView
+	GeneratedAt        string
+	HasReporting       bool
+	OrgSlug            string
+	ScopedOrganisation *organisationLinkView
+	Rows               []reportingRowView
 }
 
 type reportingRowView struct {
@@ -755,12 +820,19 @@ func reportingIndexHandler(st *store.Store, tmpl *template.Template) http.Handle
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		_ = scopedOrg // currently the index page does not show the scope label
 		summary := RuleSummary(snaps, lookupRule)
 		view := reportingView{
 			GeneratedAt:  time.Now().UTC().Format(time.RFC3339),
 			HasReporting: true,
 			Rows:         make([]reportingRowView, 0, len(summary)),
+		}
+		if scopedOrg != nil {
+			view.OrgSlug = scopedOrg.Slug
+			view.ScopedOrganisation = &organisationLinkView{
+				Slug: scopedOrg.Slug,
+				Name: scopedOrg.Name,
+				URL:  "/ui/orgs/" + scopedOrg.Slug,
+			}
 		}
 		for _, row := range summary {
 			view.Rows = append(view.Rows, reportingRowView{
@@ -780,14 +852,16 @@ func reportingIndexHandler(st *store.Store, tmpl *template.Template) http.Handle
 // reportingRuleView is the shape consumed by reporting_rule.tmpl —
 // the per-rule deep dive.
 type reportingRuleView struct {
-	GeneratedAt  string
-	HasReporting bool
-	Framework    string
-	CriteriumID  string
-	Dimension    string
-	Description  string
-	Rationale    string
-	Rows         []reportingRuleRowView
+	GeneratedAt        string
+	HasReporting       bool
+	OrgSlug            string
+	ScopedOrganisation *organisationLinkView
+	Framework          string
+	CriteriumID        string
+	Dimension          string
+	Description        string
+	Rationale          string
+	Rows               []reportingRuleRowView
 }
 
 type reportingRuleRowView struct {
@@ -809,7 +883,7 @@ func reportingRuleHandler(st *store.Store, tmpl *template.Template) http.Handler
 			return
 		}
 		ctx := r.Context()
-		orgID, _, ok := resolveOrgQueryParam(ctx, st, w, r)
+		orgID, scopedOrg, ok := resolveOrgQueryParam(ctx, st, w, r)
 		if !ok {
 			return
 		}
@@ -828,6 +902,14 @@ func reportingRuleHandler(st *store.Store, tmpl *template.Template) http.Handler
 			Description:  rule.Description,
 			Rationale:    rule.Rationale,
 			Rows:         make([]reportingRuleRowView, 0, len(rows)),
+		}
+		if scopedOrg != nil {
+			view.OrgSlug = scopedOrg.Slug
+			view.ScopedOrganisation = &organisationLinkView{
+				Slug: scopedOrg.Slug,
+				Name: scopedOrg.Name,
+				URL:  "/ui/orgs/" + scopedOrg.Slug,
+			}
 		}
 		for _, rw := range rows {
 			view.Rows = append(view.Rows, reportingRuleRowView{
