@@ -9,6 +9,34 @@ once a first release is cut. Until then every entry lives under
 
 ## [Unreleased]
 
+### Added
+
+- **Playwright smoke tests for the UI.** New `tests/playwright/`
+  with `@playwright/test` 1.59.1 pinned, two spec files
+  (`dar.spec.ts` covering DAR layering + organisation scope
+  persistence + Analysis-page nav; `reporting-catalogue.spec.ts`
+  covering the rule catalogue + status column), and a
+  Makefile-driven workflow: `make playwright-install` (with
+  signature verification, no lifecycle scripts per the global
+  supply-chain rule), `make playwright` (boots `wanderer
+  serve` against the configured DB, runs the spec set, tears
+  down). Webserver block in `playwright.config.ts` handles the
+  boot. New Go test
+  `internal/ui/playwright_coverage_test.go` walks
+  `docs/decisions/` for `## UI surface` sections and fails if
+  a matching Playwright spec is missing — the ADR coverage
+  contract from the OpenSpec proposal.
+
+### Fixed
+
+- The Reporting nav tab now threads the active org filter
+  (`?org=<slug>`) through to `/ui/reporting`. The link was
+  scope-aware in `fix-nav-org-context` but lost the filter in
+  a later edit during the DAR layer restructure;
+  `add-reporting-status-column` made the catalogue scope-aware
+  again, so the nav link now matches. Caught by the new
+  Playwright spec.
+
 ### Changed
 
 - Reporting catalogue gained a compact "current state" column —

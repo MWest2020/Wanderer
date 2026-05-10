@@ -6,6 +6,6 @@
 <nav class="nav-bar">
   <a class="nav-link {{if eq .Active "dashboard"}}is-active{{end}}" href="{{$dashHref}}">Dashboard</a>
   <a class="nav-link {{if eq .Active "analysis"}}is-active{{end}}" href="/ui/analysis{{$q}}">Analysis</a>
-  {{if .HasReporting}}<a class="nav-link {{if eq .Active "reporting"}}is-active{{end}}" href="/ui/reporting">Reporting</a>{{end}}
+  {{if .HasReporting}}<a class="nav-link {{if eq .Active "reporting"}}is-active{{end}}" href="/ui/reporting{{$q}}">Reporting</a>{{end}}
 </nav>
 {{end}}

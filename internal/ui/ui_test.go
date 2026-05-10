@@ -587,11 +587,11 @@ func TestNav_PerOrgPageThreadsScopeIntoNavLinks(t *testing.T) {
 	body, _ := io.ReadAll(resp.Body)
 	bodyStr := string(body)
 	for _, want := range []string{
-		// Analysis tab threads the org filter; Reporting catalogue
-		// does not carry org filter (it's reference data, not
-		// scope-bound).
+		// All three nav tabs thread the slug. Reporting threads it
+		// because the catalogue's status column is scope-aware
+		// (see add-reporting-status-column).
 		`href="/ui/analysis?org=acme"`,
-		`href="/ui/reporting"`,
+		`href="/ui/reporting?org=acme"`,
 		`href="/ui/orgs/acme"`,
 	} {
 		if !strings.Contains(bodyStr, want) {

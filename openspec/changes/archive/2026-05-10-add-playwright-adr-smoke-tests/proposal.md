@@ -1,8 +1,26 @@
 # Proposal: Playwright smoke tests driven by ADR claims
 
-> **Status:** Design proposal. The implementation lands after
-> Mark signs off on the shape (browser binary footprint,
-> screenshot-as-doc pipeline, CI strategy).
+> **Status:** Implementation. Mark approved on 2026-05-10
+> ("allebei, playwrights eerst"). Resolved decisions on the
+> three open questions:
+>
+> 1. **Screenshots:** scratch runs land under
+>    `tests/playwright/playwright-report/` (gitignored);
+>    curated screenshots for `docs/` are committed manually
+>    under `docs/screenshots/<page-name>.png` so they only
+>    appear in the repo when an operator chooses to publish
+>    one.
+> 2. **CI cadence:** the Makefile carries the runnable target
+>    `make playwright`; CI strategy is left to a follow-up
+>    once a CI runner exists in this repo (it currently has
+>    none).
+> 3. **Lockfile policy:** `package-lock.json` is generated via
+>    `npm install --package-lock-only --ignore-scripts` and
+>    committed. Install via `npm ci --ignore-scripts` per the
+>    global CLAUDE.md supply-chain rule. The browser binary
+>    download (`npx playwright install chromium`) runs
+>    explicitly via `make playwright-install` — never as a
+>    side effect of `npm install`.
 
 ## Intent
 
