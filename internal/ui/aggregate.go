@@ -335,6 +335,34 @@ type RuleTargetRow struct {
 	When     time.Time
 }
 
+// WorstScoreFromCounts returns the worst score with at least one
+// target in `counts`, plus how many targets sit at that score.
+// "Worst" follows Score.Rank() — lower rank wins, with onbekend
+// (rank 0) treated as a fallback when no rated score is present.
+func WorstScoreFromCounts(counts map[models.Score]int) (worst models.Score, atWorst int, total int) {
+	worst = models.ScoreOnbekend
+	for sc, n := range counts {
+		total += n
+		if n == 0 {
+			continue
+		}
+		if sc.Rank() == 0 {
+			continue
+		}
+		if worst == models.ScoreOnbekend || sc.Rank() < worst.Rank() {
+			worst = sc
+			atWorst = n
+		} else if sc == worst {
+			atWorst += n
+		}
+	}
+	if worst == models.ScoreOnbekend {
+		// No rated score reached; report the onbekend bucket itself.
+		atWorst = counts[models.ScoreOnbekend]
+	}
+	return worst, atWorst, total
+}
+
 // reportingFrameworkRank gives wand priority over eucsf and
 // alphabetical for any new pack. Used by RuleSummary's stable
 // row order.

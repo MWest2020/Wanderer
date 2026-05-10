@@ -74,7 +74,7 @@ func Handler(st *store.Store, htpasswdPath string) (http.Handler, error) {
 	r.Get("/scans/{id}/assessment", assessmentHandler(st, tmpl))
 	r.Get("/targets/{id}/drift", driftHandler(st, tmpl))
 	r.Get("/analysis", analysisHandler(st, tmpl))
-	r.Get("/reporting", reportingCatalogueHandler(tmpl))
+	r.Get("/reporting", reportingCatalogueHandler(st, tmpl))
 	r.Get("/reporting/{framework}/{ruleID}", reportingRuleHandler(st, tmpl))
 	return r, nil
 }
@@ -771,14 +771,14 @@ type reportingRowView struct {
 	OnbekendCount  int
 }
 
-// ruleCatalogueView is the shape consumed by reporting.tmpl
-// after the 2026-05-10 layer restructure: a rule reference
-// page with no scoring data.
+// ruleCatalogueView is the shape consumed by reporting.tmpl —
+// the rule reference page with a compact status column per row.
 type ruleCatalogueView struct {
-	GeneratedAt  string
-	HasReporting bool
-	OrgSlug      string
-	Rows         []ruleCatalogueRow
+	GeneratedAt        string
+	HasReporting       bool
+	OrgSlug            string
+	ScopedOrganisation *organisationLinkView
+	Rows               []ruleCatalogueRow
 }
 
 type ruleCatalogueRow struct {
@@ -787,6 +787,13 @@ type ruleCatalogueRow struct {
 	Dimension   string
 	Description string
 	Rationale   string
+	// Status is the worst-score string this rule reached across
+	// the targets in scope ("" when the rule has not fired yet).
+	// AtWorst / Total give the triage hint: "X of Y targets at
+	// this score".
+	Status  string
+	AtWorst int
+	Total   int
 }
 
 // analysisHandler renders the Analysis page — the rule × score
@@ -834,28 +841,64 @@ func analysisHandler(st *store.Store, tmpl *template.Template) http.HandlerFunc 
 }
 
 // reportingCatalogueHandler renders /ui/reporting as a rule
-// catalogue — every registered rule with its description and
-// rationale, no scoring data. This is the "what is being
-// measured" reference surface; the per-rule deep dive at
-// /ui/reporting/{framework}/{ruleID} is the "how is each target
-// doing on this rule" surface.
-func reportingCatalogueHandler(tmpl *template.Template) http.HandlerFunc {
+// catalogue — every registered rule with description, rationale,
+// and a compact "current status" indicator that summarises the
+// worst score reached on the rule across the snapshots in scope.
+// The full per-score matrix lives on /ui/analysis; this column
+// is just a triage hint so an operator with many rules can spot
+// the problem rules at a glance.
+func reportingCatalogueHandler(st *store.Store, tmpl *template.Template) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		ctx := r.Context()
+		orgID, scopedOrg, ok := resolveOrgQueryParam(ctx, st, w, r)
+		if !ok {
+			return
+		}
+		snaps, _, err := buildSnapshots(ctx, st, orgID)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		// Build a quick (framework, ruleID) → counts lookup so the
+		// catalogue row population stays O(rules). RuleSummary already
+		// does the distinct-target counting; we just consume it.
+		summary := RuleSummary(snaps, lookupRule)
+		type key struct{ fw, id string }
+		byRule := make(map[key]map[models.Score]int, len(summary))
+		for _, row := range summary {
+			byRule[key{row.Framework, row.CriteriumID}] = row.Counts
+		}
+
 		all := ListAllRules()
 		rows := make([]ruleCatalogueRow, 0, len(all))
 		for _, c := range all {
-			rows = append(rows, ruleCatalogueRow{
+			row := ruleCatalogueRow{
 				Framework:   c.Framework,
 				CriteriumID: c.Rule.ID,
 				Dimension:   string(c.Rule.Dimension),
 				Description: c.Rule.Description,
 				Rationale:   c.Rule.Rationale,
-			})
+			}
+			if counts, found := byRule[key{c.Framework, c.Rule.ID}]; found {
+				worst, atWorst, total := WorstScoreFromCounts(counts)
+				row.Status = string(worst)
+				row.AtWorst = atWorst
+				row.Total = total
+			}
+			rows = append(rows, row)
 		}
 		view := ruleCatalogueView{
 			GeneratedAt:  time.Now().UTC().Format(time.RFC3339),
 			HasReporting: true,
 			Rows:         rows,
+		}
+		if scopedOrg != nil {
+			view.OrgSlug = scopedOrg.Slug
+			view.ScopedOrganisation = &organisationLinkView{
+				Slug: scopedOrg.Slug,
+				Name: scopedOrg.Name,
+				URL:  "/ui/orgs/" + scopedOrg.Slug,
+			}
 		}
 		render(w, tmpl, "reporting.tmpl", view)
 	}

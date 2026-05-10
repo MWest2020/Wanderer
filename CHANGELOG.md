@@ -11,6 +11,16 @@ once a first release is cut. Until then every entry lives under
 
 ### Changed
 
+- Reporting catalogue gained a compact "current state" column —
+  worst score reached on the rule across the snapshots in
+  scope, plus an "X of Y targets" triage hint. The full
+  per-score matrix stays on Analysis; this is a hint so an
+  operator with many rules can spot the problem rules at a
+  glance. Catalogue is org-aware via `?org=<slug>` (mirrors
+  Analysis). Rules with no recorded rationale render "no
+  rationale yet". Spec amendment in
+  `openspec/specs/web-ui/spec.md`.
+
 - **DAR layer roles refined.** Mark refined the model on
   2026-05-10: *"bij dashboarding enkel goed/niet goed, analysis
   zie je de matrix en reporting de regels."* The UI now
