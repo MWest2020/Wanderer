@@ -93,11 +93,13 @@
 
 ## 7. Wrap-up
 
-- [ ] 7.1 Update `docs/architecture.md` rules-extension section
-  to include the host-rule pattern (one short paragraph).
+- [x] 7.1 Updated `docs/architecture.md` "How to add a wand
+  rule" section with a `### Host-shaped rules` paragraph
+  covering the negative-evidence convention and the YAML
+  match-list pattern.
 - [ ] 7.2 Commit + push (push needs explicit user OK per global rule).
-- [ ] 7.3 Archive change under
-  `openspec/changes/archive/<YYYY-MM-DD>-add-host-side-scoring/`.
+- [x] 7.3 Archived under
+  `openspec/changes/archive/2026-05-11-add-host-side-scoring/`.
 
 ## 8. Discovered during implementation
 

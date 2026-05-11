@@ -316,6 +316,29 @@ read-only GET calls, fixture-driven tests. Copy that shape.
    wand shape and should learn the same rule when it makes sense
    for the SEAL framework.
 
+### Host-shaped rules
+
+Rules that read agent findings (`inventory.packages.*`,
+`inventory.systemd.service`, etc.) live alongside the perimeter
+rules in `wand/host_rules.go` and `eucsf/host_rules.go`. Two
+things differ from perimeter rules:
+
+- **Negative evidence.** The assessor engine forces verdicts
+  without an `Evidence` slice to `onbekend` (see
+  `engine.go:scoreDimension`). A "clean host" verdict must
+  cite *something* — `wand/host_rules.go` ships a
+  `sampleEvidence` helper that returns up to 10 inspected
+  finding IDs so an operator can deep-link from the soeverein
+  verdict back to the data that produced it. The verdict text
+  carries the inspected count ("inspected 1790 packages")
+  separately for readability.
+- **Match list as YAML.** Vendor lists (US-headquartered
+  telemetry agents, etc.) live in
+  `internal/assessor/host_telemetry.yaml` and are embedded via
+  `go:embed`. Mirror the egress probe's `vendors.yaml`
+  pattern — operator-visible, reviewable in one place, no
+  hard-coded Go list.
+
 ## External systems and their failure modes
 
 | System                  | Used by             | Failure handling                                                    |

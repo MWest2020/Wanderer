@@ -354,3 +354,52 @@ stderr that names the deprecation and the replacement
 - **WHEN** the binary runs
 - **THEN** stderr contains no deprecation warning
 
+---
+
+### Requirement: Host-side findings produce a non-onbekend verdict
+
+The assessor SHALL score agent-host scans (Targets with
+`Kind=host`) on at least one rule per registered rule pack,
+so a host scan produces a non-`onbekend` Assessment whenever
+the agent's inspectors land their canonical Findings
+(`inventory.packages.*`, `inventory.systemd.service`,
+`egress.*` from the static scanner). Rules that target
+perimeter ProbeIDs MUST continue to return `onbekend` on host
+scans — they describe perimeter behaviour, not host
+behaviour — but at least one host-shaped rule per pack must
+fire on the agent's canonical findings.
+
+#### Scenario: Agent scan produces a host-side verdict
+
+- **GIVEN** an agent scan with `inventory.packages.rpm` and
+  `inventory.systemd.service` findings
+- **WHEN** the operator runs `wanderer assess <scan-id> --framework both`
+- **THEN** the resulting Assessment has at least one
+  dimension with a `soeverein`, `voldoende`, or `afhankelijk`
+  score (not all `onbekend`)
+- **AND** the host scan's verdict pill on `/ui/orgs/{slug}`
+  renders that worst score
+
+---
+
+### Requirement: Host-rule soeverein verdicts cite negative evidence
+
+A host-shaped rule SHALL cite at least one inspected Finding
+ID in its `Evidence` slice and SHALL include the inspected
+count in the Verdict text whenever it concludes soeverein.
+This applies to rules reading `inventory.packages.*` or
+`inventory.systemd.service`. The assessor engine forces
+verdicts with empty Evidence back to `onbekend`, so this
+keeps the soeverein call from being silently degraded.
+
+#### Scenario: Clean host scores soeverein with evidence sample
+
+- **GIVEN** an agent scan with 1790 `inventory.packages.rpm`
+  Findings, none of which match the US-telemetry vendor list
+- **WHEN** the assessor runs
+  `wand.host.no_us_telemetry_packages`
+- **THEN** the persisted Rationale has `Score: "soeverein"`,
+  Verdict text containing `"inspected 1790 packages"`, and
+  Evidence with 1..10 Finding IDs sampled from the inspected
+  package Findings
+
