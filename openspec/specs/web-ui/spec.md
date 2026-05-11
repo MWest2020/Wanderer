@@ -604,3 +604,55 @@ that belong on Analysis.
 - **And** the body does NOT contain "External posture" or
   "Internal posture" headings
 
+---
+
+### Requirement: Playwright suite runs against deterministic seeded DBs
+
+The Playwright suite SHALL produce its source-of-truth DBs from
+a hermetic seeder rather than depend on an operator's hand-rolled
+scan history. A developer cloning the repo SHALL be able to run
+`make playwright` end-to-end without any prior `wanderer scan`
+or `wanderer agent` invocations.
+
+#### Scenario: Fresh clone runs Playwright
+
+- **GIVEN** a clean checkout with no `/tmp/wanderer-demo.db` present
+- **WHEN** the developer runs `make playwright`
+- **THEN** the suite builds three fixture DBs (baseline /
+  agent-host / empty-org), boots `wanderer serve` against each,
+  and every spec passes without `test.skip` gating
+
+#### Scenario: Schema migration breaks a fixture cleanly
+
+- **GIVEN** a schema change that the seeder's literal SQL no
+  longer satisfies
+- **WHEN** `make playwright-fixture` runs
+- **THEN** the build fails at fixture compile time, before
+  Playwright ever opens a browser
+
+---
+
+### Requirement: Three fixture scenarios cover the spec set
+
+The fixture seeder SHALL produce three independent SQLite files:
+`baseline` (two orgs, perimeter scans), `agent-host` (adds a
+synthetic agent inventory + Nextcloud surface with one
+US-telemetry hit and one US objectstore + IdP), and `empty-org`
+(an org with zero targets). Each Playwright project pins to one
+scenario via `testMatch`.
+
+#### Scenario: Host rule deep-dive shows the synthetic agent hit
+
+- **GIVEN** the `agent-host` fixture loaded
+- **WHEN** an operator opens
+  `/ui/reporting/wand/wand.host.no_us_telemetry_packages`
+- **THEN** the per-target table contains an `alma` row scored
+  `afhankelijk` with `datadog-agent` named in the verdict
+
+#### Scenario: Empty-org placeholder renders
+
+- **GIVEN** the `empty-org` fixture loaded
+- **WHEN** an operator opens `/ui/targets` for that org
+- **THEN** the page renders an empty-state placeholder rather
+  than failing to load
+

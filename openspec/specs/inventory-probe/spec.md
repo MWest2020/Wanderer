@@ -212,3 +212,71 @@ the Docker socket.
   `status_code` attribute
 - **And** the agent process exits 0 (other inspectors continue)
 
+---
+
+### Requirement: Nextcloud inspector emits version + trust signals
+
+The Nextcloud inspector SHALL, when enabled, emit five classes
+of Finding from one `occ` session per tick: the installed
+Nextcloud version, the trusted-domain list, every configured
+objectstore backend, every configured OIDC provider, and (when
+`user_oidc` is absent) an `oidc.unavailable` meta-finding naming
+the detected alternative app. Every Finding carries the ProbeID
+prefix `inventory.nextcloud.` and `SourceModus: inventory`.
+
+#### Scenario: Version probe emits a supported flag
+
+- **GIVEN** an agent host where `inspectors.nextcloud.enabled: true`
+  and the installed Nextcloud is version 28.0.5
+- **WHEN** the agent ticks
+- **THEN** the inspector emits exactly one
+  `inventory.nextcloud.version` Finding with `versionstring: "28.0.5"`,
+  `major: 28`, and `supported: true`
+
+#### Scenario: Objectstore probe annotates with geoip
+
+- **GIVEN** an agent host whose Nextcloud has an S3 objectstore
+  backend configured with `hostname: s3.amazonaws.com`
+- **WHEN** the agent ticks with a HostResolver wired
+- **THEN** the resulting `inventory.nextcloud.objectstore`
+  Finding carries `endpoint_host: s3.amazonaws.com` plus the
+  geoip enrichment (`asn`, `asn_organisation`, `country: "US"`)
+
+#### Scenario: Missing user_oidc names the alternative
+
+- **GIVEN** an agent host whose Nextcloud has `social_login`
+  installed but not `user_oidc`
+- **WHEN** the agent ticks
+- **THEN** the inspector emits one
+  `inventory.nextcloud.oidc.unavailable` Finding with
+  `alternative_app: "social_login"` in Attributes, instead of an
+  `inventory.nextcloud.oidc_provider` Finding
+
+---
+
+### Requirement: Three Nextcloud-as-target rules score the surface
+
+The assessor SHALL register three rules covering the Nextcloud
+sovereignty surface: `wand.nextcloud.objectstore_eu`,
+`wand.nextcloud.oidc_provider_eu`, and
+`eucsf.sov6.nextcloud_supply_chain`. Each rule SHALL follow the
+soeverein / afhankelijk / onbekend shape established by the host
+telemetry rules: a soeverein verdict cites at least one
+inspected Finding ID in Evidence and includes the inspected
+count in the Verdict text.
+
+#### Scenario: US objectstore scores afhankelijk
+
+- **GIVEN** one `inventory.nextcloud.objectstore` Finding with
+  `country: "US"`
+- **WHEN** the assessor runs `wand.nextcloud.objectstore_eu`
+- **THEN** the resulting Rationale has Score `afhankelijk` and
+  the Verdict names the offending bucket + country
+
+#### Scenario: SEAL combined rule rolls both signals up
+
+- **GIVEN** one US objectstore + one US OIDC provider Finding
+- **WHEN** the assessor runs `eucsf.sov6.nextcloud_supply_chain`
+- **THEN** the Verdict mentions both subjects, includes the
+  `[SEAL 1]` tag, and the Score is `afhankelijk`
+
