@@ -459,6 +459,37 @@ without a reverse proxy enforcing access control.
 | `--budget`               | —                           | `2m`                  |
 | `--user-agent`           | —                           | `Wanderer/0.x`        |
 
+## Container image sovereignty
+
+When the Docker inspector is enabled the agent emits two finding
+families:
+
+- `inventory.docker.image` — every image present on disk, with
+  `repo_tags` carrying the human-readable refs
+- `inventory.docker.container` — every running container, with
+  the `image` attribute naming the ref it was started from
+
+Three rules score this surface against
+`internal/assessor/container_registries.yaml`:
+
+- `wand.docker.images_us_registry` — afhankelijk on any image
+  whose registry resolves to a US-headquartered registry
+  (`docker.io`, `gcr.io`, `ghcr.io`, `mcr.microsoft.com`,
+  `public.ecr.aws`, `quay.io`, `registry.access.redhat.com`,
+  `registry.suse.com`)
+- `wand.docker.containers_us_registry` — same shape, scoped to
+  actually-running containers (a stronger live signal)
+- `eucsf.sov6.container_supply_chain` — SEAL roll-up combining
+  both shapes
+
+A bare image name (`nginx:1.27`) or the library shorthand
+(`library/nginx:1.27`) is the Docker Engine's default for
+`docker.io/library/...` — the rule classifies these as a
+docker.io hit and flags the implicit resolution in the verdict.
+EU self-hosted registries (`harbor.example.de/...`) are
+**sovereign by default**: they do not appear on the YAML list,
+so they do not fire the rule.
+
 ## Nextcloud inspector
 
 `wanderer agent` ships a Nextcloud inspector that scores the

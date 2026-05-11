@@ -46,6 +46,7 @@ func DefaultRules() []assessor.Rule {
 		noUSHyperscaler(),
 		hostNoUSTelemetry(),
 		nextcloudSupplyChain(),
+		containerSupplyChain(),
 	}
 }
 

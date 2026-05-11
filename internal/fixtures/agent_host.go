@@ -34,10 +34,68 @@ func BuildAgentHost(ctx context.Context, st *store.Store) error {
 	}
 
 	findings := append(agentHostFindings(), nextcloudFindings()...)
+	findings = append(findings, dockerFindings()...)
 	if _, err := addCompletedScan(ctx, st, host, baseTime.Add(1*60*60_000_000_000), findings); err != nil {
 		return fmt.Errorf("agent-host: scan: %w", err)
 	}
 	return nil
+}
+
+// dockerFindings returns a curated Docker surface for the
+// agent-host fixture. Three images on disk + two running
+// containers — one of each cohort references a US-headquartered
+// registry so the new container rules score afhankelijk.
+func dockerFindings() []models.Finding {
+	images := []struct {
+		subject string
+		tags    []string
+	}{
+		{subject: "harbor.example.de/team/app:v3", tags: []string{"harbor.example.de/team/app:v3"}},
+		{subject: "harbor.example.de/team/worker:v1", tags: []string{"harbor.example.de/team/worker:v1"}},
+		// One US-registry hit — exercises the docker rule.
+		{subject: "gcr.io/foo/bar:v2", tags: []string{"gcr.io/foo/bar:v2"}},
+	}
+	containers := []struct {
+		subject string
+		image   string
+	}{
+		{subject: "app", image: "harbor.example.de/team/app:v3"},
+		// One US-registry running container — exercises the
+		// containers rule + the SEAL combined rule.
+		{subject: "telemetry", image: "gcr.io/foo/bar:v2"},
+	}
+
+	out := make([]models.Finding, 0, len(images)+len(containers))
+	for _, im := range images {
+		out = append(out, models.Finding{
+			ProbeID:       "inventory.docker.image",
+			Subject:       im.subject,
+			Severity:      models.SeverityInfo,
+			SourceModus:   models.SourceModusInventory,
+			DimensionHint: models.DimensionTechnologie,
+			Attributes: map[string]any{
+				"repo_tags":  im.tags,
+				"digest":     "sha256:deadbeef",
+				"size_bytes": int64(123456),
+			},
+		})
+	}
+	for _, c := range containers {
+		out = append(out, models.Finding{
+			ProbeID:       "inventory.docker.container",
+			Subject:       c.subject,
+			Severity:      models.SeverityInfo,
+			SourceModus:   models.SourceModusInventory,
+			DimensionHint: models.DimensionOperationeel,
+			Attributes: map[string]any{
+				"image":        c.image,
+				"image_digest": "sha256:deadbeef",
+				"state":        "running",
+				"status":       "Up 2 hours",
+			},
+		})
+	}
+	return out
 }
 
 // nextcloudFindings returns a curated Nextcloud signal layered on

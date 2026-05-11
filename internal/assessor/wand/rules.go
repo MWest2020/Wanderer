@@ -56,6 +56,8 @@ func DefaultRules() []assessor.Rule {
 		hostNoUSTelemetryServices(),
 		nextcloudObjectstoreEU(),
 		nextcloudOIDCProviderEU(),
+		dockerImagesUSRegistry(),
+		dockerContainersUSRegistry(),
 	}
 }
 

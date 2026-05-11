@@ -52,7 +52,11 @@ export default defineConfig({
     },
     {
       name: "agent-host",
-      testMatch: ["host-side-scoring.spec.ts", "nextcloud-as-target.spec.ts"],
+      testMatch: [
+        "host-side-scoring.spec.ts",
+        "nextcloud-as-target.spec.ts",
+        "container-image-sovereignty.spec.ts",
+      ],
       use: {
         ...devices["Desktop Chrome"],
         baseURL: `http://127.0.0.1:${agentHostPort}`,

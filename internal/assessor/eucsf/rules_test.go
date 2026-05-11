@@ -122,19 +122,20 @@ func TestNoUSHyperscaler(t *testing.T) {
 	}
 }
 
-func TestDefaultRules_HasSevenRules(t *testing.T) {
+func TestDefaultRules_HasEightRules(t *testing.T) {
 	rules := DefaultRules()
-	if got := len(rules); got != 7 {
-		t.Errorf("DefaultRules count = %d, want 7", got)
+	if got := len(rules); got != 8 {
+		t.Errorf("DefaultRules count = %d, want 8", got)
 	}
 	wantIDs := map[string]bool{
-		"eucsf.sov2.cert_issuer_eu":          false,
-		"eucsf.sov2.apex_jurisdiction":       false,
-		"eucsf.sov3.mx_jurisdiction":         false,
-		"eucsf.sov4.operational_eu":          false,
-		"eucsf.sov6.no_us_hyperscaler":       false,
-		"eucsf.sov5.host_no_us_telemetry":    false,
-		"eucsf.sov6.nextcloud_supply_chain":  false,
+		"eucsf.sov2.cert_issuer_eu":         false,
+		"eucsf.sov2.apex_jurisdiction":      false,
+		"eucsf.sov3.mx_jurisdiction":        false,
+		"eucsf.sov4.operational_eu":         false,
+		"eucsf.sov6.no_us_hyperscaler":      false,
+		"eucsf.sov5.host_no_us_telemetry":   false,
+		"eucsf.sov6.nextcloud_supply_chain": false,
+		"eucsf.sov6.container_supply_chain": false,
 	}
 	for _, r := range rules {
 		if _, ok := wantIDs[r.ID]; ok {

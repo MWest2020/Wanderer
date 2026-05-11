@@ -1,0 +1,48 @@
+# Known US-headquartered container registries.
+#
+# Read by wand.docker.images_us_registry,
+# wand.docker.containers_us_registry, and
+# eucsf.sov6.container_supply_chain.
+# Embedded via go:embed at build time.
+#
+# Entries are matched against the registry host portion of an
+# image reference (case-insensitive, prefix match against the
+# `host` portion before the first `/`). Bare image names with no
+# registry prefix (e.g. `nginx` or `library/nginx`) are folded
+# to `docker.io/library/...` per the Docker Engine's default —
+# the rule names docker.io as the implicit registry in the
+# verdict so an operator sees the dependency.
+#
+# Vendor of record is recorded for the verdict text. Anything
+# NOT on this list is treated as not-US (sovereign-by-default);
+# false negatives on EU self-hosted registries are correct,
+# false positives on operator-trusted-US registries surface as
+# afhankelijk so the operator can act on them.
+
+registries:
+  - host: "docker.io"
+    vendor: "Docker, Inc. (US)"
+  - host: "index.docker.io"
+    vendor: "Docker, Inc. (US)"
+  - host: "registry-1.docker.io"
+    vendor: "Docker, Inc. (US)"
+  - host: "gcr.io"
+    vendor: "Google Container Registry (US)"
+  - host: "us.gcr.io"
+    vendor: "Google Container Registry (US)"
+  - host: "eu.gcr.io"
+    vendor: "Google Container Registry (US, EU-located mirror but US-controlled)"
+  - host: "asia.gcr.io"
+    vendor: "Google Container Registry (US)"
+  - host: "ghcr.io"
+    vendor: "GitHub Container Registry / Microsoft (US)"
+  - host: "mcr.microsoft.com"
+    vendor: "Microsoft Container Registry (US)"
+  - host: "public.ecr.aws"
+    vendor: "AWS Public ECR (US)"
+  - host: "quay.io"
+    vendor: "Quay.io / Red Hat (US)"
+  - host: "registry.access.redhat.com"
+    vendor: "Red Hat Registry (US)"
+  - host: "registry.suse.com"
+    vendor: "SUSE Registry (US, BMW Group ownership but US-headquartered)"
