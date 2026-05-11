@@ -54,6 +54,8 @@ func DefaultRules() []assessor.Rule {
 		registrarJurisdiction(),
 		hostNoUSTelemetryPackages(),
 		hostNoUSTelemetryServices(),
+		nextcloudObjectstoreEU(),
+		nextcloudOIDCProviderEU(),
 	}
 }
 

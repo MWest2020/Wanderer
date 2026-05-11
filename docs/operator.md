@@ -459,6 +459,52 @@ without a reverse proxy enforcing access control.
 | `--budget`               | —                           | `2m`                  |
 | `--user-agent`           | —                           | `Wanderer/0.x`        |
 
+## Nextcloud inspector
+
+`wanderer agent` ships a Nextcloud inspector that scores the
+sovereignty posture *of* the Nextcloud instance running on the
+agent host. Enable it in `wanderer-agent.yaml`:
+
+```yaml
+inspectors:
+  nextcloud:
+    enabled: true
+    occ_path: /var/www/nextcloud/occ
+    run_as: www-data
+```
+
+The inspector shells out to `occ` four times per tick:
+
+| `occ` command                               | ProbeID family                                | What it reads                                  |
+| ------------------------------------------- | --------------------------------------------- | ---------------------------------------------- |
+| `app:list --output=json`                    | `inventory.nextcloud.app`                     | every enabled / disabled app + version          |
+| `status --output=json`                      | `inventory.nextcloud.version`                 | Nextcloud version + `supported` flag           |
+| `config:list system --output=json`          | `inventory.nextcloud.trusted_domain` + `.objectstore` | trusted domains, S3 backends             |
+| `user_oidc:provider --output=json`          | `inventory.nextcloud.oidc_provider`           | OIDC IdP list, with `issuer_host` + geoip      |
+
+If the `user_oidc` app is absent, the inspector falls back to
+detecting alternatives (`oidc_login`, `social_login`,
+`user_saml`) and emits one
+`inventory.nextcloud.oidc.unavailable` Finding naming the
+alternative — so an operator sees "we can't probe because
+you're on social_login" rather than "Wanderer doesn't work".
+
+### Sovereignty rules
+
+Three rules score the Nextcloud surface:
+
+- `wand.nextcloud.objectstore_eu` — afhankelijk when any S3
+  backend resolves to a non-EEA country (the inspector
+  enriches with geoip when configured)
+- `wand.nextcloud.oidc_provider_eu` — afhankelijk when any
+  IdP's issuer URL resolves to a non-EEA jurisdiction
+- `eucsf.sov6.nextcloud_supply_chain` — SEAL analogue rolling
+  both signals into one observation
+
+Supported Nextcloud majors: 28, 29, 30. Older versions parse
+but emit `supported: false` in the version Finding so an
+operator sees the contract mismatch.
+
 ## Playwright UI smoke layer
 
 The Playwright suite at `tests/playwright/` covers the read-only

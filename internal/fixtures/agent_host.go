@@ -33,10 +33,76 @@ func BuildAgentHost(ctx context.Context, st *store.Store) error {
 		return err
 	}
 
-	if _, err := addCompletedScan(ctx, st, host, baseTime.Add(1*60*60_000_000_000), agentHostFindings()); err != nil {
+	findings := append(agentHostFindings(), nextcloudFindings()...)
+	if _, err := addCompletedScan(ctx, st, host, baseTime.Add(1*60*60_000_000_000), findings); err != nil {
 		return fmt.Errorf("agent-host: scan: %w", err)
 	}
 	return nil
+}
+
+// nextcloudFindings returns a curated Nextcloud signal layered on
+// top of the agent-host inventory. One US-hosted S3 objectstore +
+// one US-hosted OIDC IdP so the three new nextcloud rules score
+// afhankelijk for Playwright.
+func nextcloudFindings() []models.Finding {
+	return []models.Finding{
+		{
+			ProbeID:       "inventory.nextcloud.version",
+			Subject:       "28.0.5",
+			Severity:      models.SeverityInfo,
+			SourceModus:   models.SourceModusInventory,
+			DimensionHint: models.DimensionTechnologie,
+			Attributes: map[string]any{
+				"version":       "28.0.5.1",
+				"versionstring": "28.0.5",
+				"major":         28,
+				"supported":     true,
+				"edition":       "",
+				"productname":   "Nextcloud",
+			},
+		},
+		{
+			ProbeID:       "inventory.nextcloud.trusted_domain",
+			Subject:       "cloud.alma.local",
+			Severity:      models.SeverityInfo,
+			SourceModus:   models.SourceModusInventory,
+			DimensionHint: models.DimensionTechnologie,
+			Attributes:    map[string]any{},
+		},
+		{
+			ProbeID:       "inventory.nextcloud.objectstore",
+			Subject:       "nextcloud-data",
+			Severity:      models.SeverityInfo,
+			SourceModus:   models.SourceModusInventory,
+			DimensionHint: models.DimensionTechnologie,
+			Attributes: map[string]any{
+				"class":            "OC\\Files\\ObjectStore\\S3",
+				"bucket":           "nextcloud-data",
+				"region":           "us-east-1",
+				"endpoint":         "",
+				"endpoint_host":    "s3.amazonaws.com",
+				"asn":              uint(16509),
+				"asn_organisation": "Amazon.com, Inc.",
+				"country":          "US",
+			},
+		},
+		{
+			ProbeID:       "inventory.nextcloud.oidc_provider",
+			Subject:       "okta-prod",
+			Severity:      models.SeverityInfo,
+			SourceModus:   models.SourceModusInventory,
+			DimensionHint: models.DimensionTechnologie,
+			Attributes: map[string]any{
+				"client_id":          "nextcloud",
+				"discovery_endpoint": "https://okta.example.com/oauth2/default/.well-known/openid-configuration",
+				"issuer_url":         "https://okta.example.com/oauth2/default",
+				"issuer_host":        "okta.example.com",
+				"asn":                uint(16509),
+				"asn_organisation":   "Okta, Inc.",
+				"country":            "US",
+			},
+		},
+	}
 }
 
 // agentHostFindings produces the curated package + systemd
