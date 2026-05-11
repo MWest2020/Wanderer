@@ -322,3 +322,71 @@ host telemetry rules.
 - **THEN** the Score is `soeverein`, the Verdict text
   includes `"inspected 3 images"`, and Evidence cites at
   least one Finding ID
+
+---
+
+### Requirement: Package inspectors emit vendor + maintainer
+
+The RPM inspector SHALL include the package's Vendor field in
+the Finding's `vendor` attribute. The DPKG inspector SHALL
+include the package's Maintainer field in the Finding's
+`maintainer` attribute. Both attributes carry the raw upstream
+value; classification happens in the assessor.
+
+#### Scenario: RPM emits vendor
+
+- **GIVEN** rpm output includes a Fedora-built bash with Vendor
+  `"Fedora Project"`
+- **WHEN** the agent inspects
+- **THEN** the resulting `inventory.packages.rpm` Finding
+  carries `vendor: "Fedora Project"` in Attributes
+
+#### Scenario: DPKG emits maintainer
+
+- **GIVEN** dpkg output includes a postgres-server with
+  Maintainer
+  `"Debian PostgreSQL Maintainers <team+pg@tracker.debian.org>"`
+- **WHEN** the agent inspects
+- **THEN** the resulting `inventory.packages.dpkg` Finding
+  carries the full Maintainer string on `maintainer`
+
+#### Scenario: Locally-built RPMs do not produce a vendor attribute
+
+- **GIVEN** an rpm whose `%{VENDOR}` is `"(none)"` (the
+  placeholder for locally-built or unsigned packages)
+- **WHEN** the agent inspects
+- **THEN** the resulting Finding has NO `vendor` attribute,
+  so the classifier falls through to "unknown" rather than
+  attributing on placeholder noise
+
+---
+
+### Requirement: wand.host.eu_package_origin classifies package vendor jurisdiction
+
+The assessor SHALL register `wand.host.eu_package_origin`,
+reading `inventory.packages.*` findings and classifying each
+finding's vendor / maintainer against
+`internal/assessor/package_vendors.yaml`. Scoring:
+
+- `afhankelijk` on any single US-tied vendor hit
+- `soeverein` when every classified package resolves to an
+  EU-tied vendor (with negative-evidence sample)
+- `voldoende` when no US hits AND not every classified
+  package is EU-tied (mixed / unclassified)
+- `onbekend` without `inventory.packages.*` findings
+
+#### Scenario: Fedora host scores afhankelijk
+
+- **GIVEN** every `inventory.packages.rpm` Finding carries
+  `vendor: "Fedora Project"`
+- **WHEN** the assessor runs `wand.host.eu_package_origin`
+- **THEN** the Score is `afhankelijk` and the Verdict names
+  Red Hat as the parent_org of record
+
+#### Scenario: Mixed EU + unclassified scores voldoende
+
+- **GIVEN** an inventory where some packages classify EU and
+  some have no classifiable vendor
+- **WHEN** the assessor runs the rule
+- **THEN** the Score is `voldoende` — no red flag, no positive
+  sovereign call possible
