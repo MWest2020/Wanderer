@@ -193,9 +193,17 @@ func agentHostFindings() []models.Finding {
 
 	var out []models.Finding
 	for _, p := range packages {
+		// Most packages are Fedora-vendored; the one US telemetry
+		// hit keeps its real upstream vendor so both the
+		// no_us_telemetry rule and eu_package_origin can score.
+		vendor := "Fedora Project"
+		if p == "datadog-agent" {
+			vendor = "Datadog, Inc."
+		}
 		out = append(out, mkInventoryFinding("inventory.packages.rpm", p, map[string]any{
 			"version": "1.0.0-1.fc42",
 			"arch":    "x86_64",
+			"vendor":  vendor,
 		}))
 	}
 	for _, s := range services {

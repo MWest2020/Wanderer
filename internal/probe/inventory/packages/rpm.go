@@ -40,8 +40,10 @@ func (r Rpm) Inspect(ctx context.Context) ([]models.Finding, error) {
 }
 
 func realRpmQuery(ctx context.Context) (string, error) {
+	// Tab-separated so the VENDOR field (which can contain
+	// spaces and commas, e.g. "Red Hat, Inc.") parses cleanly.
 	out, err := exec.CommandContext(ctx,
-		"rpm", "-qa", "--qf=%{NAME} %{VERSION}-%{RELEASE} %{ARCH}\n",
+		"rpm", "-qa", "--qf=%{NAME}\t%{VERSION}-%{RELEASE}\t%{ARCH}\t%{VENDOR}\n",
 	).Output()
 	if err != nil {
 		return "", err
@@ -49,33 +51,55 @@ func realRpmQuery(ctx context.Context) (string, error) {
 	return string(out), nil
 }
 
-// parseRpm parses lines of the form `name version-release arch`.
+// parseRpm parses tab-separated `name<TAB>version-release<TAB>arch<TAB>vendor`
+// lines. Older callers (pre-2026-05-11) used space-separated
+// three-field output without a vendor; that shape is still
+// accepted so a stored fixture or a test parses cleanly.
 func parseRpm(raw string) []models.Finding {
 	var out []models.Finding
 	sc := bufio.NewScanner(strings.NewReader(raw))
 	for sc.Scan() {
-		line := strings.TrimSpace(sc.Text())
-		if line == "" {
+		line := strings.TrimRight(sc.Text(), "\r\n")
+		if strings.TrimSpace(line) == "" {
 			continue
 		}
-		parts := strings.Fields(line)
-		if len(parts) < 3 {
-			continue
+		var name, version, arch, vendor string
+		if strings.Contains(line, "\t") {
+			parts := strings.SplitN(line, "\t", 4)
+			if len(parts) < 3 {
+				continue
+			}
+			name, version, arch = parts[0], parts[1], parts[2]
+			if len(parts) == 4 {
+				vendor = strings.TrimSpace(parts[3])
+			}
+		} else {
+			parts := strings.Fields(line)
+			if len(parts) < 3 {
+				continue
+			}
+			name, version, arch = parts[0], parts[1], parts[2]
 		}
-		name, version, arch := parts[0], parts[1], parts[2]
 		sev := models.SeverityInfo
 		if isEOL(name, version) {
 			sev = models.SeverityObservation
+		}
+		attrs := map[string]any{
+			"version": version,
+			"arch":    arch,
+		}
+		// RPM's Vendor field is "(none)" when no vendor is set
+		// (locally-built RPMs, srcpms). Skip the placeholder so
+		// the assessor doesn't classify on noise.
+		if vendor != "" && vendor != "(none)" {
+			attrs["vendor"] = vendor
 		}
 		out = append(out, models.Finding{
 			ProbeID:       "inventory.packages.rpm",
 			DimensionHint: models.DimensionOperationeel,
 			Subject:       name,
 			Severity:      sev,
-			Attributes: map[string]any{
-				"version": version,
-				"arch":    arch,
-			},
+			Attributes:    attrs,
 		})
 	}
 	return out

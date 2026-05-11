@@ -459,6 +459,37 @@ without a reverse proxy enforcing access control.
 | `--budget`               | —                           | `2m`                  |
 | `--user-agent`           | —                           | `Wanderer/0.x`        |
 
+## Package vendor jurisdiction
+
+Both package inspectors now emit a vendor / maintainer
+attribute:
+
+- `inventory.packages.rpm` includes the `vendor` attribute,
+  populated from rpm's `%{VENDOR}` tag (e.g.
+  `"Fedora Project"`, `"Red Hat, Inc."`,
+  `"Microsoft Corporation"`)
+- `inventory.packages.dpkg` includes the `maintainer`
+  attribute, populated from dpkg's `${Maintainer}` field (e.g.
+  `"Bash Maintainers <bash@packages.debian.org>"`)
+
+One rule classifies the host's package origin:
+
+- `wand.host.eu_package_origin` — reads both probe families,
+  classifies each finding's vendor / maintainer against
+  `internal/assessor/package_vendors.yaml`. Scores:
+  - `afhankelijk` on any US-tied vendor (Red Hat / Fedora,
+    Microsoft, Oracle, Canonical-UK, Datadog, etc.)
+  - `soeverein` when every classified package resolves to an
+    EU-tied vendor (SUSE / openSUSE, …)
+  - `voldoende` when no US hits AND not every classified
+    package is EU-tied (mixed or unclassified — no red flag,
+    no positive call)
+  - `onbekend` without inventory.packages.* findings
+
+Bare maintainer values without a parseable email fall through
+as unknown jurisdiction. Locally-built RPMs with
+`Vendor: (none)` are skipped at the agent.
+
 ## Container image sovereignty
 
 When the Docker inspector is enabled the agent emits two finding

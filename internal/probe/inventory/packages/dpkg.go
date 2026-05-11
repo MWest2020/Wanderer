@@ -49,8 +49,10 @@ func (d Dpkg) Inspect(ctx context.Context) ([]models.Finding, error) {
 }
 
 func realDpkgQuery(ctx context.Context) (string, error) {
+	// Tab-separated. Maintainer and Status both contain spaces;
+	// a space-delimited format conflates them.
 	out, err := exec.CommandContext(ctx,
-		"dpkg-query", "-W", "-f=${Package} ${Version} ${Architecture} ${Status}\n",
+		"dpkg-query", "-W", "-f=${Package}\t${Version}\t${Architecture}\t${Maintainer}\t${Status}\n",
 	).Output()
 	if err != nil {
 		return "", err
@@ -58,29 +60,43 @@ func realDpkgQuery(ctx context.Context) (string, error) {
 	return string(out), nil
 }
 
-// parseDpkg parses the output of dpkg-query. Each line:
+// parseDpkg parses dpkg-query output. Each line:
 //
-//	<name> <version> <arch> install ok installed
+//	name<TAB>version<TAB>arch<TAB>maintainer<TAB>install ok installed
 //
-// The "Status" field is variable; we keep it whole as a single string
-// in the finding so reviewers can see the raw upstream value.
+// The legacy space-separated three-field format is still
+// accepted so pre-2026-05-11 fixtures parse.
 func parseDpkg(raw string) []models.Finding {
 	var out []models.Finding
 	sc := bufio.NewScanner(strings.NewReader(raw))
 	sc.Buffer(make([]byte, 64*1024), 1024*1024)
 	for sc.Scan() {
-		line := strings.TrimSpace(sc.Text())
-		if line == "" {
+		line := strings.TrimRight(sc.Text(), "\r\n")
+		if strings.TrimSpace(line) == "" {
 			continue
 		}
-		parts := strings.SplitN(line, " ", 4)
-		if len(parts) < 3 {
-			continue
-		}
-		name, version, arch := parts[0], parts[1], parts[2]
-		status := ""
-		if len(parts) == 4 {
-			status = parts[3]
+		var name, version, arch, maintainer, status string
+		if strings.Contains(line, "\t") {
+			parts := strings.SplitN(line, "\t", 5)
+			if len(parts) < 3 {
+				continue
+			}
+			name, version, arch = parts[0], parts[1], parts[2]
+			if len(parts) >= 4 {
+				maintainer = strings.TrimSpace(parts[3])
+			}
+			if len(parts) == 5 {
+				status = strings.TrimSpace(parts[4])
+			}
+		} else {
+			parts := strings.SplitN(line, " ", 4)
+			if len(parts) < 3 {
+				continue
+			}
+			name, version, arch = parts[0], parts[1], parts[2]
+			if len(parts) == 4 {
+				status = parts[3]
+			}
 		}
 		// Skip half-installed packages — they are noise.
 		if status != "" && !strings.Contains(status, "installed") {
@@ -90,16 +106,20 @@ func parseDpkg(raw string) []models.Finding {
 		if isEOL(name, version) {
 			sev = models.SeverityObservation
 		}
+		attrs := map[string]any{
+			"version": version,
+			"arch":    arch,
+			"status":  status,
+		}
+		if maintainer != "" {
+			attrs["maintainer"] = maintainer
+		}
 		out = append(out, models.Finding{
 			ProbeID:       "inventory.packages.dpkg",
 			DimensionHint: models.DimensionOperationeel,
 			Subject:       name,
 			Severity:      sev,
-			Attributes: map[string]any{
-				"version": version,
-				"arch":    arch,
-				"status":  status,
-			},
+			Attributes:    attrs,
 		})
 	}
 	return out

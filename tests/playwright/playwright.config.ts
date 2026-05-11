@@ -56,6 +56,7 @@ export default defineConfig({
         "host-side-scoring.spec.ts",
         "nextcloud-as-target.spec.ts",
         "container-image-sovereignty.spec.ts",
+        "eu-package-origin.spec.ts",
       ],
       use: {
         ...devices["Desktop Chrome"],

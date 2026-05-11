@@ -54,6 +54,7 @@ func DefaultRules() []assessor.Rule {
 		registrarJurisdiction(),
 		hostNoUSTelemetryPackages(),
 		hostNoUSTelemetryServices(),
+		hostEUPackageOrigin(),
 		nextcloudObjectstoreEU(),
 		nextcloudOIDCProviderEU(),
 		dockerImagesUSRegistry(),

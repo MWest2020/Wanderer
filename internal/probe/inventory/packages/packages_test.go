@@ -81,6 +81,47 @@ func TestVersionLess(t *testing.T) {
 	}
 }
 
+func TestParseDpkg_TabSeparatedEmitsMaintainer(t *testing.T) {
+	raw := "bash\t5.2.21-1\tamd64\tBash Maintainers <bash@packages.debian.org>\tinstall ok installed\n" +
+		"systemd\t252.22-1ubuntu3\tamd64\tUbuntu Developers <ubuntu-devel-discuss@lists.ubuntu.com>\tinstall ok installed\n" +
+		"half-installed\t1.0\tamd64\tSomeone <x@y.example>\tdeinstall ok config-files\n"
+	got := parseDpkg(raw)
+	if len(got) != 2 {
+		t.Fatalf("want 2 (third half-installed skipped), got %d", len(got))
+	}
+	if got[0].Subject != "bash" {
+		t.Fatalf("subject = %s, want bash", got[0].Subject)
+	}
+	m, _ := got[0].Attributes["maintainer"].(string)
+	if !strings.Contains(m, "bash@packages.debian.org") {
+		t.Errorf("maintainer = %q, want substring of email", m)
+	}
+	// Status field still captured.
+	if s, _ := got[0].Attributes["status"].(string); !strings.Contains(s, "installed") {
+		t.Errorf("status = %q, want substring 'installed'", s)
+	}
+}
+
+func TestParseRpm_TabSeparatedEmitsVendor(t *testing.T) {
+	raw := "bash\t5.2.32-1.fc42\tx86_64\tFedora Project\n" +
+		"vim\t9.1-3.el9\tx86_64\tRed Hat, Inc.\n" +
+		"local-pkg\t1.0-1\tx86_64\t(none)\n"
+	got := parseRpm(raw)
+	if len(got) != 3 {
+		t.Fatalf("want 3, got %d", len(got))
+	}
+	if v, _ := got[0].Attributes["vendor"].(string); v != "Fedora Project" {
+		t.Errorf("bash vendor = %q, want Fedora Project", v)
+	}
+	if v, _ := got[1].Attributes["vendor"].(string); v != "Red Hat, Inc." {
+		t.Errorf("vim vendor = %q, want Red Hat, Inc.", v)
+	}
+	// (none) is the placeholder for locally-built packages.
+	if _, hasVendor := got[2].Attributes["vendor"]; hasVendor {
+		t.Errorf("local-pkg should have no vendor attribute when rpm reports (none)")
+	}
+}
+
 func TestParseDpkg_HandlesShortLines(t *testing.T) {
 	raw := "incomplete line\n"
 	got := parseDpkg(raw)

@@ -1,0 +1,102 @@
+# Package vendor jurisdiction map.
+#
+# Read by wand.host.eu_package_origin. Embedded via go:embed.
+#
+# Three jurisdiction buckets: `eu`, `us`, `other`. The rule
+# scores afhankelijk on any `us` hit and soeverein when every
+# classified package is `eu`. Anything not matching a pattern
+# below falls through as `unknown` and does NOT contribute to
+# either branch — the rule's job is to surface confident
+# attributions, not to guess.
+#
+# Two match channels per entry:
+#   - rpm_vendor: case-insensitive substring match against the
+#                 raw `vendor` attribute on inventory.packages.rpm
+#                 findings (e.g. "Fedora Project", "Red Hat, Inc.")
+#   - dpkg_domain: case-insensitive exact-match against the email
+#                 domain extracted from the `maintainer` attribute
+#                 on inventory.packages.dpkg findings (e.g.
+#                 "tracker.debian.org", "lists.ubuntu.com")
+#
+# A vendor needs at least one channel; both is fine. Multiple
+# entries may share a parent_org for verdict text consistency.
+#
+# Last reviewed: 2026-05-11. Acquisitions to watch:
+#   - SUSE: EQT (Sweden) bought the company in 2018; HQ remains
+#     in Nürnberg. EU.
+#   - Red Hat: IBM acquired in 2019. US.
+#   - GitHub (ghcr.io) is Microsoft (US) — covered by the
+#     container_registries.yaml list, not here.
+
+vendors:
+  # ----- US-tied -----
+  - rpm_vendor: "Fedora Project"
+    jurisdiction: us
+    parent_org: "Red Hat (US, IBM subsidiary)"
+  - rpm_vendor: "Red Hat"
+    jurisdiction: us
+    parent_org: "Red Hat (US, IBM subsidiary)"
+  - dpkg_domain: "redhat.com"
+    jurisdiction: us
+    parent_org: "Red Hat (US, IBM subsidiary)"
+  - rpm_vendor: "CentOS"
+    jurisdiction: us
+    parent_org: "Red Hat (US, IBM subsidiary)"
+  - rpm_vendor: "Rocky Enterprise Software Foundation"
+    jurisdiction: us
+    parent_org: "Rocky Enterprise Software Foundation (US)"
+  - rpm_vendor: "AlmaLinux"
+    jurisdiction: us
+    parent_org: "AlmaLinux OS Foundation (US)"
+  - rpm_vendor: "Oracle"
+    jurisdiction: us
+    parent_org: "Oracle Corporation (US)"
+  - rpm_vendor: "Microsoft"
+    jurisdiction: us
+    parent_org: "Microsoft Corporation (US)"
+  - rpm_vendor: "Amazon"
+    jurisdiction: us
+    parent_org: "Amazon.com, Inc. (US)"
+  - rpm_vendor: "Google"
+    jurisdiction: us
+    parent_org: "Google LLC (US)"
+  - rpm_vendor: "Datadog"
+    jurisdiction: us
+    parent_org: "Datadog, Inc. (US)"
+  - rpm_vendor: "Canonical"
+    jurisdiction: us
+    parent_org: "Canonical Ltd (UK, non-EEA)"
+  - dpkg_domain: "lists.ubuntu.com"
+    jurisdiction: us
+    parent_org: "Canonical Ltd (UK, non-EEA)"
+  - dpkg_domain: "ubuntu.com"
+    jurisdiction: us
+    parent_org: "Canonical Ltd (UK, non-EEA)"
+
+  # ----- EU-tied -----
+  - rpm_vendor: "openSUSE"
+    jurisdiction: eu
+    parent_org: "SUSE (Germany; EQT-owned, Sweden)"
+  - rpm_vendor: "SUSE"
+    jurisdiction: eu
+    parent_org: "SUSE (Germany; EQT-owned, Sweden)"
+  - dpkg_domain: "suse.de"
+    jurisdiction: eu
+    parent_org: "SUSE (Germany)"
+  - dpkg_domain: "suse.com"
+    jurisdiction: eu
+    parent_org: "SUSE (Germany)"
+
+  # ----- Community / governance ambiguous (treated as 'other') -----
+  - rpm_vendor: "Debian"
+    jurisdiction: other
+    parent_org: "Software in the Public Interest, Inc. (US-incorporated, global governance)"
+  - dpkg_domain: "debian.org"
+    jurisdiction: other
+    parent_org: "Software in the Public Interest, Inc. (US-incorporated, global governance)"
+  - dpkg_domain: "tracker.debian.org"
+    jurisdiction: other
+    parent_org: "Debian Project (global governance)"
+  - dpkg_domain: "packages.debian.org"
+    jurisdiction: other
+    parent_org: "Debian Project (global governance)"
