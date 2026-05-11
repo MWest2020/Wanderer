@@ -1,7 +1,25 @@
 # Proposal: host-side scoring — make agent findings actually score
 
-> **Status:** Design proposal. The implementation lands after
-> Mark signs off on the rule set and severity calls.
+> **Status:** Implementation. Mark approved on 2026-05-10
+> ("allebei, playwrights eerst" — host scoring is the second
+> half). Resolved decisions on the four open questions:
+>
+> 1. **Dimension:** reuse `DimensionTechnologie`. No schema
+>    change; the agent already tags inventory findings with
+>    operationeel-like hints, and a new dimension would mean
+>    a wider migration for marginal modelling gain.
+> 2. **Match list shape:** YAML embedded via `go:embed` at
+>    `internal/assessor/host_telemetry.yaml`. Operator-visible
+>    file, reviewable in one place, mirrors the egress
+>    probe's `vendors.yaml` pattern.
+> 3. **Severity calibration:** kept simple for the first wave.
+>    Any single hit on the known-telemetry list →
+>    `afhankelijk`. No threshold tuning until real-world data
+>    arrives. The eu-package-origin rule is dropped from this
+>    wave (agent doesn't emit vendor metadata yet — see
+>    "Scope tightening" below).
+> 4. **File layout:** flat in `internal/assessor/wand/` and
+>    `internal/assessor/eucsf/`. No subpackage.
 
 ## Intent
 
@@ -22,71 +40,57 @@ verdict on Dashboard + Analysis.
 
 ## Scope
 
-**In scope (the first wave):**
+**In scope (the first wave, post-tightening):**
 
-The agent currently emits two finding families:
+Inventory observation confirms the agent emits two finding
+families:
 
 - `inventory.packages.rpm` (and `.dpkg`) — one finding per
-  installed package with name, version, vendor
-- `inventory.systemd.service` — one finding per active service
-  with unit name, exec start, environment redactions
+  installed package. Attributes today: `arch`, `version`. **No
+  `vendor` field** — the inspector does not extract RPM's
+  `Vendor:` tag yet, so the proposed `eu_package_origin` rule
+  is dropped from the first wave. Adding the field is a
+  separate (small) agent change.
+- `inventory.systemd.service` — one finding per active unit.
 
-The first wave of rules pulls a handful of high-signal checks
-out of those:
+Three rules in this wave (down from the original five):
 
 ### wand.host.no_us_telemetry_packages
 
-Flag installed packages whose vendor or name matches a known
-US-hosted telemetry / observability vendor. Soeverein when no
-such packages are installed; voldoende when one or two are
-present (operationally common — `chronyd` etc. are fine);
-afhankelijk when several. The match list is small and pinned
-in YAML (e.g. `datadog-agent`, `newrelic-*`, etc.).
-
-### wand.host.eu_package_origin
-
-Score the **vendor distribution** of installed packages: what
-percentage of packages declare an EEA-region vendor field?
-RHEL / AlmaLinux / Debian's `Vendor:` field is reliable for
-distro-managed packages. Soeverein at >90% EU-vendor;
-voldoende 70–90%; afhankelijk below 70%.
+Flag installed packages whose name matches a known
+US-hosted telemetry / observability agent
+(`datadog-agent`, `newrelic-*`, `amazon-cloudwatch-agent`,
+`amazon-ssm-agent`, `google-cloud-ops-agent`,
+`azure-monitor-agent`, `omsagent`, `splunk*`,
+`splunkforwarder`, `nrinfragent`). Soeverein when zero match;
+afhankelijk when one or more match. Distro-shipped open-source
+agents (`collectd`) are not on the list — they're not US-tied.
 
 ### wand.host.no_us_telemetry_services
 
-Same idea as no_us_telemetry_packages but reading from
-`inventory.systemd.service` ExecStart paths and unit names.
-Specifically flags units that start known telemetry daemons
-even if installed from a non-vendored binary.
+Same match list applied to `inventory.systemd.service`
+findings — flags active units that *run* a known
+US-telemetry agent even if it was installed from a tarball or
+container. Re-uses the same YAML so the two rules stay
+synchronised.
 
-### eucsf.sov-host.no_us_telemetry
+### eucsf.sov5.host_no_us_telemetry
 
-Identical match-table approach but framed for the SEAL
-sov-host dimension. Reuses the underlying classifier list so
-the two packs stay in lock-step.
-
-### eucsf.sov-host.eu_kernel
-
-Reads `inventory.systemd.service` for the running kernel
-release (a separate Finding the existing inspectors could emit
-trivially) and the build vendor. Soeverein on a distro-built
-mainline kernel; voldoende on a third-party module; onbekend
-when the inspector did not emit a kernel finding.
-
-**Also in scope:**
-
-- A new dimension constant `models.DimensionHost` (or
-  reuse `DimensionTechnologie` — see Open questions). The
-  agent's existing findings already use
-  `DimensionTechnologie`; if we add a new dimension, the
-  agent's `dimension_hint` field needs updating.
-- The egress static scanner's findings (`egress.s3`,
-  `egress.slack`, etc.) get **one** wand rule:
-  `wand.host.no_us_egress_targets` — same vendor classifier
-  the perimeter rule already uses, just consuming the
-  inventory-side findings. EUCSF analogue.
+EUCSF analogue covering both packages and services in one
+rule (the SEAL framework rolls supply-chain / vendor
+exposure into a single observation). Reuses the YAML list.
 
 **Out of scope (deferred to a future wave):**
 
+- `wand.host.eu_package_origin` — requires the RPM/DPKG
+  inspectors to emit a `vendor` attribute, which they don't
+  today. Adding it is a small agent change; the rule lands
+  after.
+- `wand.host.no_us_egress_targets` — requires the agent's
+  egress probe to be enabled and to emit findings. The demo
+  fixture's agent run had egress disabled (no need to scan
+  config files / proc env for credentials in the smoke
+  test). Rule lands when egress data is on tap.
 - Container image scoring (Docker inspector). The data is
   there (`inventory.docker.container`); rules cost a bigger
   inventory of known-US registries (`gcr.io`, `quay.io`'s
@@ -98,7 +102,13 @@ when the inspector did not emit a kernel finding.
 - Drift findings as a rule source (drift is its own modus;
   scoring drift is a separate question).
 
-## Open questions
+## Resolved decisions (see status block at top)
+
+See the four resolved decisions in the status block at the
+top of this proposal. The full options + pros/cons are
+preserved below as the design record.
+
+## Open questions (resolved — preserved as design record)
 
 1. **New dimension or reuse `technologie`?** The agent's
    inventory + egress findings already carry

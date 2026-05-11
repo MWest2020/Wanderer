@@ -44,6 +44,7 @@ func DefaultRules() []assessor.Rule {
 		mxJurisdiction(),
 		operationalEU(),
 		noUSHyperscaler(),
+		hostNoUSTelemetry(),
 	}
 }
 

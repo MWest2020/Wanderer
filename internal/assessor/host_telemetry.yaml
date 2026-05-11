@@ -1,0 +1,39 @@
+# Known US-hosted telemetry / observability agents.
+#
+# Read by wand.host.no_us_telemetry_packages,
+# wand.host.no_us_telemetry_services, and
+# eucsf.sov5.host_no_us_telemetry. Embedded via go:embed at
+# build time; rule packs SHOULD NOT add operator-overridable
+# loading until there's a clear need.
+#
+# Entries are case-insensitive prefix matches against the
+# Finding.Subject string (package name or systemd unit name).
+# Keep this list small, defensible, and US-tied — open-source
+# tools like `collectd` are NOT US-tied and stay off the list.
+#
+# Vendor of record is recorded for the verdict text. A single
+# match → afhankelijk; zero matches → soeverein.
+
+agents:
+  - prefix: "datadog-agent"
+    vendor: "Datadog (US)"
+  - prefix: "newrelic"
+    vendor: "New Relic (US)"
+  - prefix: "nrinfragent"
+    vendor: "New Relic (US)"
+  - prefix: "amazon-cloudwatch-agent"
+    vendor: "AWS CloudWatch (US)"
+  - prefix: "amazon-ssm-agent"
+    vendor: "AWS SSM (US)"
+  - prefix: "google-cloud-ops-agent"
+    vendor: "Google Cloud Ops (US)"
+  - prefix: "azure-monitor-agent"
+    vendor: "Azure Monitor (US)"
+  - prefix: "omsagent"
+    vendor: "Azure Log Analytics (US)"
+  - prefix: "splunkforwarder"
+    vendor: "Splunk (US)"
+  - prefix: "splunk-otel-collector"
+    vendor: "Splunk (US)"
+  - prefix: "dynatrace-oneagent"
+    vendor: "Dynatrace (US, listed as Austrian-founded but US-listed)"

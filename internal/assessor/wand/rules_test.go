@@ -294,6 +294,23 @@ func TestDefaultRules_HasTenRules(t *testing.T) {
 	}
 }
 
+func TestDefaultRules_RegistersHostRules(t *testing.T) {
+	want := map[string]bool{
+		"wand.host.no_us_telemetry_packages": false,
+		"wand.host.no_us_telemetry_services": false,
+	}
+	for _, r := range DefaultRules() {
+		if _, ok := want[r.ID]; ok {
+			want[r.ID] = true
+		}
+	}
+	for id, seen := range want {
+		if !seen {
+			t.Errorf("host rule %q not registered in DefaultRules", id)
+		}
+	}
+}
+
 func TestEveryRuleHasRationale(t *testing.T) {
 	for _, r := range DefaultRules() {
 		if r.Rationale == "" {

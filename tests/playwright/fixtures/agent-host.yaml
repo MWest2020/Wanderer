@@ -1,0 +1,39 @@
+# Fixture agent config for the Playwright host-rule smoke spec.
+#
+# Run once before `make playwright` to seed the demo DB with an
+# agent-host scan so the host-rule conditional spec fires:
+#
+#   ./bin/wanderer agent --once \
+#     --config tests/playwright/fixtures/agent-host.yaml
+#
+# Local mode writes straight into /tmp/wanderer-demo.db — the
+# same DB the Playwright `webServer` block boots `wanderer serve`
+# against. Hostname mirrors the existing `alma` host target so a
+# re-seeded run does not create a duplicate target row.
+#
+# Egress + flow stay off; this fixture exists to land the
+# inventory shapes (packages + systemd) that the host rules
+# read against.
+
+hostname: alma
+core:
+  mode: local
+  db: /tmp/wanderer-demo.db
+  organisation: conduction
+scan:
+  timeout: 2m
+inspectors:
+  systemd:
+    enabled: true
+  packages:
+    enabled: true
+    managers: [rpm]
+egress:
+  configfiles:
+    enabled: false
+  procenv:
+    enabled: false
+  systemd:
+    enabled: false
+  flow:
+    enabled: false

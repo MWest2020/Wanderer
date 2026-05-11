@@ -52,6 +52,8 @@ func DefaultRules() []assessor.Rule {
 		mxPresent(),
 		oidcFederation(),
 		registrarJurisdiction(),
+		hostNoUSTelemetryPackages(),
+		hostNoUSTelemetryServices(),
 	}
 }
 

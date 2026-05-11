@@ -122,9 +122,28 @@ func TestNoUSHyperscaler(t *testing.T) {
 	}
 }
 
-func TestDefaultRules_FiveRules(t *testing.T) {
-	if got := len(DefaultRules()); got != 5 {
-		t.Errorf("DefaultRules count = %d, want 5", got)
+func TestDefaultRules_HasSixRules(t *testing.T) {
+	rules := DefaultRules()
+	if got := len(rules); got != 6 {
+		t.Errorf("DefaultRules count = %d, want 6", got)
+	}
+	wantIDs := map[string]bool{
+		"eucsf.sov2.cert_issuer_eu":      false,
+		"eucsf.sov2.apex_jurisdiction":   false,
+		"eucsf.sov3.mx_jurisdiction":     false,
+		"eucsf.sov4.operational_eu":      false,
+		"eucsf.sov6.no_us_hyperscaler":   false,
+		"eucsf.sov5.host_no_us_telemetry": false,
+	}
+	for _, r := range rules {
+		if _, ok := wantIDs[r.ID]; ok {
+			wantIDs[r.ID] = true
+		}
+	}
+	for id, seen := range wantIDs {
+		if !seen {
+			t.Errorf("expected rule %q to be registered", id)
+		}
 	}
 }
 
