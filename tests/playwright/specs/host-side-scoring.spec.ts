@@ -75,43 +75,48 @@ test.describe("Host-side scoring — rule catalogue", () => {
 });
 
 test.describe("Host-side scoring — agent scan smoke", () => {
-  // Gated on an agent-host scan being present in the seeded DB.
-  // The host rule deep-dive page is the cheapest signal: when an
-  // agent host has been scored, the per-target table on
-  // `/ui/reporting/wand/wand.host.no_us_telemetry_packages` has
-  // at least one non-onbekend row. Until the hermetic Playwright
-  // fixture loader lands, an operator seeds this manually:
-  //
-  //   ./bin/wanderer agent --once \
-  //     --config tests/playwright/fixtures/agent-host.yaml
-  //   ./bin/wanderer assess <scan-id> --framework both \
-  //     --db /tmp/wanderer-demo.db
-  test("Host rule deep-dive carries a non-onbekend row when an agent host is seeded", async ({
+  // Runs against the `agent-host` fixture which seeds an `alma`
+  // host target with 32 inventory packages (one `datadog-agent`
+  // hit) and 14 systemd units (one `datadog-agent.service` hit).
+  // The host rule deep-dive is the cheapest signal: per-target
+  // table has one row with `afhankelijk` + the datadog vendor.
+  test("Host rule deep-dive shows the seeded datadog hit", async ({
     page,
   }) => {
     await page.goto(
       "/ui/reporting/wand/wand.host.no_us_telemetry_packages",
     );
-    const rows = page.locator("tbody tr");
-    const rowCount = await rows.count();
-    test.skip(
-      rowCount === 0,
-      "no host scan rationale rows yet — run `wanderer agent --once` + `wanderer assess` first",
+
+    // Exactly one host scored row — the seeded `alma`.
+    const row = page.locator("tbody tr", { hasText: "alma" });
+    await expect(row).toBeVisible();
+    await expect(row.locator("[class*='score-']")).toContainText(
+      "afhankelijk",
     );
+    await expect(row).toContainText("datadog-agent");
+    await expect(row).toContainText("Datadog");
+  });
 
-    const scores = await page
-      .locator('[class*="score-"]:not([class*="score-onbekend"])')
-      .count();
-    expect(
-      scores,
-      "expected at least one host rule row with a non-onbekend score",
-    ).toBeGreaterThan(0);
+  test("Services rule shows the seeded datadog.service hit", async ({
+    page,
+  }) => {
+    await page.goto(
+      "/ui/reporting/wand/wand.host.no_us_telemetry_services",
+    );
+    const row = page.locator("tbody tr", { hasText: "alma" });
+    await expect(row.locator("[class*='score-']")).toContainText(
+      "afhankelijk",
+    );
+    await expect(row).toContainText("datadog-agent.service");
+  });
 
-    // Verdict text from the rule must mention the inspected count
-    // so an operator reading the catalogue knows how much was
-    // weighed before the soeverein call.
-    await expect(
-      page.locator("text=/inspected \\d+ packages/"),
-    ).toBeVisible();
+  test("EUCSF combined rule covers both shapes", async ({ page }) => {
+    await page.goto(
+      "/ui/reporting/eucsf/eucsf.sov5.host_no_us_telemetry",
+    );
+    const row = page.locator("tbody tr", { hasText: "alma" });
+    await expect(row.locator("[class*='score-']")).toContainText(
+      "afhankelijk",
+    );
   });
 });

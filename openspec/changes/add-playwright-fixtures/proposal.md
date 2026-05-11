@@ -1,7 +1,28 @@
 # Proposal: hermetic Playwright fixtures
 
-> **Status:** Design pass — sign-off needed before implementation.
-> All four open questions below need an answer.
+> **Status:** Implementation. Mark approved on 2026-05-11
+> ("wat het beste uiteindelijk is in maintainability en
+> verkoopbaar boring & auditable product"). Picked the
+> recommendations on every open question, except Q1 where
+> "auditable + verkoopbaar" tips the balance from
+> `cmd/wanderer-fixture` to `internal/fixtures`:
+>
+> 1. **Seeder location:** `internal/fixtures` invoked from a
+>    Makefile target. No extra production binary surface, no
+>    risk of an operator shipping or running the wrong binary,
+>    a reviewer looking at `cmd/` sees only one binary —
+>    auditable.
+> 2. **One DB per scenario:** three independent SQLite files
+>    under `tests/playwright/fixtures/`. Three Playwright
+>    projects in `playwright.config.ts`, each pointing at its
+>    own DB. Independent scenarios = independent assertions.
+> 3. **Migration sync:** lean on `store.Open`'s migration
+>    runner; no separate "fixture migration" concept. A
+>    schema change that breaks a fixture's literal SQL fails
+>    at `make playwright-fixture` build time.
+> 4. **agent-host.yaml stays:** the existing manual seed flow
+>    is a different tool (operator wants to smoke against a
+>    real host). Document the split in `docs/operator.md`.
 
 ## Intent
 
@@ -33,11 +54,12 @@ specific rule outcomes without an operator pre-running scans.
 
 **In scope:**
 
-- A new `cmd/wanderer-fixture/main.go` (or
-  `internal/fixtures/seed.go` exposed via a build target) that
-  writes a curated SQLite using the public store API. No new
-  storage logic — it composes the same `store.Insert*` calls
-  the scanner uses today.
+- An `internal/fixtures/` package + a Makefile entry point
+  (`make playwright-fixture`) that runs the package via
+  `go run`. Each scenario exposes a `Build<Scenario>(
+  store.Store) error` function that composes the same
+  `store.Insert*` calls the scanner uses today. No new
+  storage logic, no new production binary, no `cmd/` surface.
 - Three fixture "scenarios", each producing a self-contained
   DB:
   1. **`baseline`** — minimal happy path. Two orgs (conduction

@@ -459,6 +459,56 @@ without a reverse proxy enforcing access control.
 | `--budget`               | —                           | `2m`                  |
 | `--user-agent`           | —                           | `Wanderer/0.x`        |
 
+## Playwright UI smoke layer
+
+The Playwright suite at `tests/playwright/` covers the read-only
+UI. It runs against three hermetic SQLite fixtures (one per
+scenario) seeded by `internal/fixtures`, not against an
+operator's hand-rolled `/tmp/wanderer-demo.db`. A fresh checkout
+runs end-to-end with:
+
+```
+make playwright-install     # once: installs node deps + chromium
+make playwright             # builds binary, seeds fixtures, runs specs
+```
+
+### Scenarios
+
+| Scenario     | DB                                        | Used by                                       |
+| ------------ | ----------------------------------------- | --------------------------------------------- |
+| `baseline`   | `tests/playwright/fixtures/baseline.db`   | DAR layering + reporting catalogue            |
+| `agent-host` | `tests/playwright/fixtures/agent-host.db` | host-rule + nextcloud-as-target deep dives    |
+| `empty-org`  | `tests/playwright/fixtures/empty-org.db`  | empty-state copy on every UI surface          |
+
+Each scenario boots its own `wanderer serve` instance on a
+different port (8281/8282/8283). The Playwright config pins each
+spec file to one scenario via `testMatch`.
+
+### Adding a scenario
+
+1. Add `internal/fixtures/<name>.go` with an exported
+   `Build<Name>(ctx, *store.Store) error` function.
+2. Register it in `internal/fixtures/seed.go`'s `Scenarios` map.
+3. Add a Makefile line (under `playwright-fixture`) that emits
+   the DB.
+4. Add a project block + a `webServer` entry in
+   `tests/playwright/playwright.config.ts`.
+
+The seeder uses the public store API + `wand.DefaultRules()` /
+`eucsf.DefaultRules()`, so a schema change or a rule rename that
+breaks a fixture surfaces at `make playwright-fixture` build
+time — before Playwright ever opens a browser.
+
+### Separate from `tests/playwright/fixtures/agent-host.yaml`
+
+The YAML config file at the same path is **not** part of the
+fixture seeder. It is a stop-gap for running
+`./bin/wanderer agent --once --config tests/playwright/fixtures/agent-host.yaml`
+against your real laptop's `/tmp/wanderer-demo.db` if you want
+to smoke test the host rule against actual `occ` /
+`/proc` / `/etc/systemd/` state. The hermetic
+`agent-host` scenario above is what Playwright reads against.
+
 ## Troubleshooting
 
 - **`ip: asn DB: no such file or directory`** — the GeoLite2 path is

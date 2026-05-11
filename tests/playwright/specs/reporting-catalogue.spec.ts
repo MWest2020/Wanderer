@@ -35,15 +35,7 @@ test.describe("Reporting catalogue", () => {
     await expect(statusCell).toContainText(/\d+ of \d+ targets?/);
   });
 
-  // The "no rationale yet" placeholder requires an org whose
-  // assessments don't carry every rule. The current demo data has
-  // every org's targets fully assessed under wand + eucsf, which
-  // means every registered rule has at least one rationale. A
-  // hermetic fixture loader (see add-host-side-scoring follow-up)
-  // would create an org with no scans and pin this assertion;
-  // skipping for now keeps the spec discoverable.
-  test.skip("Rules without rationale render the placeholder", async ({ page }) => {
-    await page.goto("/ui/reporting?org=acme");
-    await expect(page.locator("text=no rationale yet").first()).toBeVisible();
-  });
+  // The "no rationale yet" placeholder assertion moved to
+  // empty-org-state.spec.ts now that the hermetic fixture
+  // suite has an empty-org scenario.
 });

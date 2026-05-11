@@ -1,13 +1,22 @@
 # Proposal: Nextcloud integration — direction-finding
 
-> **Status:** Design pass — DIRECTION still open. The four
-> open questions below are the gate. No code lands until
-> Mark answers Q1 (which direction).
+> **Status:** Implementation — direction (1) "Nextcloud as a
+> target". Mark picked on 2026-05-11 ("ship 1 eerst idd").
+> The other directions (output publisher, OIDC consumer,
+> marketplace app) are deferred to sibling proposals after
+> (1) lands.
 >
-> Mark mentioned "uiteindelijk integrate met nextcloud" on
-> 2026-05-10. The phrasing is open enough that this proposal
-> reads four plausible directions and asks for a pick before
-> investing implementation effort.
+> Q2-Q4 resolved on the recommendations:
+>
+> - **Q2 — ProbeID family:** extend the existing
+>   `inventory.nextcloud.*` family. Boring + auditable —
+>   keeps "facts about what this host trusts" together.
+> - **Q3 — Probe modus:** agent-side only. A perimeter probe
+>   that hits `/status.php` is a separate concern and lands
+>   as `propose-nextcloud-perimeter` later if needed.
+> - **Q4 — OIDC app dependency:** probe `user_oidc` first;
+>   emit `inventory.nextcloud.oidc.unavailable` with the
+>   discovered alternative app name when missing.
 
 ## Intent
 

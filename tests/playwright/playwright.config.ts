@@ -1,18 +1,35 @@
 // Playwright config for the Wanderer UI smoke layer.
 //
-// The Makefile target `make playwright` boots a `wanderer serve`
-// instance (via Playwright's webServer block) against a temp
-// SQLite seeded with the demo dataset, then runs the specs in
-// tests/playwright/specs/.
+// `make playwright` boots three independent `wanderer serve`
+// instances (one per hermetic fixture DB) and runs the matching
+// spec files against each. Each project is pinned to one
+// fixture scenario by `testMatch`.
+//
+// Scenarios are seeded by `internal/fixtures/main` via
+// `make playwright-fixture`. The DBs live under
+// `tests/playwright/fixtures/` (gitignored).
 //
 // Chromium headless is the contract — no cross-browser matrix.
 // See openspec/changes/archive/2026-05-10-add-playwright-adr-smoke-tests/proposal.md
-// for the scope decisions.
+// for the original scope decisions.
 
 import { defineConfig, devices } from "@playwright/test";
 
-const port = process.env.WANDERER_PLAYWRIGHT_PORT ?? "8281";
-const baseURL = `http://127.0.0.1:${port}`;
+const baselinePort = "8281";
+const agentHostPort = "8282";
+const emptyOrgPort = "8283";
+
+const fixtureDir = "./fixtures";
+const wandererBin = "../../bin/wanderer";
+
+function serve(port: string, db: string): string {
+  return (
+    `${wandererBin} serve ` +
+    `-addr 127.0.0.1:${port} ` +
+    `-db ${fixtureDir}/${db} ` +
+    "-ui -no-geoip"
+  );
+}
 
 export default defineConfig({
   testDir: "./specs",
@@ -21,30 +38,59 @@ export default defineConfig({
   retries: 0,
   reporter: [["list"], ["html", { outputFolder: "playwright-report", open: "never" }]],
   use: {
-    baseURL,
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
   },
   projects: [
     {
-      name: "chromium",
-      use: { ...devices["Desktop Chrome"] },
+      name: "baseline",
+      testMatch: ["dar.spec.ts", "reporting-catalogue.spec.ts"],
+      use: {
+        ...devices["Desktop Chrome"],
+        baseURL: `http://127.0.0.1:${baselinePort}`,
+      },
+    },
+    {
+      name: "agent-host",
+      testMatch: ["host-side-scoring.spec.ts"],
+      use: {
+        ...devices["Desktop Chrome"],
+        baseURL: `http://127.0.0.1:${agentHostPort}`,
+      },
+    },
+    {
+      name: "empty-org",
+      testMatch: ["empty-org-state.spec.ts"],
+      use: {
+        ...devices["Desktop Chrome"],
+        baseURL: `http://127.0.0.1:${emptyOrgPort}`,
+      },
     },
   ],
-  webServer: {
-    // The Makefile target builds + seeds before invoking this
-    // file; the webServer block just attaches to the resulting
-    // binary so `npm test` standalone is a no-go without first
-    // running `make playwright-fixture`.
-    command:
-      "../../bin/wanderer serve " +
-      `-addr 127.0.0.1:${port} ` +
-      `-db ${process.env.WANDERER_PLAYWRIGHT_DB ?? "/tmp/wanderer-playwright.db"} ` +
-      "-ui -no-geoip",
-    url: `${baseURL}/healthz`,
-    reuseExistingServer: false,
-    stdout: "pipe",
-    stderr: "pipe",
-    timeout: 30_000,
-  },
+  webServer: [
+    {
+      command: serve(baselinePort, "baseline.db"),
+      url: `http://127.0.0.1:${baselinePort}/healthz`,
+      reuseExistingServer: false,
+      stdout: "pipe",
+      stderr: "pipe",
+      timeout: 30_000,
+    },
+    {
+      command: serve(agentHostPort, "agent-host.db"),
+      url: `http://127.0.0.1:${agentHostPort}/healthz`,
+      reuseExistingServer: false,
+      stdout: "pipe",
+      stderr: "pipe",
+      timeout: 30_000,
+    },
+    {
+      command: serve(emptyOrgPort, "empty-org.db"),
+      url: `http://127.0.0.1:${emptyOrgPort}/healthz`,
+      reuseExistingServer: false,
+      stdout: "pipe",
+      stderr: "pipe",
+      timeout: 30_000,
+    },
+  ],
 });

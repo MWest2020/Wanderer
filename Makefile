@@ -1,15 +1,13 @@
-.PHONY: build test lint run clean playwright-install playwright
+.PHONY: build test lint run clean playwright-install playwright playwright-fixture
 
 VERSION := $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
 LDFLAGS := -ldflags="-s -w -X main.Version=$(VERSION)"
 
-# Playwright defaults. The spec set runs against an existing demo
-# DB — typically the one a developer built up by running a few
-# `wanderer scan` calls (e.g. /tmp/wanderer-demo.db). A hermetic
-# fixture loader is a planned follow-up; for now an operator
-# runs `wanderer scan example.nl` once before `make playwright`.
-PLAYWRIGHT_PORT ?= 8281
-PLAYWRIGHT_DB   ?= /tmp/wanderer-demo.db
+# Playwright fixture directory. `make playwright-fixture` writes one
+# DB per scenario under this directory; `make playwright` boots
+# `wanderer serve` against each in turn via the three-project
+# playwright.config.ts. Files are .gitignored.
+PLAYWRIGHT_FIXTURE_DIR ?= tests/playwright/fixtures
 
 build:
 	go build $(LDFLAGS) -o bin/wanderer ./cmd/wanderer
@@ -24,7 +22,7 @@ run: build
 	./bin/wanderer $(ARGS)
 
 clean:
-	rm -rf bin/ dist/ coverage.*
+	rm -rf bin/ dist/ coverage.* tests/playwright/fixtures/*.db
 
 # playwright-install installs the Node deps with lifecycle scripts
 # disabled (per the global supply-chain rule), verifies signatures,
@@ -35,15 +33,19 @@ playwright-install:
 	cd tests/playwright && npm audit signatures
 	cd tests/playwright && npx playwright install chromium
 
-# playwright runs the spec set against the configured DB.
-# playwright.config.ts's webServer block boots `./bin/wanderer
-# serve` on PLAYWRIGHT_PORT; the spec output lands in
+# playwright-fixture writes one SQLite per scenario via the
+# internal/fixtures seeder. Re-runs are idempotent: each scenario
+# removes the existing file and rebuilds from scratch so schema
+# migrations run on every invocation.
+playwright-fixture:
+	@mkdir -p $(PLAYWRIGHT_FIXTURE_DIR)
+	go run ./internal/fixtures/main --scenario baseline   --out $(PLAYWRIGHT_FIXTURE_DIR)/baseline.db
+	go run ./internal/fixtures/main --scenario agent-host --out $(PLAYWRIGHT_FIXTURE_DIR)/agent-host.db
+	go run ./internal/fixtures/main --scenario empty-org  --out $(PLAYWRIGHT_FIXTURE_DIR)/empty-org.db
+
+# playwright runs the spec set against the three hermetic
+# fixture DBs. The build + fixture targets are prerequisites so a
+# fresh checkout runs end-to-end with one command. Output lands in
 # tests/playwright/playwright-report/.
-playwright: build
-	@test -e $(PLAYWRIGHT_DB) || (echo "ERROR: $(PLAYWRIGHT_DB) does not exist." && \
-		echo "       Run \`./bin/wanderer scan <domain>\` first to populate it," && \
-		echo "       or set PLAYWRIGHT_DB=<path> to point at a different DB." && exit 1)
-	cd tests/playwright && \
-		WANDERER_PLAYWRIGHT_PORT=$(PLAYWRIGHT_PORT) \
-		WANDERER_PLAYWRIGHT_DB=$(PLAYWRIGHT_DB) \
-		npx playwright test
+playwright: build playwright-fixture
+	cd tests/playwright && npx playwright test
