@@ -316,28 +316,43 @@ read-only GET calls, fixture-driven tests. Copy that shape.
    wand shape and should learn the same rule when it makes sense
    for the SEAL framework.
 
-### Host-shaped rules
+### Vendor-jurisdiction rules
 
-Rules that read agent findings (`inventory.packages.*`,
-`inventory.systemd.service`, etc.) live alongside the perimeter
-rules in `wand/host_rules.go` and `eucsf/host_rules.go`. Two
-things differ from perimeter rules:
+Rules that read agent findings and classify their subjects
+against a curated vendor list follow a shared pattern. As of
+2026-05-11 four rule families use it:
+
+| Family            | Reads                                                   | YAML list                                       |
+| ----------------- | ------------------------------------------------------- | ----------------------------------------------- |
+| Host telemetry    | `inventory.packages.*`, `inventory.systemd.service`     | `internal/assessor/host_telemetry.yaml`         |
+| Nextcloud         | `inventory.nextcloud.{objectstore,oidc_provider}`       | none — per-finding `country` from geoip         |
+| Container images  | `inventory.docker.{image,container}`                    | `internal/assessor/container_registries.yaml`   |
+| Perimeter (legacy)| `tls.issuer`, `ip.asn`, `whois.registrant`              | hardcoded `eeaCountries` / `knownUSHyperscalers`|
+
+The conventions, codified in ADR-0012:
 
 - **Negative evidence.** The assessor engine forces verdicts
   without an `Evidence` slice to `onbekend` (see
   `engine.go:scoreDimension`). A "clean host" verdict must
-  cite *something* — `wand/host_rules.go` ships a
-  `sampleEvidence` helper that returns up to 10 inspected
+  cite *something* — each rule pack ships a sample helper
+  (`sampleEvidence` / `sampleNextcloudEvidence` /
+  `dockerSampleEvidence`) that returns up to 10 inspected
   finding IDs so an operator can deep-link from the soeverein
   verdict back to the data that produced it. The verdict text
   carries the inspected count ("inspected 1790 packages")
   separately for readability.
-- **Match list as YAML.** Vendor lists (US-headquartered
-  telemetry agents, etc.) live in
-  `internal/assessor/host_telemetry.yaml` and are embedded via
-  `go:embed`. Mirror the egress probe's `vendors.yaml`
-  pattern — operator-visible, reviewable in one place, no
-  hard-coded Go list.
+- **Match list as YAML, embedded via `go:embed`.** Operator-
+  visible, reviewable in one place, no hard-coded Go list.
+  Mirrors the egress probe's `vendors.yaml` pattern.
+- **One wand rule per probe family, one EUCSF roll-up.** The
+  wand split keeps each probe surface a separate verdict so an
+  operator can see which surface trips; the EUCSF roll-up is a
+  single supply-chain observation per SEAL convention.
+
+Real-world examples to copy from:
+[`wand/host_rules.go`](../internal/assessor/wand/host_rules.go),
+[`wand/nextcloud_rules.go`](../internal/assessor/wand/nextcloud_rules.go),
+[`wand/docker_rules.go`](../internal/assessor/wand/docker_rules.go).
 
 ## External systems and their failure modes
 
