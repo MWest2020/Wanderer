@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	httpprobe "github.com/MWest2020/wanderer/internal/probe/http"
 	"github.com/MWest2020/wanderer/internal/probe"
+	httpprobe "github.com/MWest2020/wanderer/internal/probe/http"
 	"github.com/MWest2020/wanderer/pkg/models"
 )
 

@@ -2,8 +2,8 @@ package ui
 
 import (
 	"github.com/MWest2020/wanderer/internal/assessor"
-	"github.com/MWest2020/wanderer/internal/assessor/wand"
 	"github.com/MWest2020/wanderer/internal/assessor/eucsf"
+	"github.com/MWest2020/wanderer/internal/assessor/wand"
 )
 
 // CataloguedRule is one row of the Reporting catalogue: enough

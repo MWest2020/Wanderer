@@ -3,18 +3,18 @@
 // `occ` commands and emits one Finding family per data source:
 //
 //   - inventory.nextcloud.app             — every enabled / disabled
-//                                            app from `occ app:list`
+//     app from `occ app:list`
 //   - inventory.nextcloud.version         — `versionstring` from
-//                                            `occ status`
+//     `occ status`
 //   - inventory.nextcloud.trusted_domain  — every domain from
-//                                            `occ config:list system`
+//     `occ config:list system`
 //   - inventory.nextcloud.objectstore     — every S3-style backend
-//                                            from the same source,
-//                                            annotated with geoip
+//     from the same source,
+//     annotated with geoip
 //   - inventory.nextcloud.oidc_provider   — every IdP from
-//                                            `occ user_oidc:provider list`
+//     `occ user_oidc:provider list`
 //   - inventory.nextcloud.oidc.unavailable — emitted instead when
-//                                            user_oidc is absent
+//     user_oidc is absent
 //
 // On hosts without `occ` (or without a configured path) every
 // query returns an error and the inspector reports unavailable
@@ -195,7 +195,7 @@ func (n Nextcloud) runOIDC(ctx context.Context, appsRaw string) []models.Finding
 		}
 		// Fall through to the unavailable path with the parse
 		// error preserved as the meta-finding's reason.
-		return []models.Finding{oidcUnavailable("user_oidc parse error: " + parseErr.Error(), "")}
+		return []models.Finding{oidcUnavailable("user_oidc parse error: "+parseErr.Error(), "")}
 	}
 
 	// `user_oidc:provider list` failed. Scan the app list for a

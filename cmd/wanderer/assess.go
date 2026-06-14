@@ -12,8 +12,8 @@ import (
 	"time"
 
 	"github.com/MWest2020/wanderer/internal/assessor"
-	"github.com/MWest2020/wanderer/internal/assessor/wand"
 	"github.com/MWest2020/wanderer/internal/assessor/eucsf"
+	"github.com/MWest2020/wanderer/internal/assessor/wand"
 	"github.com/MWest2020/wanderer/internal/store"
 	"github.com/MWest2020/wanderer/pkg/models"
 )

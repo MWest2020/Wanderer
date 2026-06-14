@@ -24,7 +24,7 @@ func TestObjectstoreEU_Soeverein(t *testing.T) {
 	r := ruleByID(t, "wand.nextcloud.objectstore_eu")
 	got := r.Match([]models.Finding{
 		nextcloudFinding("o1", "inventory.nextcloud.objectstore", "data", map[string]any{
-			"country": "NL",
+			"country":       "NL",
 			"endpoint_host": "s3.transip.eu",
 		}),
 	})
@@ -43,7 +43,7 @@ func TestObjectstoreEU_Afhankelijk(t *testing.T) {
 	r := ruleByID(t, "wand.nextcloud.objectstore_eu")
 	got := r.Match([]models.Finding{
 		nextcloudFinding("o1", "inventory.nextcloud.objectstore", "data", map[string]any{
-			"country": "US",
+			"country":       "US",
 			"endpoint_host": "s3.amazonaws.com",
 		}),
 	})

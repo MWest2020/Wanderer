@@ -128,9 +128,9 @@ type verdictRenderView struct {
 // organisationLinkView is one row in the dashboard's organisation
 // list: slug, display name, and the URL to the per-org dashboard.
 type organisationLinkView struct {
-	Slug       string
-	Name       string
-	URL        string
+	Slug        string
+	Name        string
+	URL         string
 	TargetCount int
 }
 
@@ -232,29 +232,29 @@ func renderDashboard(w http.ResponseWriter, r *http.Request, st *store.Store, tm
 		})
 	}
 	// Organisation-aware metadata: per-org dashboards carry the
-		// scoped org's slug + name so the template can rebadge the
-		// headline; the instance-wide view carries the full list of
-		// registered orgs as drill-in links.
-		if org != nil {
-			view.ScopedOrganisation = &organisationLinkView{
-				Slug: org.Slug,
-				Name: org.Name,
-				URL:  "/ui/orgs/" + org.Slug,
-			}
-		} else {
-			if orgs, listErr := st.ListOrganisations(ctx); listErr == nil {
-				for _, o := range orgs {
-					targets, _ := st.ListTargetsByOrganisation(ctx, o.ID)
-					view.OrganisationsList = append(view.OrganisationsList, organisationLinkView{
-						Slug:        o.Slug,
-						Name:        o.Name,
-						URL:         "/ui/orgs/" + o.Slug,
-						TargetCount: len(targets),
-					})
-				}
+	// scoped org's slug + name so the template can rebadge the
+	// headline; the instance-wide view carries the full list of
+	// registered orgs as drill-in links.
+	if org != nil {
+		view.ScopedOrganisation = &organisationLinkView{
+			Slug: org.Slug,
+			Name: org.Name,
+			URL:  "/ui/orgs/" + org.Slug,
+		}
+	} else {
+		if orgs, listErr := st.ListOrganisations(ctx); listErr == nil {
+			for _, o := range orgs {
+				targets, _ := st.ListTargetsByOrganisation(ctx, o.ID)
+				view.OrganisationsList = append(view.OrganisationsList, organisationLinkView{
+					Slug:        o.Slug,
+					Name:        o.Name,
+					URL:         "/ui/orgs/" + o.Slug,
+					TargetCount: len(targets),
+				})
 			}
 		}
-		render(w, tmpl, "dashboard.tmpl", view)
+	}
+	render(w, tmpl, "dashboard.tmpl", view)
 }
 
 // buildSnapshots builds the per-target snapshot list shared by
@@ -745,13 +745,13 @@ type reportingView struct {
 }
 
 type reportingRowView struct {
-	Framework      string
-	CriteriumID    string
-	Description    string
-	SoevereinCount int
-	VoldoendeCount int
+	Framework        string
+	CriteriumID      string
+	Description      string
+	SoevereinCount   int
+	VoldoendeCount   int
 	AfhankelijkCount int
-	OnbekendCount  int
+	OnbekendCount    int
 }
 
 // ruleCatalogueView is the shape consumed by reporting.tmpl —

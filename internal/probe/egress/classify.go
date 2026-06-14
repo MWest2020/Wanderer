@@ -21,13 +21,13 @@ const (
 
 // Classification is the verdict for one Candidate.
 type Classification struct {
-	Category   string             // object_storage, smtp, oidc, database, log_shipper, webhook, unknown
-	Provider   string             // aws, gcs, azure, minio, generic, ""
-	Region     string             // best-effort, e.g. "eu-west-1"
-	Host       string             // resolved host portion (without scheme)
-	Port       string             // best-effort, "" when none
+	Category   string // object_storage, smtp, oidc, database, log_shipper, webhook, unknown
+	Provider   string // aws, gcs, azure, minio, generic, ""
+	Region     string // best-effort, e.g. "eu-west-1"
+	Host       string // resolved host portion (without scheme)
+	Port       string // best-effort, "" when none
 	Confidence Confidence
-	Rule       string             // identifier of the rule that matched (e.g. "aws_s3_region_host")
+	Rule       string // identifier of the rule that matched (e.g. "aws_s3_region_host")
 	Dimension  models.DimensionHint
 }
 

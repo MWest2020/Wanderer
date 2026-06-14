@@ -76,9 +76,9 @@ type rdapDoc struct {
 }
 
 type rdapEntity struct {
-	Roles      []string   `json:"roles"`
-	VCardArray []any      `json:"vcardArray"`
-	Names      []string   `json:"names,omitempty"`
+	Roles      []string `json:"roles"`
+	VCardArray []any    `json:"vcardArray"`
+	Names      []string `json:"names,omitempty"`
 }
 
 // parse extracts registrant and registrar information. The vcardArray

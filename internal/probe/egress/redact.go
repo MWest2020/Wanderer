@@ -21,11 +21,11 @@ var secretKeyNameRE = regexp.MustCompile(`(?i)(api[_-]?key|secret|password|passw
 // secretValueREs matches values that are identifiable as secrets by
 // shape regardless of the key name they appeared under.
 var secretValueREs = []*regexp.Regexp{
-	regexp.MustCompile(`AKIA[0-9A-Z]{16}`),                              // AWS access key
-	regexp.MustCompile(`xox[baprs]-[A-Za-z0-9-]{10,}`),                  // Slack token
-	regexp.MustCompile(`gh[opusr]_[A-Za-z0-9]{20,}`),                    // GitHub PAT family
-	regexp.MustCompile(`AIza[0-9A-Za-z_\-]{35}`),                        // Google API key
-	regexp.MustCompile(`-----BEGIN [A-Z ]*PRIVATE KEY-----`),            // PEM private key block
+	regexp.MustCompile(`AKIA[0-9A-Z]{16}`),                                        // AWS access key
+	regexp.MustCompile(`xox[baprs]-[A-Za-z0-9-]{10,}`),                            // Slack token
+	regexp.MustCompile(`gh[opusr]_[A-Za-z0-9]{20,}`),                              // GitHub PAT family
+	regexp.MustCompile(`AIza[0-9A-Za-z_\-]{35}`),                                  // Google API key
+	regexp.MustCompile(`-----BEGIN [A-Z ]*PRIVATE KEY-----`),                      // PEM private key block
 	regexp.MustCompile(`eyJ[A-Za-z0-9_\-]+\.eyJ[A-Za-z0-9_\-]+\.[A-Za-z0-9_\-]+`), // JWT
 }
 

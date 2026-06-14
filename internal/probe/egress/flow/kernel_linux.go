@@ -36,9 +36,9 @@ type kernelEvent struct {
 // `syscalls/sys_enter_connect` tracepoint, and reads kernel events
 // from a perf ring buffer until Close() is called.
 type KernelSource struct {
-	objs    ConnectObjects
-	tp      link.Link
-	reader  *perf.Reader
+	objs   ConnectObjects
+	tp     link.Link
+	reader *perf.Reader
 }
 
 // NewKernelSource boots the eBPF program. The caller is responsible

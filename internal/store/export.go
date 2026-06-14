@@ -112,14 +112,14 @@ func (it *FindingsIter) Close() error { return it.rows.Close() }
 // joins scans to targets so the domain is available without a second
 // query per row.
 type ScanRow struct {
-	ID            string
-	TargetID      string
-	Domain        string
-	StartedAt     time.Time
-	EndedAt       sql.NullTime
-	Status        string
-	Error         string
-	FindingCount  int
+	ID           string
+	TargetID     string
+	Domain       string
+	StartedAt    time.Time
+	EndedAt      sql.NullTime
+	Status       string
+	Error        string
+	FindingCount int
 }
 
 // ListScans streams a flat row per scan matching sel.

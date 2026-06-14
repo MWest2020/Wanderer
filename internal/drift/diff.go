@@ -61,8 +61,8 @@ func baselineFinding(curr *models.Scan) models.Finding {
 		Subject:  scanSubject(curr),
 		Severity: models.SeverityInfo,
 		Attributes: map[string]any{
-			"source_modus":  SourceModusDrift,
-			"curr_scan_id":  curr.ID,
+			"source_modus": SourceModusDrift,
+			"curr_scan_id": curr.ID,
 		},
 	}
 }

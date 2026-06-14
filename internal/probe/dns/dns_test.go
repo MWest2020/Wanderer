@@ -6,18 +6,18 @@ import (
 	"net"
 	"testing"
 
-	dnsprobe "github.com/MWest2020/wanderer/internal/probe/dns"
 	"github.com/MWest2020/wanderer/internal/probe"
+	dnsprobe "github.com/MWest2020/wanderer/internal/probe/dns"
 	"github.com/MWest2020/wanderer/pkg/models"
 )
 
 type fakeResolver struct {
-	hosts  []string
-	mx     []*net.MX
-	ns     []*net.NS
-	cname  string
-	txt    map[string][]string
-	caa    []dnsprobe.CAA
+	hosts    []string
+	mx       []*net.MX
+	ns       []*net.NS
+	cname    string
+	txt      map[string][]string
+	caa      []dnsprobe.CAA
 	hostsErr error
 }
 

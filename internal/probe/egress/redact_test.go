@@ -31,12 +31,12 @@ func TestApply_SecretKeyName(t *testing.T) {
 
 func TestApply_TokenShapes(t *testing.T) {
 	cases := []string{
-		"AKIAABCDEFGHIJKLMNOP",                                // AWS
-		"xoxb-12345-67890-abcdef",                             // Slack bot
-		"ghp_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",            // GitHub
-		"AIzaSyBzDDDDD123456789DDDDDDDDDDDDDDDDDDDDD",         // Google API key (40 chars after AIza)
-		"-----BEGIN RSA PRIVATE KEY-----",                     // PEM
-		"eyJhbGciOi.eyJpYXQiOi.signaturepart",                  // JWT shape
+		"AKIAABCDEFGHIJKLMNOP",                        // AWS
+		"xoxb-12345-67890-abcdef",                     // Slack bot
+		"ghp_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",    // GitHub
+		"AIzaSyBzDDDDD123456789DDDDDDDDDDDDDDDDDDDDD", // Google API key (40 chars after AIza)
+		"-----BEGIN RSA PRIVATE KEY-----",             // PEM
+		"eyJhbGciOi.eyJpYXQiOi.signaturepart",         // JWT shape
 	}
 	for _, v := range cases {
 		got, changed := Apply("plain_field", v)

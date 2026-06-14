@@ -12,18 +12,18 @@ func TestIsPrivateOrMetadata(t *testing.T) {
 		ip   string
 		want bool
 	}{
-		{"127.0.0.1", true},          // loopback
-		{"10.1.2.3", true},           // RFC1918
-		{"172.20.4.5", true},         // RFC1918
-		{"192.168.1.1", true},        // RFC1918
-		{"100.64.0.5", true},         // CGNAT
-		{"169.254.169.254", true},    // AWS/GCP metadata
-		{"::1", true},                // IPv6 loopback
-		{"fd00::1", true},            // IPv6 ULA
-		{"fe80::1", true},            // IPv6 link-local
-		{"fd00:ec2::254", true},      // AWS IMDSv2 IPv6 metadata
-		{"8.8.8.8", false},           // public
-		{"1.1.1.1", false},           // public
+		{"127.0.0.1", true},             // loopback
+		{"10.1.2.3", true},              // RFC1918
+		{"172.20.4.5", true},            // RFC1918
+		{"192.168.1.1", true},           // RFC1918
+		{"100.64.0.5", true},            // CGNAT
+		{"169.254.169.254", true},       // AWS/GCP metadata
+		{"::1", true},                   // IPv6 loopback
+		{"fd00::1", true},               // IPv6 ULA
+		{"fe80::1", true},               // IPv6 link-local
+		{"fd00:ec2::254", true},         // AWS IMDSv2 IPv6 metadata
+		{"8.8.8.8", false},              // public
+		{"1.1.1.1", false},              // public
 		{"2606:4700:4700::1111", false}, // public IPv6
 	}
 	for _, c := range cases {

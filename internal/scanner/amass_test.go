@@ -66,4 +66,3 @@ func TestLoadAmassFQDNs_MissingFileIsError(t *testing.T) {
 		t.Errorf("missing file should error")
 	}
 }
-

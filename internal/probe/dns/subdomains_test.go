@@ -23,11 +23,11 @@ func (s *stubResolver) LookupHost(_ context.Context, host string) ([]string, err
 	return nil, errors.New("no such host")
 }
 
-func (s *stubResolver) LookupMX(_ context.Context, _ string) ([]*net.MX, error)   { return nil, nil }
-func (s *stubResolver) LookupNS(_ context.Context, _ string) ([]*net.NS, error)   { return nil, nil }
-func (s *stubResolver) LookupCNAME(_ context.Context, _ string) (string, error)   { return "", nil }
-func (s *stubResolver) LookupTXT(_ context.Context, _ string) ([]string, error)   { return nil, nil }
-func (s *stubResolver) LookupCAA(_ context.Context, _ string) ([]CAA, error)      { return nil, nil }
+func (s *stubResolver) LookupMX(_ context.Context, _ string) ([]*net.MX, error) { return nil, nil }
+func (s *stubResolver) LookupNS(_ context.Context, _ string) ([]*net.NS, error) { return nil, nil }
+func (s *stubResolver) LookupCNAME(_ context.Context, _ string) (string, error) { return "", nil }
+func (s *stubResolver) LookupTXT(_ context.Context, _ string) ([]string, error) { return nil, nil }
+func (s *stubResolver) LookupCAA(_ context.Context, _ string) ([]CAA, error)    { return nil, nil }
 
 func TestSubdomainSweep_Hits(t *testing.T) {
 	res := &stubResolver{hosts: map[string][]string{

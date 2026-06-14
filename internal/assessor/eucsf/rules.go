@@ -217,7 +217,7 @@ func apexJurisdiction() assessor.Rule {
 
 func mxJurisdiction() assessor.Rule {
 	return assessor.Rule{
-		ID:          "eucsf.sov3.mx_jurisdiction",
+		ID: "eucsf.sov3.mx_jurisdiction",
 		Rationale: "SOV-3 covers data flows out of the service. Mail destined for the " +
 			"organisation flows through its `MX` host; an MX in a non-EU AS is a " +
 			"continuous outbound data flow into a foreign jurisdiction. SEAL " +
@@ -290,7 +290,7 @@ func mxJurisdiction() assessor.Rule {
 
 func operationalEU() assessor.Rule {
 	return assessor.Rule{
-		ID:          "eucsf.sov4.operational_eu",
+		ID: "eucsf.sov4.operational_eu",
 		Rationale: "SOV-4 is operational sovereignty: the people and processes that " +
 			"keep the service running. The current evidence approximates this by " +
 			"checking that the operational artefacts the perimeter probes can " +
@@ -358,7 +358,7 @@ func operationalEU() assessor.Rule {
 
 func noUSHyperscaler() assessor.Rule {
 	return assessor.Rule{
-		ID:          "eucsf.sov6.no_us_hyperscaler",
+		ID: "eucsf.sov6.no_us_hyperscaler",
 		Rationale: "SOV-6 mirrors DICTU's hyperscaler rule under the SEAL framing: a " +
 			"service whose apex or third-party traffic flows through a US-" +
 			"headquartered hyperscaler operates within the CLOUD Act's " +

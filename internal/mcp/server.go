@@ -96,12 +96,12 @@ type ResourcePattern struct {
 // Server is the MCP dispatcher. Tools and ResourcePatterns are
 // registered before Run.
 type Server struct {
-	Tools     []Tool
-	Static    []Resource
-	Patterns  []ResourcePattern
-	Logger    *slog.Logger
-	writeMu   sync.Mutex
-	enc       *json.Encoder
+	Tools    []Tool
+	Static   []Resource
+	Patterns []ResourcePattern
+	Logger   *slog.Logger
+	writeMu  sync.Mutex
+	enc      *json.Encoder
 }
 
 // Run consumes JSON-RPC messages from in until EOF, writing replies

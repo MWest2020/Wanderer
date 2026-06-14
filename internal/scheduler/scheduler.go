@@ -28,13 +28,13 @@ func (s *Scheduler) SetDefaultOrganisation(slug string) {
 // scanner. Lifecycle: New → Reload → Start → (SIGHUP → Reload) → Stop.
 type Scheduler struct {
 	defaultOrgSlug string
-	store   *store.Store
-	scanner *scanner.Scanner
-	logger  *slog.Logger
+	store          *store.Store
+	scanner        *scanner.Scanner
+	logger         *slog.Logger
 
-	mu      sync.Mutex
-	cron    *cron.Cron
-	loaded  []Schedule
+	mu     sync.Mutex
+	cron   *cron.Cron
+	loaded []Schedule
 }
 
 // New constructs a Scheduler bound to a store and scanner.

@@ -55,7 +55,7 @@ func TestPostureCounts_BucketsByFrameworkAndScore(t *testing.T) {
 			"wand": {Dimensions: []models.DimensionScore{{Score: models.ScoreAfhankelijk}}},
 		}},
 		{TargetID: "t3", Assessments: map[string]models.Assessment{
-			"wand": {Dimensions: []models.DimensionScore{{Score: models.ScoreOnbekend}}},
+			"wand":  {Dimensions: []models.DimensionScore{{Score: models.ScoreOnbekend}}},
 			"eucsf": {Dimensions: []models.DimensionScore{{Score: models.ScoreSoeverein}}},
 		}},
 	}
@@ -293,11 +293,11 @@ func TestPostureCountsByKind_FiltersCorrectly(t *testing.T) {
 // snap is a tiny helper for the reporting tests below.
 func snap(targetID, domain string, fw string, dimRationales ...models.Rationale) TargetSnapshot {
 	return TargetSnapshot{
-		TargetID:    targetID,
-		Domain:      domain,
-		Kind:        models.TargetKindDomain,
-		LastScanID:  "scan-" + targetID,
-		LastScanAt:  time.Now(),
+		TargetID:   targetID,
+		Domain:     domain,
+		Kind:       models.TargetKindDomain,
+		LastScanID: "scan-" + targetID,
+		LastScanAt: time.Now(),
 		Assessments: map[string]models.Assessment{
 			fw: {
 				Framework: fw,

@@ -552,7 +552,7 @@ func TestDashboard_Org_PerOrgPageRebadgesHeadline(t *testing.T) {
 	body, _ := io.ReadAll(resp.Body)
 	bodyStr := string(body)
 	for _, want := range []string{
-		"ACME B.V.",      // headline rebadged
+		"ACME B.V.",         // headline rebadged
 		"all organisations", // back-link to instance-wide
 	} {
 		if !strings.Contains(bodyStr, want) {

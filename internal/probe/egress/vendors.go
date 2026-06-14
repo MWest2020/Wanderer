@@ -19,11 +19,11 @@ var defaultVendorsYAML []byte
 // new log shippers, webhook endpoints, or object-storage hosts can
 // land without a rebuild.
 type Vendors struct {
-	LogShippers      []VendorEntry        `yaml:"log_shippers"`
-	LogShipperKeyRE  string               `yaml:"log_shipper_key_regex"`
-	Webhooks         []VendorEntry        `yaml:"webhooks"`
-	WebhookKeyRE     string               `yaml:"webhook_key_regex"`
-	ObjectStorage    ObjectStorageVendors `yaml:"object_storage"`
+	LogShippers     []VendorEntry        `yaml:"log_shippers"`
+	LogShipperKeyRE string               `yaml:"log_shipper_key_regex"`
+	Webhooks        []VendorEntry        `yaml:"webhooks"`
+	WebhookKeyRE    string               `yaml:"webhook_key_regex"`
+	ObjectStorage   ObjectStorageVendors `yaml:"object_storage"`
 }
 
 // VendorEntry is one host-based classifier rule. Both fields are

@@ -56,9 +56,9 @@ func (p *Probe) subdomainSweep(ctx context.Context, domain string) []models.Find
 			Subject:  domain,
 			Severity: models.SeverityInfo,
 			Attributes: map[string]any{
-				"source":   "prefix_probe",
+				"source":    "prefix_probe",
 				"hit_count": len(hits),
-				"ips":      hits[0].ips,
+				"ips":       hits[0].ips,
 			},
 		}}
 	}

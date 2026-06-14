@@ -56,8 +56,8 @@ type stubInspector struct {
 	findings []models.Finding
 }
 
-func (stubInspector) ID() string                                     { return "stub" }
-func (stubInspector) Available() (bool, string)                      { return true, "" }
+func (stubInspector) ID() string                { return "stub" }
+func (stubInspector) Available() (bool, string) { return true, "" }
 func (s stubInspector) Inspect(_ context.Context) ([]models.Finding, error) {
 	return s.findings, nil
 }
