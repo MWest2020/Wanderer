@@ -161,3 +161,40 @@ func TestParse_EmptyOIDCBlockIsDisabled(t *testing.T) {
 		t.Error("empty config should leave OIDC disabled")
 	}
 }
+
+func TestParse_NextcloudBlock(t *testing.T) {
+	yamlBody := `
+nextcloud:
+  enabled: true
+  url: https://cloud.example.nl
+  username: wanderer-bot
+  app_password_file: /etc/wanderer/nc.token
+  target_dir: Wanderer
+`
+	c, err := serveconfig.Parse([]byte(yamlBody))
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	if !c.Nextcloud.Enabled {
+		t.Fatal("Nextcloud.Enabled = false, want true")
+	}
+	if c.Nextcloud.Username != "wanderer-bot" || c.Nextcloud.TargetDir != "Wanderer" {
+		t.Errorf("unexpected nextcloud block: %+v", c.Nextcloud)
+	}
+}
+
+func TestParse_PartialNextcloudBlockIsRejected(t *testing.T) {
+	// enabled: true but url missing — a config mistake caught at startup.
+	yamlBody := `
+nextcloud:
+  enabled: true
+  username: wanderer-bot
+`
+	_, err := serveconfig.Parse([]byte(yamlBody))
+	if err == nil {
+		t.Fatal("partial nextcloud block must fail validation")
+	}
+	if !strings.Contains(err.Error(), "nextcloud.url") {
+		t.Errorf("error should name the missing field, got: %v", err)
+	}
+}

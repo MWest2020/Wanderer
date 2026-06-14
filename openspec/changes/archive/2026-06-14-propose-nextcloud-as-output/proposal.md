@@ -1,10 +1,10 @@
 # Proposal: Nextcloud as output — publish Wanderer artefacts INTO Nextcloud
 
-> **Status:** Design pass — awaiting Mark's scope call.
-> Direction (2) of the four-direction Nextcloud integration
-> proposal (direction 1, "Nextcloud as target", is shipped).
-> No code lands until Mark picks a publication surface (the
-> three options in Q1 below).
+> **Status:** Accepted + implemented (2026-06-14). Direction (2)
+> of the four-direction Nextcloud integration proposal. All four
+> open questions resolved as recommended (WebDAV file drop, push,
+> JSON-LD + Markdown, app password); see tasks.md. Talk + Deck
+> adapters remain future opt-in surfaces.
 
 ## Intent
 

@@ -1,6 +1,7 @@
 # Delta for exporters
 
-> Held active until Mark picks Q1.
+> Accepted 2026-06-14 — implemented and ready to archive into the
+> canonical exporters spec.
 
 ## ADDED Requirements
 

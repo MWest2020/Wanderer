@@ -7,6 +7,7 @@ package serveconfig
 
 import (
 	"fmt"
+	"net/url"
 	"os"
 	"time"
 
@@ -23,6 +24,7 @@ type Config struct {
 	GeoIP     GeoIP       `yaml:"geoip,omitempty"`
 	UI        UI          `yaml:"ui,omitempty"`
 	OIDC      OIDC        `yaml:"oidc,omitempty"`
+	Nextcloud Nextcloud   `yaml:"nextcloud,omitempty"`
 	Schedules string      `yaml:"schedules,omitempty"`
 	Scan      ScanSection `yaml:"scan,omitempty"`
 }
@@ -70,6 +72,19 @@ type OIDC struct {
 // ProviderURL is the load-bearing field; the rest is validated by
 // the oidc package when the authenticator is built.
 func (o OIDC) Enabled() bool { return o.ProviderURL != "" }
+
+// Nextcloud configures the opt-in WebDAV file-drop exporter that
+// publishes each completed scan into a Nextcloud instance. The app
+// password lives in a file (AppPasswordFile), never in YAML.
+type Nextcloud struct {
+	Enabled         bool   `yaml:"enabled,omitempty"`
+	URL             string `yaml:"url,omitempty"`
+	Username        string `yaml:"username,omitempty"`
+	AppPasswordFile string `yaml:"app_password_file,omitempty"`
+	// TargetDir is relative to the bot user's Files root; defaults
+	// to "Wanderer" when empty.
+	TargetDir string `yaml:"target_dir,omitempty"`
+}
 
 // ScanSection mirrors the scan-tunable flags that apply to every
 // scan dispatched through `wanderer serve`.
@@ -127,6 +142,20 @@ func (c *Config) Validate() error {
 		}
 		if c.OIDC.RedirectURL == "" {
 			return fmt.Errorf("serveconfig: oidc.redirect_url is required when oidc.provider_url is set")
+		}
+	}
+	if c.Nextcloud.Enabled {
+		if c.Nextcloud.URL == "" {
+			return fmt.Errorf("serveconfig: nextcloud.url is required when nextcloud.enabled is true")
+		}
+		if u, err := url.Parse(c.Nextcloud.URL); err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" {
+			return fmt.Errorf("serveconfig: nextcloud.url must be an absolute http(s) URL, got %q", c.Nextcloud.URL)
+		}
+		if c.Nextcloud.Username == "" {
+			return fmt.Errorf("serveconfig: nextcloud.username is required when nextcloud.enabled is true")
+		}
+		if c.Nextcloud.AppPasswordFile == "" {
+			return fmt.Errorf("serveconfig: nextcloud.app_password_file is required when nextcloud.enabled is true")
 		}
 	}
 	return nil

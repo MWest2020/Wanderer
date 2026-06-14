@@ -16,6 +16,7 @@ import (
 
 	"github.com/MWest2020/wanderer/internal/api"
 	"github.com/MWest2020/wanderer/internal/auth/oidc"
+	"github.com/MWest2020/wanderer/internal/export/nextcloud"
 	"github.com/MWest2020/wanderer/internal/probe"
 	"github.com/MWest2020/wanderer/internal/scanner"
 	"github.com/MWest2020/wanderer/internal/scheduler"
@@ -104,6 +105,20 @@ func runServe(args []string) int {
 	sc := scanner.New(st, probes, probe.Config{PerProbeTimeout: probeTO, UserAgent: userAgent, AllowPrivateTargets: allowPrivateTargets})
 	sc.Logger = logger
 	sc.GlobalBudget = budget
+
+	// Optional Nextcloud WebDAV publisher (opt-in via the nextcloud:
+	// block). Wired as the scanner's post-scan hook so every completed
+	// scan drops a JSON-LD + Markdown bundle into the customer's
+	// Nextcloud; a publish failure never fails the scan.
+	if cfg != nil && cfg.Nextcloud.Enabled {
+		pub, err := buildNextcloudPublisher(st, cfg, logger)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "wanderer: nextcloud: %v\n", err)
+			return 1
+		}
+		sc.Publisher = pub
+		logger.Info("nextcloud.publisher.enabled", "url", cfg.Nextcloud.URL)
+	}
 
 	// Schedules: load and validate before listening so a bad cron
 	// expression fails the process at startup, not silently.
@@ -294,6 +309,26 @@ func cfgOrganisation(c *serveconfig.Config) string {
 // means the operator never opted in.
 func oidcEnabled(c *serveconfig.Config) bool {
 	return c != nil && c.OIDC.Enabled()
+}
+
+// buildNextcloudPublisher reads the app password from disk and
+// constructs the WebDAV publisher. TargetDir defaults to "Wanderer".
+func buildNextcloudPublisher(st *store.Store, c *serveconfig.Config, logger *slog.Logger) (*nextcloud.Publisher, error) {
+	pw, err := os.ReadFile(c.Nextcloud.AppPasswordFile)
+	if err != nil {
+		return nil, fmt.Errorf("read app_password_file: %w", err)
+	}
+	targetDir := c.Nextcloud.TargetDir
+	if targetDir == "" {
+		targetDir = "Wanderer"
+	}
+	client := nextcloud.NewClient(nextcloud.Config{
+		URL:         c.Nextcloud.URL,
+		Username:    c.Nextcloud.Username,
+		AppPassword: strings.TrimSpace(string(pw)),
+		TargetDir:   targetDir,
+	})
+	return nextcloud.NewPublisher(st, client, logger), nil
 }
 
 // buildOIDC reads the client secret from disk (mirroring the

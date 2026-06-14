@@ -27,6 +27,16 @@ const (
 	DefaultPerProbeTimeout = 30 * time.Second
 )
 
+// Publisher is the optional post-scan hook: a completed, persisted
+// scan's artefacts are handed off to an external sink (e.g. the
+// Nextcloud WebDAV exporter). Implementations MUST NOT block scan
+// completion or surface errors — the scan is already persisted when
+// Publish is called, so a publish failure is the publisher's own
+// concern to log. Nil disables the hook.
+type Publisher interface {
+	Publish(scanID string)
+}
+
 // Scanner runs the configured probes against a target.
 type Scanner struct {
 	Store  *store.Store
@@ -35,6 +45,10 @@ type Scanner struct {
 	Logger *slog.Logger
 
 	GlobalBudget time.Duration
+
+	// Publisher, when set, receives each completed scan's ID after
+	// the scan is persisted. Opt-in via serve.yaml's nextcloud: block.
+	Publisher Publisher
 }
 
 // New returns a scanner with sensible defaults. Callers MUST provide a
@@ -125,6 +139,13 @@ func (s *Scanner) Scan(ctx context.Context, target models.Target) (*models.Scan,
 	scan.Error = scanErr
 
 	logger.Info("scan.end", "status", status, "findings", len(scan.Findings))
+
+	// Post-scan publication hook. Runs after the scan is fully
+	// persisted, so a publish failure never changes the scan's
+	// recorded status; the publisher owns its own timeout + logging.
+	if s.Publisher != nil {
+		s.Publisher.Publish(scan.ID)
+	}
 	return scan, nil
 }
 

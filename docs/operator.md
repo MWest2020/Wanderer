@@ -58,6 +58,13 @@ oidc:                  # optional — Nextcloud (or any OIDC IdP) login for /ui/
   # revalidate_interval: 0s                        # 0 = check the IdP every request
   # cookie_secure:     true                         # set false only for local http
 
+nextcloud:             # optional — publish each completed scan into Nextcloud
+  enabled:           true
+  url:               "https://cloud.example.nl"
+  username:          "wanderer-bot"
+  app_password_file: "/etc/wanderer/nc.token"
+  target_dir:        "Wanderer"      # relative to the bot user's Files root
+
 schedules: "/etc/wanderer/schedules.yaml"
 
 scan:
@@ -259,6 +266,45 @@ How it behaves:
 Scope of the first wave: authentication only (any user the IdP
 knows can browse the read-only UI; group-based authorisation is a
 later wave), and a single OIDC provider per Wanderer instance.
+
+### Publish scans into Nextcloud (WebDAV)
+
+With the `nextcloud:` block enabled, every completed scan drops a
+JSON-LD + Markdown bundle into a Nextcloud directory over WebDAV —
+so a scheduled scan becomes a shareable artefact in the customer's
+Nextcloud without the screenshot-and-paste step.
+
+Setup on the Nextcloud side:
+
+1. Create a bot user (e.g. `wanderer-bot`).
+2. Generate an **app password** for it (Settings → Security →
+   "Create new app password"). Put the token in the file named by
+   `app_password_file`, readable only by the Wanderer process user.
+3. Pick a `target_dir` relative to that user's Files root (default
+   `Wanderer`). Share that folder with whoever should see the
+   verdicts.
+
+What lands, per scan:
+
+- `<target_dir>/<org-slug>/<scan-id>.jsonld` — machine-readable
+  (Findings + any Assessment), durable and diffable.
+- `<target_dir>/<org-slug>/<scan-id>.md` — human-readable summary
+  that opens in Nextcloud's text app.
+
+Behaviour and guarantees:
+
+- **Push, opt-in, one-way.** Wanderer pushes after each scan; the
+  Nextcloud side stays passive. Nothing is read back.
+- **Never blocks a scan.** Publication runs after the scan is
+  persisted, with a bounded timeout and a few retries. On failure
+  it emits a `wanderer.nextcloud.publish.error` log and the scan is
+  still recorded `complete` — the operator UI stays authoritative.
+- **Redacted before it leaves the host.** Every Finding attribute
+  goes through the ADR-0008 egress redaction (API keys, tokens,
+  private-key blocks, URL credentials) and raw Evidence is dropped,
+  so a published bundle carries observations, not secrets.
+- **Auth is an app password over HTTP Basic** — no Nextcloud app to
+  install, no OAuth token-refresh dance.
 
 ### MCP
 
