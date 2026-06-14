@@ -101,3 +101,63 @@ func TestLoad_MissingFileIsHardError(t *testing.T) {
 		t.Errorf("error should name the missing path, got: %v", err)
 	}
 }
+
+func TestParse_OIDCBlock(t *testing.T) {
+	yamlBody := `
+ui:
+  enabled: true
+oidc:
+  provider_url: https://cloud.example.nl
+  client_id: wanderer
+  client_secret_file: /etc/wanderer/oidc-secret
+  redirect_url: https://wanderer.example.nl/ui/oauth/callback
+  scopes: [openid, profile, email, groups]
+  session_ttl: 8h
+  revalidate_interval: 1m
+`
+	c, err := serveconfig.Parse([]byte(yamlBody))
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	if !c.OIDC.Enabled() {
+		t.Fatal("OIDC.Enabled() = false, want true")
+	}
+	if c.OIDC.ClientID != "wanderer" {
+		t.Errorf("ClientID = %q", c.OIDC.ClientID)
+	}
+	if c.OIDC.SessionTTL != 8*time.Hour {
+		t.Errorf("SessionTTL = %s", c.OIDC.SessionTTL)
+	}
+	if c.OIDC.RevalidateInterval != time.Minute {
+		t.Errorf("RevalidateInterval = %s", c.OIDC.RevalidateInterval)
+	}
+	if len(c.OIDC.Scopes) != 4 {
+		t.Errorf("Scopes = %v", c.OIDC.Scopes)
+	}
+}
+
+func TestParse_PartialOIDCBlockIsRejected(t *testing.T) {
+	// provider_url set but the rest missing — a config mistake we
+	// catch at startup rather than at first login.
+	yamlBody := `
+oidc:
+  provider_url: https://cloud.example.nl
+`
+	_, err := serveconfig.Parse([]byte(yamlBody))
+	if err == nil {
+		t.Fatal("partial oidc block must fail validation")
+	}
+	if !strings.Contains(err.Error(), "client_id") {
+		t.Errorf("error should name the missing field, got: %v", err)
+	}
+}
+
+func TestParse_EmptyOIDCBlockIsDisabled(t *testing.T) {
+	c, err := serveconfig.Parse([]byte("{}"))
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	if c.OIDC.Enabled() {
+		t.Error("empty config should leave OIDC disabled")
+	}
+}

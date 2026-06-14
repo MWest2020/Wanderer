@@ -48,7 +48,7 @@ func seed(t *testing.T, st *store.Store) (targetID, scanID string) {
 func newServer(t *testing.T, htpasswd string) (*httptest.Server, *store.Store) {
 	t.Helper()
 	st := newTestStore(t)
-	h, err := ui.Handler(st, htpasswd)
+	h, err := ui.Handler(st, ui.Options{HtpasswdPath: htpasswd})
 	if err != nil {
 		t.Fatalf("handler: %v", err)
 	}

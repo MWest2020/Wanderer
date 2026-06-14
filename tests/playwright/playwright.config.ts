@@ -18,6 +18,7 @@ import { defineConfig, devices } from "@playwright/test";
 const baselinePort = "8281";
 const agentHostPort = "8282";
 const emptyOrgPort = "8283";
+const oidcPort = "8284";
 
 const fixtureDir = "./fixtures";
 const wandererBin = "../../bin/wanderer";
@@ -29,6 +30,13 @@ function serve(port: string, db: string): string {
     `-db ${fixtureDir}/${db} ` +
     "-ui -no-geoip"
   );
+}
+
+// serveOIDC adds a --config carrying the oidc block. The provider
+// is unreachable on purpose: discovery is lazy, so the server boots
+// and the unauthenticated-redirect test never contacts it.
+function serveOIDC(port: string, db: string): string {
+  return serve(port, db) + ` -config ${fixtureDir}/oidc-serve.yaml`;
 }
 
 export default defineConfig({
@@ -71,6 +79,14 @@ export default defineConfig({
         baseURL: `http://127.0.0.1:${emptyOrgPort}`,
       },
     },
+    {
+      name: "oidc",
+      testMatch: ["oidc-login.spec.ts"],
+      use: {
+        ...devices["Desktop Chrome"],
+        baseURL: `http://127.0.0.1:${oidcPort}`,
+      },
+    },
   ],
   webServer: [
     {
@@ -92,6 +108,14 @@ export default defineConfig({
     {
       command: serve(emptyOrgPort, "empty-org.db"),
       url: `http://127.0.0.1:${emptyOrgPort}/healthz`,
+      reuseExistingServer: false,
+      stdout: "pipe",
+      stderr: "pipe",
+      timeout: 30_000,
+    },
+    {
+      command: serveOIDC(oidcPort, "oidc.db"),
+      url: `http://127.0.0.1:${oidcPort}/healthz`,
       reuseExistingServer: false,
       stdout: "pipe",
       stderr: "pipe",

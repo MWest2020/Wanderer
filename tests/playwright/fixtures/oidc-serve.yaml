@@ -1,0 +1,12 @@
+# Playwright fixture: a wanderer serve instance with OIDC enabled
+# but pointed at an unreachable provider. Discovery is lazy, so the
+# server starts fine and the unauthenticated-redirect test never
+# contacts the provider. addr / db / -ui come from the command-line
+# flags in playwright.config.ts; this file carries only the oidc
+# block.
+oidc:
+  provider_url: http://127.0.0.1:9/unreachable
+  client_id: wanderer-playwright
+  client_secret_file: ./fixtures/oidc-client-secret
+  redirect_url: http://127.0.0.1:8284/ui/oauth/callback
+  cookie_secure: false

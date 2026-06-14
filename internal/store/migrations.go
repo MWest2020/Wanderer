@@ -149,6 +149,37 @@ ALTER TABLE targets ADD COLUMN organisation_id TEXT NOT NULL DEFAULT 'o_default'
 CREATE INDEX idx_targets_organisation_id ON targets(organisation_id);
 `,
 	},
+	{
+		Version: 6,
+		Name:    "add_ui_sessions",
+		Up: `-- Server-side session table for the OIDC login flow on
+-- wanderer serve --ui (propose-nextcloud-as-oidc). A row exists
+-- only while an operator has an active browser session; the
+-- opaque cookie value is the primary key. The table is created
+-- unconditionally so the schema is uniform across builds, but it
+-- stays empty unless the operator configures an oidc: block.
+--
+-- access_token / refresh_token are persisted so the gate can
+-- revalidate the session against Nextcloud's userinfo endpoint
+-- on each request (and refresh an expired access token). A
+-- Nextcloud-side disable revokes the tokens, so the next
+-- revalidation fails and the session is deleted.
+CREATE TABLE ui_sessions (
+    id                TEXT PRIMARY KEY,
+    subject           TEXT NOT NULL,
+    email             TEXT NOT NULL DEFAULT '',
+    name              TEXT NOT NULL DEFAULT '',
+    access_token      TEXT NOT NULL DEFAULT '',
+    refresh_token     TEXT NOT NULL DEFAULT '',
+    token_expiry      DATETIME,
+    last_validated_at DATETIME NOT NULL,
+    expires_at        DATETIME NOT NULL,
+    created_at        DATETIME NOT NULL
+);
+
+CREATE INDEX idx_ui_sessions_expires_at ON ui_sessions(expires_at);
+`,
+	},
 }
 
 // runMigrations applies every migration whose Version is not already

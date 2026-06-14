@@ -10,10 +10,12 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strings"
 	"syscall"
 	"time"
 
 	"github.com/MWest2020/wanderer/internal/api"
+	"github.com/MWest2020/wanderer/internal/auth/oidc"
 	"github.com/MWest2020/wanderer/internal/probe"
 	"github.com/MWest2020/wanderer/internal/scanner"
 	"github.com/MWest2020/wanderer/internal/scheduler"
@@ -125,13 +127,25 @@ func runServe(args []string) int {
 	root := http.NewServeMux()
 	root.Handle("/", api.Router(st, sc, logger))
 	if uiOn {
-		uiHandler, err := ui.Handler(st, htpasswd)
+		uiOpts := ui.Options{HtpasswdPath: htpasswd, MountPrefix: "/ui"}
+		if oidcEnabled(cfg) {
+			auth, err := buildOIDC(cfg)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "wanderer: oidc: %v\n", err)
+				return 1
+			}
+			uiOpts.Auth = auth
+			uiOpts.SessionTTL = cfg.OIDC.SessionTTL
+			uiOpts.RevalidateInterval = cfg.OIDC.RevalidateInterval
+			uiOpts.CookieSecure = cfg.OIDC.CookieSecure == nil || *cfg.OIDC.CookieSecure
+		}
+		uiHandler, err := ui.Handler(st, uiOpts)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "wanderer: ui: %v\n", err)
 			return 1
 		}
 		root.Handle("/ui/", http.StripPrefix("/ui", uiHandler))
-		logger.Info("ui.mounted", "htpasswd", htpasswd != "")
+		logger.Info("ui.mounted", "htpasswd", htpasswd != "", "oidc", uiOpts.Auth != nil)
 	}
 	srv := &http.Server{
 		Addr:              listen,
@@ -273,4 +287,29 @@ func cfgOrganisation(c *serveconfig.Config) string {
 		return ""
 	}
 	return c.Scan.Organisation
+}
+
+// oidcEnabled reports whether a usable oidc: block was loaded. OIDC
+// is YAML-only (no flag surface) so it requires --config; a nil cfg
+// means the operator never opted in.
+func oidcEnabled(c *serveconfig.Config) bool {
+	return c != nil && c.OIDC.Enabled()
+}
+
+// buildOIDC reads the client secret from disk (mirroring the
+// hmac_secret_file convention) and constructs the authenticator.
+// Discovery is deferred, so a provider that is down right now does
+// not stop the server from starting.
+func buildOIDC(c *serveconfig.Config) (*oidc.Authenticator, error) {
+	secret, err := os.ReadFile(c.OIDC.ClientSecretFile)
+	if err != nil {
+		return nil, fmt.Errorf("read client_secret_file: %w", err)
+	}
+	return oidc.New(oidc.Config{
+		ProviderURL:  c.OIDC.ProviderURL,
+		ClientID:     c.OIDC.ClientID,
+		ClientSecret: strings.TrimSpace(string(secret)),
+		RedirectURL:  c.OIDC.RedirectURL,
+		Scopes:       c.OIDC.Scopes,
+	})
 }

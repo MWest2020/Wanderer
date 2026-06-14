@@ -1,9 +1,9 @@
 # Proposal: Nextcloud as OIDC — accept Nextcloud login for wanderer serve
 
-> **Status:** Design pass — awaiting Mark's scope call.
-> Direction (3) of the four-direction Nextcloud integration
-> proposal. No code lands until Mark approves the surface
-> outlined in Q1.
+> **Status:** Accepted + implemented (2026-06-14). Direction (3)
+> of the four-direction Nextcloud integration proposal, picked by
+> Mark over `as-output` and `marketplace-app`. All four open
+> questions resolved as recommended; see ADR-0013 and tasks.md.
 
 ## Intent
 

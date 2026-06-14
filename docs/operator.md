@@ -48,6 +48,16 @@ ui:
   enabled:  true
   htpasswd: "/etc/wanderer/htpasswd"
 
+oidc:                  # optional — Nextcloud (or any OIDC IdP) login for /ui/
+  provider_url:        "https://cloud.example.nl"
+  client_id:           "wanderer"
+  client_secret_file:  "/etc/wanderer/oidc-secret"
+  redirect_url:        "https://wanderer.example.nl/ui/oauth/callback"
+  # scopes:            [openid, profile, email]   # default; override if needed
+  # session_ttl:       12h                         # hard session lifetime
+  # revalidate_interval: 0s                        # 0 = check the IdP every request
+  # cookie_secure:     true                         # set false only for local http
+
 schedules: "/etc/wanderer/schedules.yaml"
 
 scan:
@@ -204,6 +214,46 @@ a drill-in link. Per-organisation dashboards live at
 Reporting) but filtered to that organisation. The Reporting page
 takes an optional `?org=<slug>` query parameter to filter the
 cross-target view.
+
+### Nextcloud login (OIDC)
+
+By default `/ui/` is protected by HTTP Basic against the `htpasswd`
+file. Organisations that already run a self-hosted Nextcloud can
+instead accept Nextcloud as the login provider, so operators sign
+in once at their Nextcloud and a disable there cuts off Wanderer
+access. Configure the `oidc:` block (above) and install the
+Nextcloud **OpenID Connect** (`user_oidc`) app's *provider* side, or
+register Wanderer as an OIDC client in any standards-compliant IdP.
+
+How it behaves:
+
+- **Lazy discovery.** Wanderer does **not** contact the provider at
+  startup — it discovers `.well-known/openid-configuration` on the
+  first login. So `wanderer serve` boots even when Nextcloud is
+  down, and OIDC starts working the moment the provider answers.
+- **Server-side sessions.** A successful login sets an opaque,
+  `HttpOnly` cookie backed by a row in the `ui_sessions` SQLite
+  table. There is no JWT in the cookie and nothing to revoke-list.
+- **Revocation.** On each request past `revalidate_interval`,
+  Wanderer re-checks the session against the provider's `userinfo`
+  endpoint (refreshing the access token first). A Nextcloud-side
+  disable makes that check fail and the session is deleted. The
+  default `0s` revalidates on **every** request — a disable then
+  cuts access on the very next page load, at the cost of one
+  userinfo call per request. Raise it (e.g. `60s`) to trade
+  immediacy for fewer IdP round-trips.
+- **Break-glass with htpasswd.** If both `oidc:` and `htpasswd:`
+  are set, valid HTTP Basic credentials are still accepted. This is
+  the escape hatch for an OIDC outage: when Nextcloud is
+  unreachable, an operator with an htpasswd entry can still reach
+  `/ui/`. Keep at least one htpasswd account for this reason.
+- **The client secret never lives in YAML.** `client_secret_file`
+  points at a file (mirroring `hmac_secret_file` for the agent),
+  readable only by the Wanderer process user.
+
+Scope of the first wave: authentication only (any user the IdP
+knows can browse the read-only UI; group-based authorisation is a
+later wave), and a single OIDC provider per Wanderer instance.
 
 ### MCP
 

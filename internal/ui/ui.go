@@ -28,10 +28,11 @@ import (
 //go:embed templates/*.tmpl static/*
 var assets embed.FS
 
-// Handler builds the chi sub-router for the UI. htpasswdPath may be
-// empty; with an empty path the routes are still mounted but no
-// authentication is required (development mode).
-func Handler(st *store.Store, htpasswdPath string) (http.Handler, error) {
+// Handler builds the chi sub-router for the UI. The Options carry
+// the authentication wiring; the zero Options leaves every route
+// open (development mode). See Options for the htpasswd / OIDC
+// combinations.
+func Handler(st *store.Store, opts Options) (http.Handler, error) {
 	tmpl, err := template.New("ui").Funcs(template.FuncMap{
 		// dict builds a map[string]any from alternating key/value
 		// args so partials can be parameterised in {{template ...}}
@@ -55,12 +56,17 @@ func Handler(st *store.Store, htpasswdPath string) (http.Handler, error) {
 		return nil, fmt.Errorf("ui: parse templates: %w", err)
 	}
 	r := chi.NewRouter()
-	if htpasswdPath != "" {
-		creds, err := LoadHtpasswd(htpasswdPath)
-		if err != nil {
-			return nil, err
+	gate, err := newAuthGate(st, opts)
+	if err != nil {
+		return nil, err
+	}
+	if gate != nil {
+		r.Use(gate.middleware)
+		if gate.auth != nil {
+			r.Get("/login", gate.loginHandler)
+			r.Get("/oauth/callback", gate.callbackHandler)
+			r.Get("/logout", gate.logoutHandler)
 		}
-		r.Use(basicAuthMiddleware(htpasswdPath, creds))
 	}
 	staticFS, err := fs.Sub(assets, "static")
 	if err != nil {
@@ -77,29 +83,6 @@ func Handler(st *store.Store, htpasswdPath string) (http.Handler, error) {
 	r.Get("/reporting", reportingCatalogueHandler(st, tmpl))
 	r.Get("/reporting/{framework}/{ruleID}", reportingRuleHandler(st, tmpl))
 	return r, nil
-}
-
-// basicAuthMiddleware re-reads the htpasswd file on every request
-// so an operator can rotate credentials without restarting the
-// process. Cache hit-rate is fine on the small files this UI
-// targets; if the file disappears we fall back to the in-memory
-// snapshot rather than locking the operator out.
-func basicAuthMiddleware(path string, fallback map[string]string) func(next http.Handler) http.Handler {
-	return func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			user, pass, ok := r.BasicAuth()
-			creds := fallback
-			if fresh, err := LoadHtpasswd(path); err == nil {
-				creds = fresh
-			}
-			if !ok || !verifyAgainst(creds, user, pass) {
-				w.Header().Set("WWW-Authenticate", `Basic realm="wanderer"`)
-				http.Error(w, "unauthorized", http.StatusUnauthorized)
-				return
-			}
-			next.ServeHTTP(w, r)
-		})
-	}
 }
 
 // verifyAgainst returns true when (user, pass) authenticates

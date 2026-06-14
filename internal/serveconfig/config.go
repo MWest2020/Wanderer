@@ -22,6 +22,7 @@ type Config struct {
 	DB        string      `yaml:"db,omitempty"`
 	GeoIP     GeoIP       `yaml:"geoip,omitempty"`
 	UI        UI          `yaml:"ui,omitempty"`
+	OIDC      OIDC        `yaml:"oidc,omitempty"`
 	Schedules string      `yaml:"schedules,omitempty"`
 	Scan      ScanSection `yaml:"scan,omitempty"`
 }
@@ -39,6 +40,36 @@ type UI struct {
 	Enabled  bool   `yaml:"enabled,omitempty"`
 	Htpasswd string `yaml:"htpasswd,omitempty"`
 }
+
+// OIDC configures Nextcloud (or any OIDC provider) as the login
+// for the read-only UI. An empty block leaves OIDC disabled and
+// the UI falls back to htpasswd (or open, in dev mode). The secret
+// itself is never in YAML — ClientSecretFile points at a file
+// mirroring the existing hmac_secret_file convention.
+type OIDC struct {
+	ProviderURL      string `yaml:"provider_url,omitempty"`
+	ClientID         string `yaml:"client_id,omitempty"`
+	ClientSecretFile string `yaml:"client_secret_file,omitempty"`
+	RedirectURL      string `yaml:"redirect_url,omitempty"`
+	// Scopes overrides the default openid/profile/email set.
+	Scopes []string `yaml:"scopes,omitempty"`
+	// SessionTTL is the hard lifetime of a login session
+	// (default 12h when zero).
+	SessionTTL time.Duration `yaml:"session_ttl,omitempty"`
+	// RevalidateInterval bounds how often a live session is
+	// re-checked against the provider's userinfo endpoint. Zero
+	// (the default) revalidates on every request so a Nextcloud
+	// disable cuts access immediately.
+	RevalidateInterval time.Duration `yaml:"revalidate_interval,omitempty"`
+	// CookieSecure sets the Secure flag on the session cookie.
+	// Defaults to true; set false only for local plain-http use.
+	CookieSecure *bool `yaml:"cookie_secure,omitempty"`
+}
+
+// Enabled reports whether the operator filled in the OIDC block.
+// ProviderURL is the load-bearing field; the rest is validated by
+// the oidc package when the authenticator is built.
+func (o OIDC) Enabled() bool { return o.ProviderURL != "" }
 
 // ScanSection mirrors the scan-tunable flags that apply to every
 // scan dispatched through `wanderer serve`.
@@ -82,11 +113,21 @@ func Parse(data []byte) (*Config, error) {
 }
 
 // Validate enforces cross-field invariants beyond what type
-// parsing already gives. Currently the YAML is permissive —
-// every field is optional with a sensible zero — so this is a
-// hook for future invariants (e.g., "geoip.country requires
-// geoip.asn"). Today it is a no-op so an empty config validates
-// cleanly.
+// parsing already gives. Most of the YAML is permissive — every
+// field is optional with a sensible zero — but a partially filled
+// oidc: block is a configuration mistake worth catching at startup
+// rather than at first login.
 func (c *Config) Validate() error {
+	if c.OIDC.Enabled() {
+		if c.OIDC.ClientID == "" {
+			return fmt.Errorf("serveconfig: oidc.client_id is required when oidc.provider_url is set")
+		}
+		if c.OIDC.ClientSecretFile == "" {
+			return fmt.Errorf("serveconfig: oidc.client_secret_file is required when oidc.provider_url is set")
+		}
+		if c.OIDC.RedirectURL == "" {
+			return fmt.Errorf("serveconfig: oidc.redirect_url is required when oidc.provider_url is set")
+		}
+	}
 	return nil
 }
