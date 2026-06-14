@@ -103,6 +103,15 @@ against a mock provider (`oidc_test.go`).
 - The per-request userinfo call at the default `revalidate_interval`
   of `0s` adds one provider round-trip per page load. For a
   low-traffic operator UI this is acceptable; it is tunable.
+- **Revalidation is fail-closed and does not distinguish "account
+  disabled" from "provider unreachable":** any error from the
+  userinfo/refresh round-trip deletes the session. This is the
+  secure default for a sovereignty tool — an IdP outage must not
+  leave a possibly-revoked session alive — but at `0s` it means a
+  transient IdP blip logs every operator out (htpasswd break-glass
+  covers the gap). **Backlog:** if outage-tolerance is wanted later,
+  distinguish a `401`/`invalid_grant` (delete) from a transport
+  error (keep the session, deny this request, retry next time).
 
 **Alternatives considered.**
 

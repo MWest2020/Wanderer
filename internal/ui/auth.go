@@ -3,6 +3,7 @@ package ui
 import (
 	"crypto/rand"
 	"encoding/base64"
+	"fmt"
 	"net/http"
 	"strings"
 	"sync"
@@ -203,8 +204,16 @@ func (g *authGate) hasValidSession(w http.ResponseWriter, r *http.Request) bool 
 // state to the browser with a short-lived cookie, and redirects to
 // the provider's authorize endpoint.
 func (g *authGate) loginHandler(w http.ResponseWriter, r *http.Request) {
-	state := randomToken()
-	nonce := randomToken()
+	state, err := randomToken()
+	if err != nil {
+		http.Error(w, "login unavailable", http.StatusInternalServerError)
+		return
+	}
+	nonce, err := randomToken()
+	if err != nil {
+		http.Error(w, "login unavailable", http.StatusInternalServerError)
+		return
+	}
 	g.putPending(state, nonce)
 	g.setCookie(w, stateCookieName, state, pendingFlowTTL)
 	authURL, err := g.auth.AuthCodeURL(r.Context(), state, nonce)
@@ -246,9 +255,14 @@ func (g *authGate) callbackHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "oidc exchange failed: "+err.Error(), http.StatusBadGateway)
 		return
 	}
+	sessionID, err := randomToken()
+	if err != nil {
+		http.Error(w, "session create failed", http.StatusInternalServerError)
+		return
+	}
 	now := time.Now().UTC()
 	sess := &store.Session{
-		ID:           randomToken(),
+		ID:           sessionID,
 		Subject:      claims.Subject,
 		Email:        claims.Email,
 		Name:         claims.Name,
@@ -334,9 +348,15 @@ func (g *authGate) clearCookie(w http.ResponseWriter, name string) {
 }
 
 // randomToken returns a 256-bit URL-safe random string for state,
-// nonce, and session cookie values.
-func randomToken() string {
+// nonce, and session cookie values. A crypto/rand failure is
+// surfaced rather than swallowed: silently returning an all-zero
+// (predictable) token would defeat the CSRF state, the nonce, and
+// the session identifier all at once, so callers must fail the
+// request instead.
+func randomToken() (string, error) {
 	b := make([]byte, 32)
-	_, _ = rand.Read(b)
-	return base64.RawURLEncoding.EncodeToString(b)
+	if _, err := rand.Read(b); err != nil {
+		return "", fmt.Errorf("ui: read random token: %w", err)
+	}
+	return base64.RawURLEncoding.EncodeToString(b), nil
 }

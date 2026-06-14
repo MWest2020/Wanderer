@@ -241,7 +241,12 @@ How it behaves:
   default `0s` revalidates on **every** request — a disable then
   cuts access on the very next page load, at the cost of one
   userinfo call per request. Raise it (e.g. `60s`) to trade
-  immediacy for fewer IdP round-trips.
+  immediacy for fewer IdP round-trips. Note that `0s` also couples
+  session *survival* to IdP uptime: while Nextcloud is unreachable,
+  revalidation fails closed and live sessions are dropped — by
+  design (fail-closed revocation), with the htpasswd break-glass as
+  the escape hatch. A small non-zero interval rides out brief IdP
+  blips without logging everyone out.
 - **Break-glass with htpasswd.** If both `oidc:` and `htpasswd:`
   are set, valid HTTP Basic credentials are still accepted. This is
   the escape hatch for an OIDC outage: when Nextcloud is
