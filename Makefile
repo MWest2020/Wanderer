@@ -61,6 +61,7 @@ playwright-fixture:
 	go run ./internal/fixtures/main --scenario agent-host --out $(PLAYWRIGHT_FIXTURE_DIR)/agent-host.db
 	go run ./internal/fixtures/main --scenario empty-org  --out $(PLAYWRIGHT_FIXTURE_DIR)/empty-org.db
 	go run ./internal/fixtures/main --scenario baseline   --out $(PLAYWRIGHT_FIXTURE_DIR)/oidc.db
+	go run ./internal/fixtures/main --scenario baseline   --out $(PLAYWRIGHT_FIXTURE_DIR)/scan.db
 
 # playwright runs the spec set against the hermetic fixture DBs.
 # The build + fixture targets are prerequisites so a

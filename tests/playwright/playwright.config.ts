@@ -19,6 +19,7 @@ const baselinePort = "8281";
 const agentHostPort = "8282";
 const emptyOrgPort = "8283";
 const oidcPort = "8284";
+const scanDevPort = "8285";
 
 const fixtureDir = "./fixtures";
 const wandererBin = "../../bin/wanderer";
@@ -87,6 +88,14 @@ export default defineConfig({
         baseURL: `http://127.0.0.1:${oidcPort}`,
       },
     },
+    {
+      name: "scan-dev",
+      testMatch: ["ui-dev-scan.spec.ts"],
+      use: {
+        ...devices["Desktop Chrome"],
+        baseURL: `http://127.0.0.1:${scanDevPort}`,
+      },
+    },
   ],
   webServer: [
     {
@@ -116,6 +125,14 @@ export default defineConfig({
     {
       command: serveOIDC(oidcPort, "oidc.db"),
       url: `http://127.0.0.1:${oidcPort}/healthz`,
+      reuseExistingServer: false,
+      stdout: "pipe",
+      stderr: "pipe",
+      timeout: 30_000,
+    },
+    {
+      command: serve(scanDevPort, "scan.db") + " -ui-allow-scan",
+      url: `http://127.0.0.1:${scanDevPort}/healthz`,
       reuseExistingServer: false,
       stdout: "pipe",
       stderr: "pipe",

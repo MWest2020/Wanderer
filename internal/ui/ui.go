@@ -19,6 +19,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/MWest2020/wanderer/internal/assessor"
+	"github.com/MWest2020/wanderer/internal/assessor/wand"
 	"github.com/MWest2020/wanderer/internal/store"
 	"github.com/MWest2020/wanderer/pkg/models"
 
@@ -73,8 +75,15 @@ func Handler(st *store.Store, opts Options) (http.Handler, error) {
 		return nil, err
 	}
 	r.Handle("/static/*", http.StripPrefix("/static/", http.FileServer(http.FS(staticFS))))
-	r.Get("/", dashboardHandler(st, tmpl))
-	r.Get("/orgs/{slug}", dashboardOrgHandler(st, tmpl))
+	allowScan := opts.Scanner != nil
+	if allowScan {
+		// The ONE sanctioned mutating route — opt-in via
+		// serve --ui-allow-scan (dev mode). The read-only test allows
+		// exactly this POST and no other.
+		r.Post("/scan", scanTriggerHandler(st, opts.Scanner))
+	}
+	r.Get("/", dashboardHandler(st, tmpl, allowScan))
+	r.Get("/orgs/{slug}", dashboardOrgHandler(st, tmpl, allowScan))
 	r.Get("/targets", targetsHandler(st, tmpl))
 	r.Get("/scans/{id}", scanHandler(st, tmpl))
 	r.Get("/scans/{id}/assessment", assessmentHandler(st, tmpl))
@@ -113,6 +122,7 @@ type dashboardView struct {
 	FlowRollup         []FlowRollup           // Sovereignty-by-flow roll-up across targets
 	HasReporting       bool                   // controls whether the Reporting nav link renders
 	OrgSlug            string                 // active org for nav-link scope persistence
+	AllowScan          bool                   // dev-mode: render the "Scan a target" form
 }
 
 // verdictRenderView is the per-framework verdict pill on the
@@ -145,9 +155,40 @@ type headlineRenderView struct {
 	Frameworks       []string
 }
 
-func dashboardHandler(st *store.Store, tmpl *template.Template) http.HandlerFunc {
+// scanTriggerHandler is the opt-in dev-mode scan route (POST /ui/scan).
+// It scans the submitted target, assesses it with the wand pack so the
+// Sovereignty overview is populated, and redirects to the result. It is
+// mounted only when serve --ui-allow-scan is set (Options.Scanner != nil).
+func scanTriggerHandler(st *store.Store, sc ScanTrigger) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		renderDashboard(w, r, st, tmpl, nil)
+		domain := strings.TrimSpace(r.FormValue("domain"))
+		if domain == "" {
+			http.Error(w, "domain is required", http.StatusBadRequest)
+			return
+		}
+		scan, err := sc.Scan(r.Context(), models.Target{Domain: domain})
+		if err != nil {
+			http.Error(w, "scan failed: "+err.Error(), http.StatusBadGateway)
+			return
+		}
+		// Assess with the wand pack so the overview + diagram populate
+		// immediately on the page we redirect to.
+		a := &models.Assessment{
+			ScanID:     scan.ID,
+			Framework:  "wand",
+			Dimensions: assessor.Assess(scan.Findings, wand.DefaultRules()),
+		}
+		if err := st.CreateAssessment(r.Context(), a); err != nil {
+			http.Error(w, "assess failed: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+		http.Redirect(w, r, "/ui/scans/"+scan.ID+"/assessment", http.StatusSeeOther)
+	}
+}
+
+func dashboardHandler(st *store.Store, tmpl *template.Template, allowScan bool) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		renderDashboard(w, r, st, tmpl, nil, allowScan)
 	}
 }
 
@@ -156,7 +197,7 @@ func dashboardHandler(st *store.Store, tmpl *template.Template) http.HandlerFunc
 // organisation's Targets; the headline is rebadged with the org
 // name, and the OrganisationsList sub-section is suppressed (the
 // operator is already inside one organisation's view).
-func dashboardOrgHandler(st *store.Store, tmpl *template.Template) http.HandlerFunc {
+func dashboardOrgHandler(st *store.Store, tmpl *template.Template, allowScan bool) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		slug := chi.URLParam(r, "slug")
 		o, err := st.GetOrganisationBySlug(r.Context(), slug)
@@ -164,7 +205,7 @@ func dashboardOrgHandler(st *store.Store, tmpl *template.Template) http.HandlerF
 			http.NotFound(w, r)
 			return
 		}
-		renderDashboard(w, r, st, tmpl, o)
+		renderDashboard(w, r, st, tmpl, o, allowScan)
 	}
 }
 
@@ -172,7 +213,7 @@ func dashboardOrgHandler(st *store.Store, tmpl *template.Template) http.HandlerF
 // template. When org is nil, the view is the instance-wide global;
 // when org is set, snapshots are filtered to that organisation and
 // the headline is rebadged.
-func renderDashboard(w http.ResponseWriter, r *http.Request, st *store.Store, tmpl *template.Template, org *models.Organisation) {
+func renderDashboard(w http.ResponseWriter, r *http.Request, st *store.Store, tmpl *template.Template, org *models.Organisation, allowScan bool) {
 	ctx := r.Context()
 	orgID := ""
 	if org != nil {
@@ -195,6 +236,7 @@ func renderDashboard(w http.ResponseWriter, r *http.Request, st *store.Store, tm
 		HasData:      len(scans) > 0,
 		HasReporting: true,
 		OrgSlug:      orgSlug,
+		AllowScan:    allowScan,
 		Headline: headlineRenderView{
 			TotalScans:       headline.TotalScans,
 			PerimeterTargets: headline.PerimeterTargets,

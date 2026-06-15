@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"context"
 	"crypto/rand"
 	"encoding/base64"
 	"fmt"
@@ -11,6 +12,7 @@ import (
 
 	"github.com/MWest2020/wanderer/internal/auth/oidc"
 	"github.com/MWest2020/wanderer/internal/store"
+	"github.com/MWest2020/wanderer/pkg/models"
 )
 
 // Options carry the authentication wiring for Handler. The
@@ -43,6 +45,19 @@ type Options struct {
 	// CookieSecure sets the Secure flag on the session + state
 	// cookies. Should be true behind TLS; false eases local http.
 	CookieSecure bool
+
+	// Scanner, when set (serve --ui-allow-scan, the dev-mode toggle),
+	// enables the opt-in "Scan a target" form + the single sanctioned
+	// mutating route POST /ui/scan. Nil keeps the UI fully read-only
+	// (the prod default). Gate it behind Auth when the UI is exposed.
+	Scanner ScanTrigger
+}
+
+// ScanTrigger runs a scan for the dev-mode UI scan form. It is
+// satisfied by *scanner.Scanner; the ui package depends only on this
+// narrow interface, not the scanner package.
+type ScanTrigger interface {
+	Scan(ctx context.Context, target models.Target) (*models.Scan, error)
 }
 
 const (

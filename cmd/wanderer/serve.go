@@ -49,6 +49,7 @@ func runServe(args []string) int {
 	schedulesPath := fs.String("schedules", "", "Optional cron schedules YAML file")
 	uiEnabled := fs.Bool("ui", false, "Mount the read-only UI at /ui/ (default off)")
 	uiHtpasswd := fs.String("ui-htpasswd", "", "Path to an htpasswd file (bcrypt entries) protecting /ui/")
+	uiAllowScan := fs.Bool("ui-allow-scan", false, "Dev mode: enable the UI 'Scan a target' form (default off = read-only). Gate behind --ui-htpasswd/oidc when exposed.")
 	configPath := fs.String("config", envOr("WANDERER_CONFIG", ""), "Optional YAML config file (see docs/operator.md)")
 	if err := fs.Parse(args); err != nil {
 		return 2
@@ -143,6 +144,14 @@ func runServe(args []string) int {
 	root.Handle("/", api.Router(st, sc, logger))
 	if uiOn {
 		uiOpts := ui.Options{HtpasswdPath: htpasswd, MountPrefix: "/ui"}
+		if serveconfig.ResolveBool(setFlags, "ui-allow-scan", *uiAllowScan, "WANDERER_UI_ALLOW_SCAN", false, false, false) {
+			// Dev mode: let the UI trigger scans. The scanner is the
+			// same one the API uses.
+			uiOpts.Scanner = sc
+			if htpasswd == "" && !oidcEnabled(cfg) {
+				logger.Warn("ui.allow_scan.unauthenticated", "msg", "--ui-allow-scan is on with no UI auth; do not expose this beyond localhost")
+			}
+		}
 		if oidcEnabled(cfg) {
 			auth, err := buildOIDC(cfg)
 			if err != nil {

@@ -8,6 +8,14 @@
 </head>
 <body>
 {{template "nav.tmpl" dict "Active" "dashboard" "HasReporting" .HasReporting "OrgSlug" .OrgSlug}}
+{{if .AllowScan}}
+<form class="scan-form" method="post" action="/ui/scan">
+  <label for="scan-domain">Scan a target</label>
+  <input id="scan-domain" name="domain" type="text" placeholder="example.nl or your.host" required autofocus>
+  <button type="submit">Scan</button>
+  <span class="meta">dev mode · scans then shows the sovereignty overview</span>
+</form>
+{{end}}
 <header class="headline">
   {{if .ScopedOrganisation}}
   <h1>Wanderer · {{.ScopedOrganisation.Name}} · sovereignty observation</h1>

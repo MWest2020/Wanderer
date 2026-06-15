@@ -5,8 +5,10 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -431,9 +433,19 @@ func TestNoMutatingHandlersInPackage(t *testing.T) {
 			t.Fatalf("read ui.go: %v", err)
 		}
 	}
-	for _, banned := range []string{"r.Post(", "r.Put(", "r.Patch(", "r.Delete("} {
+	// PUT/PATCH/DELETE are never allowed. POST is allowed for exactly
+	// ONE sanctioned, opt-in route — the dev-mode scan trigger
+	// r.Post("/scan", ...), mounted only when serve --ui-allow-scan is
+	// set. Any other POST (or any of the others) is a regression.
+	for _, banned := range []string{"r.Put(", "r.Patch(", "r.Delete("} {
 		if strings.Contains(string(src), banned) {
 			t.Errorf("ui package contains mutating handler registration: %s", banned)
+		}
+	}
+	posts := regexp.MustCompile(`r\.Post\("([^"]*)"`).FindAllStringSubmatch(string(src), -1)
+	for _, m := range posts {
+		if m[1] != "/scan" {
+			t.Errorf("unexpected mutating POST route %q — only the opt-in /scan is sanctioned", m[1])
 		}
 	}
 }
@@ -713,5 +725,60 @@ func TestDashboard_Global_ListsOrganisationsWhenMultiple(t *testing.T) {
 		if !strings.Contains(bodyStr, want) {
 			t.Errorf("global dashboard missing %q", want)
 		}
+	}
+}
+
+// stubScanner persists a minimal scan so the scan-trigger handler can
+// assess it and redirect. Satisfies ui.ScanTrigger.
+type stubScanner struct{ st *store.Store }
+
+func (s stubScanner) Scan(ctx context.Context, target models.Target) (*models.Scan, error) {
+	if err := s.st.UpsertTarget(ctx, &target); err != nil {
+		return nil, err
+	}
+	sc, err := s.st.CreateScan(ctx, target.ID)
+	if err != nil {
+		return nil, err
+	}
+	_ = s.st.FinishScan(ctx, sc.ID, models.ScanStatusComplete, "")
+	return sc, nil
+}
+
+func TestUIScan_DevMode_TriggersAndRedirects(t *testing.T) {
+	st := newTestStore(t)
+	h, err := ui.Handler(st, ui.Options{Scanner: stubScanner{st: st}})
+	if err != nil {
+		t.Fatalf("handler: %v", err)
+	}
+	mux := http.NewServeMux()
+	mux.Handle("/ui/", http.StripPrefix("/ui", h))
+	srv := httptest.NewServer(mux)
+	t.Cleanup(srv.Close)
+
+	client := &http.Client{CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
+	resp, err := client.PostForm(srv.URL+"/ui/scan", url.Values{"domain": {"example.nl"}})
+	if err != nil {
+		t.Fatalf("post: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusSeeOther {
+		t.Fatalf("status = %d, want 303", resp.StatusCode)
+	}
+	loc := resp.Header.Get("Location")
+	if !strings.HasPrefix(loc, "/ui/scans/") || !strings.HasSuffix(loc, "/assessment") {
+		t.Errorf("Location = %q, want /ui/scans/<id>/assessment", loc)
+	}
+}
+
+func TestUIScan_ReadOnlyByDefault_NoScanRoute(t *testing.T) {
+	// Without Options.Scanner the /ui/scan route is not mounted.
+	srv, _ := newServer(t, "")
+	resp, err := http.Post(srv.URL+"/ui/scan", "application/x-www-form-urlencoded", strings.NewReader("domain=example.nl"))
+	if err != nil {
+		t.Fatalf("post: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode == http.StatusSeeOther {
+		t.Errorf("read-only UI must not trigger scans (got 303)")
 	}
 }

@@ -11,6 +11,15 @@ once a first release is cut. Until then every entry lives under
 
 ### Added
 
+- **Dev-mode scan from the UI** (`propose-ui-dev-scan`, ADR-0016).
+  `wanderer serve --ui-allow-scan` (default off) adds a "Scan a target"
+  form on the dashboard + the single sanctioned mutating route
+  `POST /ui/scan`, which scans + assesses the target and redirects to its
+  assessment page (overview + diagram). Read-only stays the prod
+  default; the static read-only test is tightened (PUT/PATCH/DELETE
+  blocked, `/scan` the only POST). SSRF guard unchanged; serve warns
+  when enabled without UI auth.
+
 - **`make install`** — installs the version-stamped `wanderer` binary
   onto your PATH (`~/.local/bin` by default; `PREFIX=/usr/local` for
   system-wide), plus `make uninstall`. Run `wanderer` instead of

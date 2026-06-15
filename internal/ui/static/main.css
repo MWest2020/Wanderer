@@ -312,3 +312,12 @@ tr.retired td { opacity: 0.7; font-style: italic; }
 .sov-diagram text { font-size: 12px; fill: #334155; }
 .sov-diagram .hub { fill: var(--accent); stroke: #fff; stroke-width: 2; }
 .sov-diagram .hub-label { fill: #fff; font-weight: 600; text-anchor: middle; font-size: 11px; }
+
+/* Dev-mode "Scan a target" form (serve --ui-allow-scan). */
+.scan-form { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center;
+  padding: .75rem 1rem; margin: 0 0 1rem; background: #eef6ff;
+  border: 1px solid #bcdcff; border-radius: 8px; }
+.scan-form label { font-weight: 600; }
+.scan-form input { flex: 1 1 240px; padding: .4rem .6rem; border: 1px solid #b6c2cf; border-radius: 6px; }
+.scan-form button { padding: .4rem 1rem; border: 0; border-radius: 6px; background: var(--accent); color: #fff; cursor: pointer; }
+.scan-form .meta { flex-basis: 100%; }
