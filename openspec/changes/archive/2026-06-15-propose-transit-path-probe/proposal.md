@@ -1,7 +1,12 @@
 # Proposal: Transit-path probe — trace where a target's traffic actually goes
 
-> **Status:** Design pass — awaiting Mark's scope call. No code lands
-> until the Q1–Q3 decisions below are made.
+> **Status:** Accepted + implemented (2026-06-15). Q1–Q3 resolved as
+> recommended (unprivileged tracepath-first, destination scoring,
+> reuse GeoLite2). Probe + `wand.transit.eu_path` rule + wiring +
+> tests shipped and reviewed; live-smoked. Dedicated path-view UI and
+> the agent-modus vantage are follow-ups (see tasks.md 2.7). First
+> instance of the high-signal direction
+> (`research-high-signal-observability`).
 
 ## Why
 

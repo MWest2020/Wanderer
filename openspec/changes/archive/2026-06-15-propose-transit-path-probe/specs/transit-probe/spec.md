@@ -1,6 +1,7 @@
 # Delta for transit-probe
 
-> New capability. Held until the Q1–Q3 scope calls in proposal.md.
+> New capability — implemented 2026-06-15, ready to merge into the
+> canonical transit-probe spec.
 
 ## ADDED Requirements
 

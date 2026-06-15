@@ -560,6 +560,34 @@ without a reverse proxy enforcing access control.
 | `--budget`               | —                           | `2m`                  |
 | `--user-agent`           | —                           | `Wanderer/0.x`        |
 
+## Transit path
+
+The `transit` probe traces the network path to a target and attributes
+each hop — IP, reverse DNS, ASN, organisation, country, RTT — so you
+can see **where a target is actually hosted and which jurisdictions its
+traffic crosses**. It emits one `transit.hop` Finding per hop plus a
+`transit.path` aggregate (target IP, hops responded, countries and
+ASNs crossed). The `wand.transit.eu_path` rule scores the destination
+hop's jurisdiction (EEA → soeverein, non-EEA → afhankelijk) and names
+any non-EEA transit hops for awareness.
+
+Notes:
+
+- **Needs `tracepath` or `traceroute`** on `PATH` (the unprivileged
+  `tracepath` is preferred — no root). Without either, the probe emits
+  a single `transit.unavailable` Finding rather than failing the scan.
+- **GeoLite2 enriches the hops.** Without a database, hops still carry
+  IP + reverse DNS (which already reveals providers, e.g.
+  `…core.as9143.net`), but ASN/country — and the EEA scoring — are
+  omitted.
+- **Vantage.** The trace runs from the scanner. The destination-side
+  hops (the hosting provider) are robust regardless of where the
+  scanner sits; the middle transit hops are vantage-flavoured. An
+  agent-modus, on-host trace (answering "where does *my* traffic go")
+  is the stronger follow-up.
+- **Budget.** Bounded by `--per-probe-timeout` and a 20-hop default;
+  on ICMP-filtered paths a partial path is still recorded.
+
 ## Package vendor jurisdiction
 
 Both package inspectors now emit a vendor / maintainer

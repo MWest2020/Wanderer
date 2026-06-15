@@ -9,7 +9,21 @@ once a first release is cut. Until then every entry lives under
 
 ## [Unreleased]
 
-## [0.1.0] - 2026-06-15
+### Added
+
+- **Transit-path probe** (`propose-transit-path-probe`). A new
+  `transit` probe traces the network path to a target and attributes
+  each hop — IP, reverse DNS, ASN, organisation, country, RTT — plus a
+  `transit.path` aggregate, answering "where is this actually hosted
+  and which jurisdictions does the traffic cross". Uses the
+  unprivileged `tracepath`/`traceroute` tool (degrades to
+  `transit.unavailable` when absent), reuses the GeoLite2 enrichment,
+  and handles no-reply hops as gaps. New `wand.transit.eu_path` rule
+  scores the destination jurisdiction (EEA → soeverein, non-EEA →
+  afhankelijk) and names non-EEA transit hops informationally. First
+  instance of the high-signal observability direction
+  (`research-high-signal-observability`). New `transit-probe`
+  capability spec.
 
 First tagged release. Everything below was developed pre-1.0; the tag
 exists so downstream consumers (e.g. the `wanderer-exapp` Nextcloud

@@ -59,6 +59,7 @@ func DefaultRules() []assessor.Rule {
 		nextcloudOIDCProviderEU(),
 		dockerImagesUSRegistry(),
 		dockerContainersUSRegistry(),
+		transitEUPath(),
 	}
 }
 
