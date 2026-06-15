@@ -109,15 +109,6 @@ func TestAggregator_ReverseDNS_NegativeCacheDoesNotRetry(t *testing.T) {
 	}
 }
 
-// blockingResolver hangs until ctx fires, so the per-call deadline
-// is the only thing that frees it.
-type blockingResolver struct{}
-
-func (blockingResolver) Reverse(ctx context.Context, _ string) (string, bool) {
-	<-ctx.Done()
-	return "", false
-}
-
 func TestNewReverseDNSResolver_HonoursTimeout(t *testing.T) {
 	// The default impl wraps net.DefaultResolver; we cannot reach
 	// inside, but we can pin the contract that the *constructor*

@@ -63,7 +63,7 @@ func runAssess(args []string) int {
 		return 1
 	}
 
-	subject := subjectOfScan(scan, st, ctx)
+	subject := subjectOfScan(ctx, scan, st)
 	for _, fw := range frameworks {
 		rules := rulesForFramework(fw)
 		a := &models.Assessment{
@@ -71,7 +71,7 @@ func runAssess(args []string) int {
 			Framework:  string(fw),
 			Dimensions: assessor.Assess(scan.Findings, rules),
 		}
-		var reportBuf = &strBuf{}
+		reportBuf := &strBuf{}
 		if err := assessor.RenderMarkdown(reportBuf, a, rules, subject); err != nil {
 			fmt.Fprintf(os.Stderr, "wanderer: render: %v\n", err)
 			return 1
@@ -162,7 +162,7 @@ func (b *strBuf) String() string { return string(b.data) }
 // subjectOfScan returns the domain of the scan's target, falling back
 // to the scan ID if the target lookup fails. The rendered report uses
 // this for its human-readable heading.
-func subjectOfScan(scan *models.Scan, st *store.Store, ctx context.Context) string {
+func subjectOfScan(ctx context.Context, scan *models.Scan, st *store.Store) string {
 	row := st.DB().QueryRowContext(ctx, `SELECT domain FROM targets WHERE id = ?`, scan.TargetID)
 	var domain string
 	if err := row.Scan(&domain); err == nil && domain != "" {

@@ -130,7 +130,7 @@ func TestTopConcerns_LookupAttachesDescription(t *testing.T) {
 			}},
 		}},
 	}
-	stub := func(fw, id string) (assessor.Rule, bool) {
+	stub := func(_, id string) (assessor.Rule, bool) {
 		return assessor.Rule{ID: id, Description: "desc", Rationale: "why"}, true
 	}
 	got := TopConcerns(snaps, stub, 5)
@@ -205,12 +205,18 @@ func TestBuildHeadline_MixedCoverage(t *testing.T) {
 	}
 	t0 := time.Now()
 	snaps := []TargetSnapshot{
-		{TargetID: "t1", Domain: "a.example", Kind: models.TargetKindDomain,
-			Assessments: map[string]models.Assessment{"wand": mkAssess("wand"), "eucsf": mkAssess("eucsf")}},
-		{TargetID: "t2", Domain: "b.example", Kind: models.TargetKindDomain,
-			Assessments: map[string]models.Assessment{"wand": mkAssess("wand")}},
-		{TargetID: "t3", Domain: "host-foo", Kind: models.TargetKindHost,
-			Assessments: map[string]models.Assessment{"eucsf": mkAssess("eucsf")}},
+		{
+			TargetID: "t1", Domain: "a.example", Kind: models.TargetKindDomain,
+			Assessments: map[string]models.Assessment{"wand": mkAssess("wand"), "eucsf": mkAssess("eucsf")},
+		},
+		{
+			TargetID: "t2", Domain: "b.example", Kind: models.TargetKindDomain,
+			Assessments: map[string]models.Assessment{"wand": mkAssess("wand")},
+		},
+		{
+			TargetID: "t3", Domain: "host-foo", Kind: models.TargetKindHost,
+			Assessments: map[string]models.Assessment{"eucsf": mkAssess("eucsf")},
+		},
 	}
 	scans := []store.ScanRow{
 		{ID: "s1", Domain: "a.example", StartedAt: t0},
@@ -267,12 +273,18 @@ func TestPostureCountsByKind_FiltersCorrectly(t *testing.T) {
 		}}}
 	}
 	snaps := []TargetSnapshot{
-		{TargetID: "t1", Domain: "a", Kind: models.TargetKindDomain,
-			Assessments: map[string]models.Assessment{"wand": mkAssess(models.ScoreSoeverein)}},
-		{TargetID: "t2", Domain: "b", Kind: models.TargetKindDomain,
-			Assessments: map[string]models.Assessment{"wand": mkAssess(models.ScoreAfhankelijk)}},
-		{TargetID: "t3", Domain: "host-1", Kind: models.TargetKindHost,
-			Assessments: map[string]models.Assessment{"wand": mkAssess(models.ScoreVoldoende)}},
+		{
+			TargetID: "t1", Domain: "a", Kind: models.TargetKindDomain,
+			Assessments: map[string]models.Assessment{"wand": mkAssess(models.ScoreSoeverein)},
+		},
+		{
+			TargetID: "t2", Domain: "b", Kind: models.TargetKindDomain,
+			Assessments: map[string]models.Assessment{"wand": mkAssess(models.ScoreAfhankelijk)},
+		},
+		{
+			TargetID: "t3", Domain: "host-1", Kind: models.TargetKindHost,
+			Assessments: map[string]models.Assessment{"wand": mkAssess(models.ScoreVoldoende)},
+		},
 	}
 	external := PostureCountsByKind(snaps, models.TargetKindDomain)
 	if external["wand"][models.ScoreSoeverein] != 1 || external["wand"][models.ScoreAfhankelijk] != 1 {
@@ -333,7 +345,8 @@ func TestRuleSummary_TwiceOnSameTargetCountsOnce(t *testing.T) {
 	// One target's Assessment fires the same rule twice (multi-host
 	// dimension). Distinct-target convention means count = 1.
 	snaps := []TargetSnapshot{
-		snap("t1", "a.example", "wand",
+		snap(
+			"t1", "a.example", "wand",
 			models.Rationale{CriteriumID: rule, Score: models.ScoreAfhankelijk, Verdict: "MX1"},
 			models.Rationale{CriteriumID: rule, Score: models.ScoreAfhankelijk, Verdict: "MX2"},
 		),

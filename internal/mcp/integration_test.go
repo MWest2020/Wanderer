@@ -99,7 +99,8 @@ func TestMCP_NoConfigOrResetTools(t *testing.T) {
 
 func TestMCP_ScanDomainInvalid(t *testing.T) {
 	srv, _ := wireServer(t)
-	resps := runMessages(t, srv,
+	resps := runMessages(
+		t, srv,
 		`{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"scan_domain","arguments":{"domain":""}}}`,
 	)
 	res := resps[0]["result"].(map[string]any)
@@ -110,7 +111,8 @@ func TestMCP_ScanDomainInvalid(t *testing.T) {
 
 func TestMCP_ResourceReadMissing(t *testing.T) {
 	srv, _ := wireServer(t)
-	resps := runMessages(t, srv,
+	resps := runMessages(
+		t, srv,
 		`{"jsonrpc":"2.0","id":1,"method":"resources/read","params":{"uri":"wanderer://scans/s_missing"}}`,
 	)
 	if _, hasErr := resps[0]["error"].(map[string]any); !hasErr {
@@ -135,7 +137,8 @@ func TestMCP_ScanWrittenViaHTTPVisibleViaMCP(t *testing.T) {
 		t.Fatalf("scan: %v", err)
 	}
 
-	resps := runMessages(t, srv,
+	resps := runMessages(
+		t, srv,
 		`{"jsonrpc":"2.0","id":1,"method":"resources/read","params":{"uri":"wanderer://scans/`+sc.ID+`"}}`,
 	)
 	res := resps[0]["result"].(map[string]any)

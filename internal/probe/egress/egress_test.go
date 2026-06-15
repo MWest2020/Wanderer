@@ -22,6 +22,7 @@ func (s stubScanner) Available() (bool, string) {
 	}
 	return false, "stub"
 }
+
 func (s stubScanner) Scan(_ context.Context) ([]scanners.Candidate, error) {
 	return s.cands, nil
 }

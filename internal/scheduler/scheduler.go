@@ -113,7 +113,7 @@ func (s *Scheduler) Schedules() []Schedule {
 // RunOnce executes the schedule named sched name immediately. Useful
 // for tests and `wanderer serve --run-once <name>` — not wired into
 // the CLI yet.
-func (s *Scheduler) RunOnce(ctx context.Context, name string) error {
+func (s *Scheduler) RunOnce(_ context.Context, name string) error {
 	for _, sched := range s.Schedules() {
 		if sched.Name == name {
 			s.makeJob(sched)()

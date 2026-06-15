@@ -43,7 +43,8 @@ func (s Systemd) Inspect(ctx context.Context) ([]models.Finding, error) {
 }
 
 func realSystemctl(ctx context.Context) (string, error) {
-	out, err := exec.CommandContext(ctx,
+	out, err := exec.CommandContext(
+		ctx,
 		"systemctl", "list-units", "--type=service", "--all", "--output=json", "--no-pager",
 	).Output()
 	if err != nil {

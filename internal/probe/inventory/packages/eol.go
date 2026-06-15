@@ -19,11 +19,11 @@ var eolMinimums = map[string]string{
 // dotted prefix — sufficient for major-version gating, which is all
 // the table expresses.
 func isEOL(name, version string) bool {
-	min, ok := eolMinimums[strings.ToLower(name)]
+	minVer, ok := eolMinimums[strings.ToLower(name)]
 	if !ok {
 		return false
 	}
-	return versionLess(version, min)
+	return versionLess(version, minVer)
 }
 
 // versionLess returns true when a < b under dotted-numeric ordering,
@@ -46,27 +46,27 @@ func versionLess(a, b string) bool {
 func splitDotted(s string) []int {
 	var out []int
 	cur := 0
-	any := false
+	seen := false
 	for i := 0; i < len(s); i++ {
 		c := s[i]
 		if c >= '0' && c <= '9' {
 			cur = cur*10 + int(c-'0')
-			any = true
+			seen = true
 			continue
 		}
 		if c == '.' {
-			if any {
+			if seen {
 				out = append(out, cur)
 			} else {
 				out = append(out, 0)
 			}
-			cur, any = 0, false
+			cur, seen = 0, false
 			continue
 		}
 		// Stop at first non-numeric, non-dot character (e.g. "-" or "+").
 		break
 	}
-	if any {
+	if seen {
 		out = append(out, cur)
 	}
 	return out

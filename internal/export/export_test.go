@@ -224,10 +224,3 @@ func TestAssessmentsCSV_OneRowPerDimension(t *testing.T) {
 		t.Fatalf("want header+2, got %d", len(records))
 	}
 }
-
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
-}

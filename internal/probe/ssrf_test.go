@@ -1,7 +1,6 @@
 package probe
 
 import (
-	"context"
 	"errors"
 	"net"
 	"testing"
@@ -35,37 +34,6 @@ func TestIsPrivateOrMetadata(t *testing.T) {
 			t.Errorf("IsPrivateOrMetadata(%s) = %v, want %v", c.ip, got, c.want)
 		}
 	}
-}
-
-// fakeResolver returns canned IP lists for tests so DialContext does
-// not depend on real DNS.
-type fakeResolver map[string][]net.IPAddr
-
-func (f fakeResolver) LookupIPAddr(_ context.Context, host string) ([]net.IPAddr, error) {
-	if v, ok := f[host]; ok {
-		return v, nil
-	}
-	return nil, errors.New("no such host")
-}
-
-func newDialerWithFakeResolver(allowPrivate bool, hosts map[string][]string) *SafeDialer {
-	res := &net.Resolver{
-		PreferGo: true,
-		Dial: func(_ context.Context, _, _ string) (net.Conn, error) {
-			return nil, errors.New("not used")
-		},
-	}
-	_ = res
-	// We replace LookupIPAddr by stubbing the resolver via a small
-	// wrapper: SafeDialer stores Resolver as *net.Resolver, but
-	// *net.Resolver.LookupIPAddr is not an interface, so we install
-	// a Resolver whose Dial routes to a custom resolver. For
-	// brevity, the cleaner path is to replace SafeDialer.Resolver
-	// at the call site of the test. The test below uses a tiny
-	// helper that calls IsPrivateOrMetadata directly when we only
-	// care about the filter.
-	d := &SafeDialer{AllowPrivate: allowPrivate}
-	return d
 }
 
 func TestSafeDialer_BlockedHost(t *testing.T) {

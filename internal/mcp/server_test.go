@@ -89,7 +89,7 @@ func TestToolsListAndCall(t *testing.T) {
 			Name:        "echo",
 			Description: "Echo back its input.",
 			InputSchema: map[string]any{"type": "object"},
-			Handler: func(ctx context.Context, params json.RawMessage) (ToolResult, error) {
+			Handler: func(_ context.Context, params json.RawMessage) (ToolResult, error) {
 				return ToolResult{Content: []ContentBlock{{Type: "text", Text: string(params)}}}, nil
 			},
 		}},
@@ -130,7 +130,7 @@ func TestToolErrorReturnedAsContent(t *testing.T) {
 	srv := &Server{
 		Tools: []Tool{{
 			Name: "fail",
-			Handler: func(ctx context.Context, _ json.RawMessage) (ToolResult, error) {
+			Handler: func(_ context.Context, _ json.RawMessage) (ToolResult, error) {
 				return ToolResult{}, errFail
 			},
 		}},

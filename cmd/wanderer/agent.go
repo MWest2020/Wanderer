@@ -42,12 +42,12 @@ func runAgent(args []string) int {
 	logger := newLogger(true)
 	slog.SetDefault(logger)
 
-	if v, err := egress.LoadVendors(*vendorsPath); err != nil {
+	v, err := egress.LoadVendors(*vendorsPath)
+	if err != nil {
 		fmt.Fprintf(os.Stderr, "wanderer agent: %v\n", err)
 		return 1
-	} else {
-		egress.Configure(v)
 	}
+	egress.Configure(v)
 
 	cfg, err := agent.LoadConfig(*cfgPath)
 	if err != nil {
@@ -287,11 +287,11 @@ func sendWithRetry(ctx context.Context, r *agent.Remote, scanID string, body []b
 				return ctx.Err()
 			}
 		}
-		if err := r.SendBytes(ctx, scanID, body); err == nil {
+		err := r.SendBytes(ctx, scanID, body)
+		if err == nil {
 			return nil
-		} else {
-			lastErr = err
 		}
+		lastErr = err
 	}
 	return lastErr
 }

@@ -82,7 +82,8 @@ func (o *Outbox) Spool(scanID string, body []byte) error {
 	if _, err := rand.Read(suffix); err != nil {
 		return fmt.Errorf("outbox: rand: %w", err)
 	}
-	filename := fmt.Sprintf("%s_%s.json",
+	filename := fmt.Sprintf(
+		"%s_%s.json",
 		now().Format("20060102T150405Z"),
 		hex.EncodeToString(suffix),
 	)

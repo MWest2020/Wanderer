@@ -172,7 +172,8 @@ func TestMigration_RenameDictuToWand(t *testing.T) {
 	// framework and a 'dictu.juridisch.cert_issuer_eea' criterium
 	// ID inside the JSON-encoded dimensions blob.
 	preDimensions := `[{"dimension":"juridisch","score":"afhankelijk","completeness":"complete","rationale":[{"criterium_id":"dictu.juridisch.cert_issuer_eea","verdict":"cert in US","score":"afhankelijk","evidence":["f_1"]}]}]`
-	if _, err := s.DB().ExecContext(ctx,
+	if _, err := s.DB().ExecContext(
+		ctx,
 		`INSERT INTO assessments (id, scan_id, framework, dimensions, report, created_at) VALUES (?,?,?,?,?,?)`,
 		"a_legacy", sc.ID, "dictu", preDimensions, "", "2026-04-29T00:00:00Z",
 	); err != nil {

@@ -94,11 +94,11 @@ func (p *Publisher) publish(ctx context.Context, scanID string) error {
 func (p *Publisher) putWithRetry(ctx context.Context, orgSlug, name, contentType string, body []byte) error {
 	var lastErr error
 	for attempt := 1; attempt <= publishAttempts; attempt++ {
-		if err := p.client.PutFile(ctx, orgSlug, name, contentType, body); err == nil {
+		err := p.client.PutFile(ctx, orgSlug, name, contentType, body)
+		if err == nil {
 			return nil
-		} else {
-			lastErr = err
 		}
+		lastErr = err
 		if attempt == publishAttempts {
 			break // no backoff after the final attempt
 		}

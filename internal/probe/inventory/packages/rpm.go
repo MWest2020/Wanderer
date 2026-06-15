@@ -42,7 +42,8 @@ func (r Rpm) Inspect(ctx context.Context) ([]models.Finding, error) {
 func realRpmQuery(ctx context.Context) (string, error) {
 	// Tab-separated so the VENDOR field (which can contain
 	// spaces and commas, e.g. "Red Hat, Inc.") parses cleanly.
-	out, err := exec.CommandContext(ctx,
+	out, err := exec.CommandContext(
+		ctx,
 		"rpm", "-qa", "--qf=%{NAME}\t%{VERSION}-%{RELEASE}\t%{ARCH}\t%{VENDOR}\n",
 	).Output()
 	if err != nil {

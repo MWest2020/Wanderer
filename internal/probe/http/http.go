@@ -51,7 +51,7 @@ func (p *Probe) Run(ctx context.Context, target models.Target, cfg wprobe.Config
 					AllowPrivate: cfg.AllowPrivateTargets,
 				}).DialContext,
 			},
-			CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			CheckRedirect: func(_ *http.Request, via []*http.Request) error {
 				if len(via) >= maxRedirects {
 					return fmt.Errorf("too many redirects (> %d)", maxRedirects)
 				}

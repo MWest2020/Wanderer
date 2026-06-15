@@ -71,7 +71,7 @@ func TestOutbox_DrainStopsOnFailure(t *testing.T) {
 		t.Fatal(err)
 	}
 	var calls int32
-	stub := func(scanID string, body []byte) error {
+	stub := func(_ string, _ []byte) error {
 		atomic.AddInt32(&calls, 1)
 		return errors.New("network down")
 	}
@@ -132,7 +132,7 @@ func TestOutbox_DrainSkipsCorrupt(t *testing.T) {
 		t.Fatal(err)
 	}
 	called := false
-	if err := o.Drain(func(scanID string, body []byte) error {
+	if err := o.Drain(func(scanID string, _ []byte) error {
 		called = true
 		if scanID != "t_good" {
 			t.Errorf("drain called with corrupt file: %s", scanID)

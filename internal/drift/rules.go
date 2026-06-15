@@ -154,7 +154,8 @@ func tlsIssuerChanged(prev, curr *models.Scan) []models.Finding {
 	if pIssuer == "" || cIssuer == "" || pIssuer == cIssuer {
 		return nil
 	}
-	return []models.Finding{emit(prev, curr,
+	return []models.Finding{emit(
+		prev, curr,
 		"drift.tls.issuer_changed", models.DimensionJuridisch,
 		models.SeverityFinding, cf.Subject,
 		map[string]any{"prev_issuer_cn": pIssuer, "curr_issuer_cn": cIssuer},
@@ -174,7 +175,8 @@ func tlsDaysLeftDropped(prev, curr *models.Scan) []models.Finding {
 	}
 	// Fire when crossing the 30-day threshold downward.
 	if prevDays >= 30 && currDays < 30 {
-		return []models.Finding{emit(prev, curr,
+		return []models.Finding{emit(
+			prev, curr,
 			"drift.tls.days_left_dropped", models.DimensionOperationeel,
 			models.SeverityConcern, cf.Subject,
 			map[string]any{"prev_days_left": prevDays, "curr_days_left": currDays},
@@ -197,7 +199,8 @@ func dnsMXSetChanged(prev, curr *models.Scan) []models.Finding {
 	if f, ok := firstFinding(curr, "dns.mx"); ok {
 		subject = f.Subject
 	}
-	return []models.Finding{emit(prev, curr,
+	return []models.Finding{emit(
+		prev, curr,
 		"drift.dns.mx_set_changed", models.DimensionDataAI,
 		models.SeverityObservation, subject,
 		map[string]any{"added": added, "removed": removed},
@@ -218,7 +221,8 @@ func dnsNSSetChanged(prev, curr *models.Scan) []models.Finding {
 	if f, ok := firstFinding(curr, "dns.ns"); ok {
 		subject = f.Subject
 	}
-	return []models.Finding{emit(prev, curr,
+	return []models.Finding{emit(
+		prev, curr,
 		"drift.dns.ns_set_changed", models.DimensionOperationeel,
 		models.SeverityObservation, subject,
 		map[string]any{"added": added, "removed": removed},
@@ -243,7 +247,8 @@ func ipCountryChanged(prev, curr *models.Scan) []models.Finding {
 		if !hadPrev || prevC == "" || curC == "" || prevC == curC {
 			continue
 		}
-		out = append(out, emit(prev, curr,
+		out = append(out, emit(
+			prev, curr,
 			"drift.ip.country_changed", models.DimensionJuridisch,
 			models.SeverityFinding, f.Subject,
 			map[string]any{"prev_country": prevC, "curr_country": curC},
@@ -262,14 +267,16 @@ func httpThirdPartyChanged(prev, curr *models.Scan) []models.Finding {
 	}
 	var out []models.Finding
 	if len(added) > 0 {
-		out = append(out, emit(prev, curr,
+		out = append(out, emit(
+			prev, curr,
 			"drift.http.third_party_added", models.DimensionTechnologie,
 			models.SeverityObservation, subject,
 			map[string]any{"hosts": added},
 		))
 	}
 	if len(removed) > 0 {
-		out = append(out, emit(prev, curr,
+		out = append(out, emit(
+			prev, curr,
 			"drift.http.third_party_removed", models.DimensionTechnologie,
 			models.SeverityInfo, subject,
 			map[string]any{"hosts": removed},

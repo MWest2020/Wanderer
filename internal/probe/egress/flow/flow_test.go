@@ -16,7 +16,7 @@ type stubSource struct {
 	closed bool
 }
 
-func (s *stubSource) Events(ctx context.Context) <-chan flow.Event {
+func (s *stubSource) Events(_ context.Context) <-chan flow.Event {
 	ch := make(chan flow.Event, len(s.events))
 	for _, e := range s.events {
 		ch <- e

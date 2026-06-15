@@ -106,7 +106,7 @@ func addCompletedScan(ctx context.Context, st *store.Store, target *models.Targe
 	return sc, nil
 }
 
-func scoreScan(ctx context.Context, st *store.Store, sc *models.Scan, framework string, rules []assessor.Rule, findings []models.Finding, when time.Time) error {
+func scoreScan(ctx context.Context, st *store.Store, sc *models.Scan, framework string, rules []assessor.Rule, _ []models.Finding, when time.Time) error {
 	// AppendFindings assigns IDs; re-read the scan's findings so the
 	// assessor sees the persisted IDs (Evidence citations need them).
 	persisted, err := readFindings(ctx, st, sc.ID)

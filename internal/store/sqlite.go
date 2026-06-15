@@ -8,17 +8,18 @@ package store
 
 import (
 	"context"
+	"crypto/rand"
 	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"time"
-
-	"crypto/rand"
 	"math/big"
+	"time"
 
 	"github.com/MWest2020/wanderer/pkg/models"
 
+	// modernc.org/sqlite registers the pure-Go "sqlite" driver with
+	// database/sql (imported for its side effect).
 	_ "modernc.org/sqlite"
 )
 

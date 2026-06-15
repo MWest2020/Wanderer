@@ -144,25 +144,6 @@ type headlineRenderView struct {
 	Frameworks       []string
 }
 
-type postureBlockView struct {
-	Framework string
-	Counts    []postureCountView
-	Total     int
-}
-
-type postureCountView struct {
-	Score string
-	Count int
-}
-
-type activityRowView struct {
-	ScanID        string
-	Domain        string
-	StartedAt     string
-	Status        string
-	HasAssessment bool
-}
-
 func dashboardHandler(st *store.Store, tmpl *template.Template) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		renderDashboard(w, r, st, tmpl, nil)
@@ -349,32 +330,6 @@ func resolveOrgQueryParam(ctx context.Context, st *store.Store, w http.ResponseW
 		return "", nil, false
 	}
 	return o.ID, o, true
-}
-
-// renderPostureBlocks turns a PostureSummary into the slice the
-// dashboard template iterates over. The framework order is
-// supplied by the caller so external and internal blocks present
-// frameworks in the same canonical sequence.
-func renderPostureBlocks(summary PostureSummary, fwOrder func(a, b string) bool) []postureBlockView {
-	var frameworks []string
-	for fw := range summary {
-		frameworks = append(frameworks, fw)
-	}
-	sort.Slice(frameworks, func(i, j int) bool { return fwOrder(frameworks[i], frameworks[j]) })
-	out := make([]postureBlockView, 0, len(frameworks))
-	for _, fw := range frameworks {
-		block := postureBlockView{Framework: fw}
-		for _, sc := range AllScores {
-			count := summary[fw][sc]
-			if count == 0 {
-				continue
-			}
-			block.Counts = append(block.Counts, postureCountView{Score: string(sc), Count: count})
-			block.Total += count
-		}
-		out = append(out, block)
-	}
-	return out
 }
 
 // targetsRowsView is the shape index.tmpl iterates over.

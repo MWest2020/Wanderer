@@ -33,18 +33,23 @@ type fakeResolver struct {
 func (f *fakeResolver) LookupHost(_ context.Context, _ string) ([]string, error) {
 	return f.hosts, nil
 }
+
 func (f *fakeResolver) LookupMX(_ context.Context, _ string) ([]*net.MX, error) {
 	return f.mx, nil
 }
+
 func (f *fakeResolver) LookupNS(_ context.Context, _ string) ([]*net.NS, error) {
 	return f.ns, nil
 }
+
 func (f *fakeResolver) LookupCNAME(_ context.Context, _ string) (string, error) {
 	return "", nil
 }
+
 func (f *fakeResolver) LookupTXT(_ context.Context, name string) ([]string, error) {
 	return f.txt[name], nil
 }
+
 func (f *fakeResolver) LookupCAA(_ context.Context, _ string) ([]dnsprobe.CAA, error) {
 	return f.caa, nil
 }

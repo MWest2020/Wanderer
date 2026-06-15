@@ -49,11 +49,11 @@ func (c ConfigFiles) Scan(ctx context.Context) ([]Candidate, error) {
 				return nil
 			}
 			// Reject symlinks that escape the configured root.
-			real, err := filepath.EvalSymlinks(p)
+			resolved, err := filepath.EvalSymlinks(p)
 			if err != nil {
 				return nil
 			}
-			realAbs, _ := filepath.Abs(real)
+			realAbs, _ := filepath.Abs(resolved)
 			if !strings.HasPrefix(realAbs+string(filepath.Separator), absRoot+string(filepath.Separator)) &&
 				realAbs != absRoot {
 				return nil

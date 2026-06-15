@@ -150,7 +150,7 @@ func TestDocker_Inspect_UnnamedContainerUsesShortID(t *testing.T) {
 }
 
 func TestDocker_Inspect_500ReturnsAPIError(t *testing.T) {
-	socket, _ := startUnixSocketServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	socket, _ := startUnixSocketServer(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		http.Error(w, "boom", http.StatusInternalServerError)
 	}))
 

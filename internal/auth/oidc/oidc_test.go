@@ -131,7 +131,7 @@ func newMockProvider(t *testing.T) *mockProvider {
 	}
 	p := &mockProvider{key: key}
 	mux := http.NewServeMux()
-	mux.HandleFunc("/.well-known/openid-configuration", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/.well-known/openid-configuration", func(w http.ResponseWriter, _ *http.Request) {
 		writeJSON(w, map[string]any{
 			"issuer":                                p.issuer,
 			"authorization_endpoint":                p.issuer + "/authorize",
@@ -141,7 +141,7 @@ func newMockProvider(t *testing.T) *mockProvider {
 			"id_token_signing_alg_values_supported": []string{"RS256"},
 		})
 	})
-	mux.HandleFunc("/jwks", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/jwks", func(w http.ResponseWriter, _ *http.Request) {
 		writeJSON(w, jose.JSONWebKeySet{Keys: []jose.JSONWebKey{{
 			Key:       &key.PublicKey,
 			KeyID:     "test",
@@ -149,7 +149,7 @@ func newMockProvider(t *testing.T) *mockProvider {
 			Use:       "sig",
 		}}})
 	})
-	mux.HandleFunc("/token", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/token", func(w http.ResponseWriter, _ *http.Request) {
 		writeJSON(w, map[string]any{
 			"access_token":  "access-token",
 			"refresh_token": "refresh-token",
@@ -158,7 +158,7 @@ func newMockProvider(t *testing.T) *mockProvider {
 			"id_token":      p.mintIDToken(t),
 		})
 	})
-	mux.HandleFunc("/userinfo", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/userinfo", func(w http.ResponseWriter, _ *http.Request) {
 		if p.userinfoUnauthorized {
 			http.Error(w, "user disabled", http.StatusUnauthorized)
 			return

@@ -21,15 +21,19 @@ type netResolver struct{ r *net.Resolver }
 func (n *netResolver) LookupHost(ctx context.Context, host string) ([]string, error) {
 	return n.r.LookupHost(ctx, host)
 }
+
 func (n *netResolver) LookupMX(ctx context.Context, name string) ([]*net.MX, error) {
 	return n.r.LookupMX(ctx, name)
 }
+
 func (n *netResolver) LookupNS(ctx context.Context, name string) ([]*net.NS, error) {
 	return n.r.LookupNS(ctx, name)
 }
+
 func (n *netResolver) LookupCNAME(ctx context.Context, host string) (string, error) {
 	return n.r.LookupCNAME(ctx, host)
 }
+
 func (n *netResolver) LookupTXT(ctx context.Context, name string) ([]string, error) {
 	return n.r.LookupTXT(ctx, name)
 }
@@ -39,6 +43,6 @@ func (n *netResolver) LookupTXT(ctx context.Context, name string) ([]string, err
 // Finding, which is the same shape as actual absence. Operators who
 // need strict CAA visibility should swap in a resolver that queries a
 // recursive DNS server directly (e.g. via miekg/dns).
-func (n *netResolver) LookupCAA(ctx context.Context, name string) ([]CAA, error) {
+func (n *netResolver) LookupCAA(_ context.Context, _ string) ([]CAA, error) {
 	return nil, nil
 }

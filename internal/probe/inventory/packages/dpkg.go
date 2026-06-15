@@ -51,7 +51,8 @@ func (d Dpkg) Inspect(ctx context.Context) ([]models.Finding, error) {
 func realDpkgQuery(ctx context.Context) (string, error) {
 	// Tab-separated. Maintainer and Status both contain spaces;
 	// a space-delimited format conflates them.
-	out, err := exec.CommandContext(ctx,
+	out, err := exec.CommandContext(
+		ctx,
 		"dpkg-query", "-W", "-f=${Package}\t${Version}\t${Architecture}\t${Maintainer}\t${Status}\n",
 	).Output()
 	if err != nil {
