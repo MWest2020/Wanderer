@@ -232,6 +232,12 @@ func expandRelatedFromFindings(target models.Target, findings []models.Finding) 
 			if h, ok := f.Attributes["host"].(string); ok {
 				host = norm(h)
 			}
+		case "dns.ns":
+			// Nameserver hosts, so the IP probe geo-locates them and
+			// the NS-jurisdiction rule can score who runs the DNS.
+			if h, ok := f.Attributes["host"].(string); ok {
+				host = norm(h)
+			}
 		case "http.third_party":
 			host = norm(f.Subject)
 		case "dns.subdomain":

@@ -60,6 +60,7 @@ func DefaultRules() []assessor.Rule {
 		dockerImagesUSRegistry(),
 		dockerContainersUSRegistry(),
 		transitEUPath(),
+		nsVendorJurisdiction(),
 	}
 }
 

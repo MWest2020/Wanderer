@@ -185,6 +185,12 @@ func TestIPProbeReceivesDiscoveredHosts(t *testing.T) {
 				Severity:   models.SeverityObservation,
 				Attributes: map[string]any{"host": "mail.fastmail.com."},
 			},
+			{
+				ProbeID:    "dns.ns",
+				Subject:    "example.nl",
+				Severity:   models.SeverityObservation,
+				Attributes: map[string]any{"host": "ns1.transip.net."},
+			},
 		},
 	}
 	http := &stubProbe{
@@ -210,7 +216,7 @@ func TestIPProbeReceivesDiscoveredHosts(t *testing.T) {
 		t.Fatalf("scan: %v", err)
 	}
 
-	want := []string{"mail.fastmail.com", "tracker.example.com"}
+	want := []string{"mail.fastmail.com", "tracker.example.com", "ns1.transip.net"}
 	if diff := relatedDiff(ip.gotTarget.Related, want); diff != "" {
 		t.Errorf("IP probe Related: %s", diff)
 	}

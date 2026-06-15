@@ -11,6 +11,14 @@ once a first release is cut. Until then every entry lives under
 
 ### Added
 
+- **DNS-hosting jurisdiction** (`propose-dns-hosting-jurisdiction`).
+  The scanner now feeds `dns.ns` (nameserver) hosts to the IP probe,
+  and a new `wand.juridisch.ns_vendor_jurisdiction` rule scores who
+  runs the authoritative DNS and where — "your DNS is run by Cloudflare
+  (US)" — mirroring the MX-jurisdiction rule (all-EEA → soeverein,
+  split → voldoende, none → afhankelijk). Wave-1 lead from the
+  high-signal observability direction. (`dns_redundancy` previously
+  scored only NS *count*, never location.)
 - **Transit-path probe** (`propose-transit-path-probe`). A new
   `transit` probe traces the network path to a target and attributes
   each hop — IP, reverse DNS, ASN, organisation, country, RTT — plus a
