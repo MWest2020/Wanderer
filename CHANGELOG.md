@@ -11,6 +11,11 @@ once a first release is cut. Until then every entry lives under
 
 ### Added
 
+- **`make install`** — installs the version-stamped `wanderer` binary
+  onto your PATH (`~/.local/bin` by default; `PREFIX=/usr/local` for
+  system-wide), plus `make uninstall`. Run `wanderer` instead of
+  `./bin/wanderer`.
+
 - **HTTP exposure scoring** (`propose-http-exposure`). A new
   `wand.operationeel.http_exposure` rule scores the passive exposure
   posture from signals the HTTP probe already observed: missing HSTS →

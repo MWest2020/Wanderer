@@ -1,7 +1,14 @@
-.PHONY: build test lint run clean playwright-install playwright playwright-fixture
+.PHONY: build install uninstall test lint run clean playwright-install playwright playwright-fixture
 
 VERSION := $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
 LDFLAGS := -ldflags="-s -w -X main.Version=$(VERSION)"
+
+# install puts the version-stamped binary on your PATH so you can run
+# `wanderer` instead of `./bin/wanderer`. Default location is
+# ~/.local/bin (on PATH on most distros); override with PREFIX:
+#   make install                      # ~/.local/bin/wanderer
+#   sudo make install PREFIX=/usr/local   # /usr/local/bin/wanderer
+PREFIX ?= $(HOME)/.local
 
 # Playwright fixture directory. `make playwright-fixture` writes one
 # DB per scenario under this directory; `make playwright` boots
@@ -11,6 +18,17 @@ PLAYWRIGHT_FIXTURE_DIR ?= tests/playwright/fixtures
 
 build:
 	go build $(LDFLAGS) -o bin/wanderer ./cmd/wanderer
+
+install: build
+	@mkdir -p $(PREFIX)/bin
+	install -m755 bin/wanderer $(PREFIX)/bin/wanderer
+	@echo "installed: $(PREFIX)/bin/wanderer"
+	@echo "$$PATH" | tr ':' '\n' | grep -qx "$(PREFIX)/bin" || \
+		echo "NOTE: $(PREFIX)/bin is not on your PATH — add: export PATH=\"$(PREFIX)/bin:\$$PATH\""
+
+uninstall:
+	rm -f $(PREFIX)/bin/wanderer
+	@echo "removed: $(PREFIX)/bin/wanderer"
 
 test:
 	go test -race -cover ./...
