@@ -297,3 +297,18 @@ tr.retired td { opacity: 0.7; font-style: italic; }
 .posture-counts li { margin: 0; }
 .concerns code { font-size: 0.85rem; }
 .concerns details summary { cursor: pointer; }
+
+/* Sovereignty overview: table + hub-and-spoke SVG side by side. */
+.sov-layout { display: flex; flex-wrap: wrap; gap: 1.5rem; align-items: flex-start; }
+.sov-layout .flows { flex: 1 1 320px; }
+.sov-diagram { flex: 0 0 auto; max-width: 100%; height: auto; }
+.sov-diagram line { stroke: #cbd5e1; stroke-width: 1.5; }
+.sov-diagram .node { stroke: #fff; stroke-width: 1.5; }
+.sov-diagram .node.score-soeverein   { fill: var(--soeverein); }
+.sov-diagram .node.score-voldoende   { fill: var(--voldoende); }
+.sov-diagram .node.score-afhankelijk { fill: var(--afhankelijk); }
+.sov-diagram .node.score-onbekend,
+.sov-diagram .node                   { fill: var(--onbekend); }
+.sov-diagram text { font-size: 12px; fill: #334155; }
+.sov-diagram .hub { fill: var(--accent); stroke: #fff; stroke-width: 2; }
+.sov-diagram .hub-label { fill: #fff; font-weight: 600; text-anchor: middle; font-size: 11px; }

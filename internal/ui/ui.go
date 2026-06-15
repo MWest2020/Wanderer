@@ -588,7 +588,8 @@ type assessmentView struct {
 	Status       string
 	OrgSlug      string
 	HasReporting bool
-	Flows        []Flow // Sovereignty overview — "what goes where"
+	Flows        []Flow  // Sovereignty overview — "what goes where"
+	Diagram      Diagram // hub-and-spoke SVG of the same flows
 	Frameworks   []frameworkCardView
 }
 
@@ -632,13 +633,19 @@ func assessmentHandler(st *store.Store, tmpl *template.Template) http.HandlerFun
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
+		flows := SovereigntyFlows(assessments)
+		subject := scan.ID
+		if t, terr := st.GetTarget(r.Context(), scan.TargetID); terr == nil && t != nil && t.Domain != "" {
+			subject = t.Domain
+		}
 		view := assessmentView{
 			ScanID:       scan.ID,
 			StartedAt:    scan.StartedAt.UTC().Format(time.RFC3339),
 			Status:       string(scan.Status),
 			OrgSlug:      scopeSlugForScan(r.Context(), st, scan.TargetID),
 			HasReporting: true,
-			Flows:        SovereigntyFlows(assessments),
+			Flows:        flows,
+			Diagram:      SovereigntyDiagram(subject, flows),
 		}
 		// Stable framework order: dictu first, then alphabetical.
 		sort.SliceStable(assessments, func(i, j int) bool {

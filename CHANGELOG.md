@@ -27,7 +27,13 @@ once a first release is cut. Until then every entry lives under
   (`internal/ui/SovereigntyFlows`): no new collection, no jurisdiction
   logic in the view. The synthesis that answers the "weinigzeggend"
   feedback — the org/host as the spider in the web. (Textual list
-  first; an interactive graph is a follow-up.)
+  first.)
+- **Sovereignty flow diagram** (`propose-sovereignty-diagram`). A
+  server-rendered, **no-JS inline SVG** hub-and-spoke beside the
+  overview table: the target at the centre, each flow a spoke whose
+  node is coloured by its score — the visual "spider in the web".
+  Reuses the flow model + the score colour variables. A progressive JS
+  interactivity layer is a follow-up.
 - **Org-level sovereignty roll-up** (`propose-org-sovereignty-rollup`).
   A "Sovereignty by flow" section on the dashboard (instance and
   per-organisation) that rolls the per-target flows up across the scans

@@ -25,6 +25,7 @@
 <section class="sovereignty-overview">
   <h2>Sovereignty overview</h2>
   <p class="meta">Where this service lives and what its traffic touches — synthesised from the observed signals.</p>
+  <div class="sov-layout">
   <table class="flows">
     <tbody>
     {{range .Flows}}
@@ -36,6 +37,21 @@
     {{end}}
     </tbody>
   </table>
+  {{if .Diagram.Nodes}}
+  {{with .Diagram}}
+  <svg class="sov-diagram" viewBox="0 0 {{.Width}} {{.Height}}" width="{{.Width}}" height="{{.Height}}" role="img" aria-label="Sovereignty flow diagram — the host at the centre, each flow a spoke coloured by score">
+    {{$cx := .CenterX}}{{$cy := .CenterY}}
+    {{range .Nodes}}<line x1="{{$cx}}" y1="{{$cy}}" x2="{{.X}}" y2="{{.Y}}"></line>
+    {{end}}
+    {{range .Nodes}}<circle class="node score-{{.Score}}" cx="{{.X}}" cy="{{.Y}}" r="9"></circle>
+    <text x="{{.LabelX}}" y="{{.LabelY}}" text-anchor="{{.Anchor}}">{{.Label}}</text>
+    {{end}}
+    <circle class="hub" cx="{{.CenterX}}" cy="{{.CenterY}}" r="36"></circle>
+    <text class="hub-label" x="{{.CenterX}}" y="{{.CenterY}}" dy="4">{{.Subject}}</text>
+  </svg>
+  {{end}}
+  {{end}}
+  </div>
 </section>
 {{end}}
 {{if .Frameworks}}

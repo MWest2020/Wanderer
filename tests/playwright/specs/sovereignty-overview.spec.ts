@@ -30,6 +30,11 @@ test.describe("Sovereignty overview", () => {
     await expect(
       page.locator("section.sovereignty-overview th", { hasText: /Mail|DNS|Hosting/ }).first(),
     ).toBeVisible();
+
+    // The hub-and-spoke SVG renders alongside the table.
+    await expect(page.locator("svg.sov-diagram")).toBeVisible();
+    await expect(page.locator("svg.sov-diagram circle.hub")).toBeVisible();
+    expect(await page.locator("svg.sov-diagram circle.node").count()).toBeGreaterThan(0);
   });
 
   test("instance dashboard rolls flows up across targets", async ({ page }) => {
