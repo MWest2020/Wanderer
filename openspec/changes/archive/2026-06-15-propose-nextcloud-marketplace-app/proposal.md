@@ -1,10 +1,12 @@
 # Proposal: Wanderer as a Nextcloud marketplace app
 
-> **Status:** Design pass — awaiting Mark's scope call.
-> Direction (4) of the four-direction Nextcloud integration
-> proposal. This is the **heaviest** direction by an order
-> of magnitude. Mark may legitimately decide this is a
-> separate product, not a Wanderer feature.
+> **Status:** Decided + spiked (2026-06-15). **Go — architecture D
+> (AppAPI / ExApp), which supersedes A/B/C.** The A/B/C options
+> assumed "Nextcloud apps are PHP"; Nextcloud's AppAPI lets an ExApp
+> ship as a language-agnostic Docker container managed by the deploy
+> daemon and distributed via the App Store — no PHP, core untouched.
+> Implemented as a separate downstream repo `MWest2020/wanderer-exapp`
+> (skeleton spike: AppAPI shim + packaging). See ADR-0014.
 
 ## Intent
 
@@ -62,11 +64,40 @@ TLS probes) requires the host filesystem + raw sockets,
 which WASI partially provides but Nextcloud's PHP runtime
 doesn't expose by default.
 
+### D. AppAPI ExApp — Go container (CHOSEN, 2026-06-15)
+
+The premise behind A/B/C — "Nextcloud apps are PHP" — is
+obsolete. Nextcloud's **AppAPI** runs **ExApps (External
+Apps)** as Docker containers managed by a Deploy Daemon:
+language-agnostic, App-Store-distributable, AppAPI a default
+dependency since NC 30.0.1. Wanderer (one Go binary) ships as
+an ExApp image; a thin Go shim implements the AppAPI lifecycle
+(`/heartbeat`, `/init`, `/enabled`) and reverse-proxies authed
+Nextcloud traffic to the colocated Wanderer process.
+
+Pros: no PHP rewrite (vs B); the Deploy Daemon manages the
+container so there is no "install two services" leak (vs A);
+no `ext-wasm` runtime gap (vs C); the Go core stays
+authoritative and untouched. Cons: the customer's Nextcloud
+must have AppAPI + a configured deploy daemon (standard on
+modern Nextcloud).
+
+Shipped as a **separate downstream repo**
+`MWest2020/wanderer-exapp` — honouring the spec requirement
+that the marketplace surface not pollute the core Go module
+(no PHP/Composer; `go test ./...` stays toolchain-free). The
+repo consumes the core via a pinned `go install` version that
+a release-triggered Action bumps. Verified:
+`docs/decisions/0013`-style ADR at ADR-0014; AppAPI contract
+grounded against the Nextcloud AppAPI docs.
+
+Source: https://docs.nextcloud.com/server/latest/admin_manual/exapps_management/AppAPIAndExternalApps.html
+
 ## Recommendation
 
-**Defer the decision.** Marketplace distribution is a
-go-to-market choice, not a technical one. The three options
-above tell us:
+**Superseded — see architecture D above (chosen).** The
+original recommendation, retained for the record, was to defer
+the go/no-go. The three PHP-framed options tell us:
 
 - A is feasible today (sidecar, ~2 weeks of PHP shim work)
 - B is a non-starter (rewrites everything in the wrong

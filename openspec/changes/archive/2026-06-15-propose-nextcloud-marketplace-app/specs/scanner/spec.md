@@ -1,8 +1,9 @@
 # Delta for scanner
 
-> Paper-only. This proposal documents the decision space for
-> marketplace distribution; no requirement lands until Mark
-> picks Q1.
+> Decided 2026-06-15 — architecture D (AppAPI ExApp), shipped as the
+> separate downstream repo `MWest2020/wanderer-exapp`. The
+> separately-tracked-product-surface requirement below now lands into
+> the canonical scanner spec; it is satisfied by the separate repo.
 
 ## ADDED Requirements
 
