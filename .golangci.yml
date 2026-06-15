@@ -19,3 +19,24 @@ linters-settings:
   gosec:
     excludes:
       - G304 # file-path from variable is fine for CLI flags
+
+issues:
+  exclude-rules:
+    # TLS-inspection probe: it must connect to whatever a target
+    # offers (including legacy TLS) to observe and report it — a high
+    # MinVersion would defeat the probe; verification failures are
+    # emitted as findings, not errors.
+    - path: internal/probe/tls/tls\.go
+      linters: [gosec]
+      text: "G402"
+    # The query WHERE clause is assembled from a fixed, caller-supplied
+    # column-name allowlist with `?` placeholders; every value is bound
+    # via args (see whereAndArgs). No user input reaches the SQL string.
+    - path: internal/store/export\.go
+      linters: [gosec]
+      text: "G202"
+    # Test fixtures write throwaway files into a t.TempDir(); their
+    # mode is irrelevant to production security.
+    - path: _test\.go
+      linters: [gosec]
+      text: "G306"
