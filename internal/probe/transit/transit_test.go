@@ -2,11 +2,26 @@ package transit
 
 import (
 	"context"
+	"errors"
+	"net"
 	"testing"
 
 	"github.com/MWest2020/wanderer/internal/probe"
 	"github.com/MWest2020/wanderer/pkg/models"
 )
+
+// offlineResolver fails every dial so LookupAddr/LookupHost never touch
+// the network — keeps the Run test hermetic (rDNS is best-effort, so a
+// failing lookup just leaves the rdns field empty). IP-literal hosts
+// still resolve without a dial.
+func offlineResolver() *net.Resolver {
+	return &net.Resolver{
+		PreferGo: true,
+		Dial: func(context.Context, string, string) (net.Conn, error) {
+			return nil, errors.New("offline test resolver")
+		},
+	}
+}
 
 func TestParseTrace_Tracepath(t *testing.T) {
 	out := `` +
@@ -101,8 +116,9 @@ func TestRun_EmitsHopsAndAggregate(t *testing.T) {
 			{Num: 2, NoReply: true},
 			{Num: 3, IP: "81.24.6.82", RTTms: 13.6},
 		}},
-		// Geo nil → no ASN/country enrichment; rDNS may or may not
-		// resolve in the sandbox, which is fine (best-effort).
+		// Geo nil → no ASN/country enrichment; offline resolver keeps
+		// rDNS (best-effort) off the network so the test is hermetic.
+		Resolver: offlineResolver(),
 	}
 	fs, err := p.Run(context.Background(), models.Target{Domain: "81.24.6.82"}, probe.Config{})
 	if err != nil {
