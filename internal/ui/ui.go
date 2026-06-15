@@ -166,7 +166,15 @@ func scanTriggerHandler(st *store.Store, sc ScanTrigger) http.HandlerFunc {
 			http.Error(w, "domain is required", http.StatusBadRequest)
 			return
 		}
-		scan, err := sc.Scan(r.Context(), models.Target{Domain: domain})
+		// Detach from the request context: a scan + persist takes
+		// seconds, and if the browser cancels the POST (refresh,
+		// navigate, re-click) the request context would cancel the DB
+		// writes mid-scan ("begin tx: context canceled") and persist
+		// nothing. The scan owns its own bounded context so it always
+		// completes and persists.
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+		defer cancel()
+		scan, err := sc.Scan(ctx, models.Target{Domain: domain})
 		if err != nil {
 			http.Error(w, "scan failed: "+err.Error(), http.StatusBadGateway)
 			return
@@ -178,7 +186,7 @@ func scanTriggerHandler(st *store.Store, sc ScanTrigger) http.HandlerFunc {
 			Framework:  "wand",
 			Dimensions: assessor.Assess(scan.Findings, wand.DefaultRules()),
 		}
-		if err := st.CreateAssessment(r.Context(), a); err != nil {
+		if err := st.CreateAssessment(ctx, a); err != nil {
 			http.Error(w, "assess failed: "+err.Error(), http.StatusInternalServerError)
 			return
 		}
