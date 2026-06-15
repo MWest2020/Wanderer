@@ -92,3 +92,43 @@ func TestNSVendorJurisdiction_NSButNoGeo_Onbekend(t *testing.T) {
 		t.Fatalf("score = %s, want onbekend", got.Score)
 	}
 }
+
+// ipASNNoCountry is an ip.asn finding with an attributed AS
+// organisation but no resolved country — the anycast shape.
+func ipASNNoCountry(id, host, org string) models.Finding {
+	return models.Finding{
+		ID: id, ProbeID: "ip.asn", Subject: host,
+		Attributes: map[string]any{"country": "", "organisation": org},
+	}
+}
+
+func TestNSVendorJurisdiction_AnycastHyperscaler_Afhankelijk(t *testing.T) {
+	r := nsVendorJurisdiction()
+	got := r.Match([]models.Finding{
+		nsFinding("n1", "jamie.ns.cloudflare.com."),
+		ipASNNoCountry("a1", "jamie.ns.cloudflare.com", "Cloudflare, Inc."),
+	})
+	if got.Score != models.ScoreAfhankelijk {
+		t.Fatalf("anycast hyperscaler NS: score = %s, want afhankelijk", got.Score)
+	}
+	if !strings.Contains(got.Verdict, "Cloudflare") {
+		t.Errorf("verdict should name the operator, got %q", got.Verdict)
+	}
+	if len(got.Evidence) == 0 {
+		t.Error("anycast hyperscaler NS must cite evidence")
+	}
+}
+
+func TestNSVendorJurisdiction_AnycastUnknown_Onbekend(t *testing.T) {
+	r := nsVendorJurisdiction()
+	got := r.Match([]models.Finding{
+		nsFinding("n1", "ns1.example.nl."),
+		ipASNNoCountry("a1", "ns1.example.nl", "Some Anycast BV"),
+	})
+	if got.Score != models.ScoreOnbekend {
+		t.Fatalf("anycast unknown NS: score = %s, want onbekend", got.Score)
+	}
+	if strings.Contains(got.Verdict, "IP probe did not run") {
+		t.Errorf("verdict should not claim the probe never ran when an operator was found, got %q", got.Verdict)
+	}
+}

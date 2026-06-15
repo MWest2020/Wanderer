@@ -37,6 +37,76 @@ var knownUSHyperscalerOrgs = []string{
 	"cloudflare", "akamai", "fastly",
 }
 
+// usHyperscalerOrg reports whether an AS organisation string belongs
+// to a known US-headquartered hyperscaler, returning the canonical
+// org name when it matches. Used where an IP has an attributed AS
+// organisation but no resolved country (anycast networks like
+// Cloudflare publish no per-PoP country): the operator itself is the
+// jurisdiction signal even when the geo lookup yields nothing.
+func usHyperscalerOrg(org string) (string, bool) {
+	low := strings.ToLower(org)
+	for _, needle := range knownUSHyperscalerOrgs {
+		if strings.Contains(low, needle) {
+			return org, true
+		}
+	}
+	return org, false
+}
+
+// jurisdictionTally accumulates the per-IP country evidence the four
+// EEA-jurisdiction rules share (apex, MX, NS, third parties). Each
+// rule correlates a set of hosts with their ip.asn lookups and feeds
+// the matched findings to add(). When no finding carried a country —
+// the anycast case, where networks like Cloudflare publish no per-PoP
+// geo — noCountryResult() names the AS operator instead of pretending
+// the IP probe never ran.
+type jurisdictionTally struct {
+	seen, inEEA          int
+	countries, evidence  []string
+	noCountryHyperscaler string
+	noCountryEvidence    []string
+	noCountrySeen        bool
+}
+
+func (jt *jurisdictionTally) add(f models.Finding) {
+	country := strings.ToUpper(stringFromAttr(f.Attributes, "country"))
+	if country == "" {
+		if org := stringFromAttr(f.Attributes, "organisation"); org != "" {
+			jt.noCountrySeen = true
+			jt.noCountryEvidence = append(jt.noCountryEvidence, f.ID)
+			if name, ok := usHyperscalerOrg(org); ok && jt.noCountryHyperscaler == "" {
+				jt.noCountryHyperscaler = name
+			}
+		}
+		return
+	}
+	jt.seen++
+	jt.countries = append(jt.countries, country)
+	jt.evidence = append(jt.evidence, f.ID)
+	if eeaCountries[country] {
+		jt.inEEA++
+	}
+}
+
+// noCountryResult builds the verdict for the seen==0 case. operator is
+// a verb-phrase placed before the org name ("apex fronted by",
+// "authoritative DNS run by", "mail routed via", "third parties served
+// by"); undetermined and probeAbsent are the full verdict strings for
+// the non-hyperscaler and no-finding fallbacks.
+func (jt *jurisdictionTally) noCountryResult(operator, undetermined, probeAbsent string) assessor.RuleResult {
+	if jt.noCountryHyperscaler != "" {
+		return assessor.RuleResult{
+			Score:    models.ScoreAfhankelijk,
+			Verdict:  fmt.Sprintf("%s %s (US hyperscaler); anycast IPs carry no country", operator, jt.noCountryHyperscaler),
+			Evidence: jt.noCountryEvidence,
+		}
+	}
+	if jt.noCountrySeen {
+		return assessor.RuleResult{Score: models.ScoreOnbekend, Verdict: undetermined, Evidence: jt.noCountryEvidence}
+	}
+	return assessor.RuleResult{Score: models.ScoreOnbekend, Verdict: probeAbsent}
+}
+
 // DefaultRules returns the MVP DICTU rule set. Rules are independently
 // testable — this function exists only as the default wiring.
 func DefaultRules() []assessor.Rule {
@@ -186,45 +256,38 @@ func apexIPInEEA() assessor.Rule {
 			if apex == "" {
 				return assessor.RuleResult{Score: models.ScoreOnbekend, Verdict: "no apex DNS finding — cannot identify apex host"}
 			}
-			var seen, inEEA int
-			var evidence []string
-			var countries []string
+			var jt jurisdictionTally
 			for _, f := range findings {
 				if f.ProbeID != "ip.asn" || f.Subject != apex {
 					continue
 				}
-				country := strings.ToUpper(stringFromAttr(f.Attributes, "country"))
-				if country == "" {
-					continue
-				}
-				seen++
-				countries = append(countries, country)
-				evidence = append(evidence, f.ID)
-				if eeaCountries[country] {
-					inEEA++
-				}
+				jt.add(f)
 			}
-			if seen == 0 {
-				return assessor.RuleResult{Score: models.ScoreOnbekend, Verdict: "no ip.asn finding for apex — IP probe did not run"}
+			if jt.seen == 0 {
+				return jt.noCountryResult(
+					"apex fronted by",
+					"apex IP has an AS operator but no country (anycast?) — jurisdiction undetermined",
+					"no ip.asn finding for apex — IP probe did not run or no --geoip database",
+				)
 			}
 			switch {
-			case inEEA == seen:
+			case jt.inEEA == jt.seen:
 				return assessor.RuleResult{
 					Score:    models.ScoreSoeverein,
-					Verdict:  fmt.Sprintf("apex IPs in %s (EEA)", strings.Join(countries, ",")),
-					Evidence: evidence,
+					Verdict:  fmt.Sprintf("apex IPs in %s (EEA)", strings.Join(jt.countries, ",")),
+					Evidence: jt.evidence,
 				}
-			case inEEA > 0:
+			case jt.inEEA > 0:
 				return assessor.RuleResult{
 					Score:    models.ScoreVoldoende,
-					Verdict:  fmt.Sprintf("apex IPs split across %s", strings.Join(countries, ",")),
-					Evidence: evidence,
+					Verdict:  fmt.Sprintf("apex IPs split across %s", strings.Join(jt.countries, ",")),
+					Evidence: jt.evidence,
 				}
 			default:
 				return assessor.RuleResult{
 					Score:    models.ScoreAfhankelijk,
-					Verdict:  fmt.Sprintf("apex IPs in %s (outside EEA)", strings.Join(countries, ",")),
-					Evidence: evidence,
+					Verdict:  fmt.Sprintf("apex IPs in %s (outside EEA)", strings.Join(jt.countries, ",")),
+					Evidence: jt.evidence,
 				}
 			}
 		},
@@ -256,9 +319,7 @@ func mxVendorJurisdiction() assessor.Rule {
 			if len(mxHosts) == 0 {
 				return assessor.RuleResult{Score: models.ScoreOnbekend, Verdict: "no dns.mx finding — no mail routing to assess"}
 			}
-			var seen, inEEA int
-			var evidence []string
-			var countries []string
+			var jt jurisdictionTally
 			for _, f := range findings {
 				if f.ProbeID != "ip.asn" {
 					continue
@@ -267,42 +328,38 @@ func mxVendorJurisdiction() assessor.Rule {
 				if _, ok := mxHosts[host]; !ok {
 					continue
 				}
-				country := strings.ToUpper(stringFromAttr(f.Attributes, "country"))
-				if country == "" {
-					continue
-				}
-				seen++
-				countries = append(countries, country)
-				evidence = append(evidence, f.ID)
-				if eeaCountries[country] {
-					inEEA++
-				}
+				jt.add(f)
 			}
-			if seen == 0 {
-				return assessor.RuleResult{Score: models.ScoreOnbekend, Verdict: "mx hosts found but no ip.asn lookup — IP probe did not run"}
+			if jt.seen == 0 {
+				return jt.noCountryResult(
+					"mail routed via",
+					"mx host has an AS operator but no country (anycast?) — jurisdiction undetermined",
+					"mx hosts found but no ip.asn lookup — IP probe did not run or no --geoip database",
+				)
 			}
 			// Merge in the MX finding IDs so the rationale cites both
 			// sides of the correlation.
+			evidence := jt.evidence
 			for _, id := range mxHosts {
 				evidence = append(evidence, id)
 			}
 			switch {
-			case inEEA == seen:
+			case jt.inEEA == jt.seen:
 				return assessor.RuleResult{
 					Score:    models.ScoreSoeverein,
-					Verdict:  fmt.Sprintf("mx hosts in %s (EEA)", strings.Join(countries, ",")),
+					Verdict:  fmt.Sprintf("mx hosts in %s (EEA)", strings.Join(jt.countries, ",")),
 					Evidence: evidence,
 				}
-			case inEEA > 0:
+			case jt.inEEA > 0:
 				return assessor.RuleResult{
 					Score:    models.ScoreVoldoende,
-					Verdict:  fmt.Sprintf("mx hosts split across %s", strings.Join(countries, ",")),
+					Verdict:  fmt.Sprintf("mx hosts split across %s", strings.Join(jt.countries, ",")),
 					Evidence: evidence,
 				}
 			default:
 				return assessor.RuleResult{
 					Score:    models.ScoreAfhankelijk,
-					Verdict:  fmt.Sprintf("mx hosts in %s (outside EEA)", strings.Join(countries, ",")),
+					Verdict:  fmt.Sprintf("mx hosts in %s (outside EEA)", strings.Join(jt.countries, ",")),
 					Evidence: evidence,
 				}
 			}
@@ -477,8 +534,7 @@ func thirdPartiesEEA() assessor.Rule {
 			if len(thirdParties) == 0 {
 				return assessor.RuleResult{Score: models.ScoreOnbekend, Verdict: "no http.third_party finding — HTTP probe found no third parties or did not run"}
 			}
-			seen, inEEA := 0, 0
-			var evidence []string
+			var jt jurisdictionTally
 			for _, f := range findings {
 				if f.ProbeID != "ip.asn" {
 					continue
@@ -487,19 +543,17 @@ func thirdPartiesEEA() assessor.Rule {
 				if _, ok := thirdParties[host]; !ok {
 					continue
 				}
-				country := strings.ToUpper(stringFromAttr(f.Attributes, "country"))
-				if country == "" {
-					continue
-				}
-				seen++
-				evidence = append(evidence, f.ID)
-				if eeaCountries[country] {
-					inEEA++
-				}
+				jt.add(f)
 			}
-			if seen == 0 {
-				return assessor.RuleResult{Score: models.ScoreOnbekend, Verdict: "third parties found but no ip.asn lookup — IP probe did not run"}
+			if jt.seen == 0 {
+				return jt.noCountryResult(
+					"third parties served by",
+					"third parties on an AS operator with no country (anycast?) — jurisdiction undetermined",
+					"third parties found but no ip.asn lookup — IP probe did not run or no --geoip database",
+				)
 			}
+			seen, inEEA := jt.seen, jt.inEEA
+			evidence := jt.evidence
 			for _, id := range thirdParties {
 				evidence = append(evidence, id)
 			}

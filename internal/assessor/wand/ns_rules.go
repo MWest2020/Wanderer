@@ -42,8 +42,7 @@ func nsVendorJurisdiction() assessor.Rule {
 				return assessor.RuleResult{Score: models.ScoreOnbekend, Verdict: "no dns.ns finding — no authoritative DNS to assess"}
 			}
 
-			var seen, inEEA int
-			var evidence, countries []string
+			var jt jurisdictionTally
 			for _, f := range findings {
 				if f.ProbeID != "ip.asn" {
 					continue
@@ -52,20 +51,18 @@ func nsVendorJurisdiction() assessor.Rule {
 				if _, ok := nsHosts[host]; !ok {
 					continue
 				}
-				country := strings.ToUpper(stringFromAttr(f.Attributes, "country"))
-				if country == "" {
-					continue
-				}
-				seen++
-				countries = append(countries, country)
-				evidence = append(evidence, f.ID)
-				if eeaCountries[country] {
-					inEEA++
-				}
+				jt.add(f)
 			}
-			if seen == 0 {
-				return assessor.RuleResult{Score: models.ScoreOnbekend, Verdict: "ns hosts found but no ip.asn lookup — IP probe did not run or could not geo-locate them"}
+			if jt.seen == 0 {
+				return jt.noCountryResult(
+					"authoritative DNS run by",
+					"authoritative DNS on an AS operator with no country (anycast?) — jurisdiction undetermined",
+					"ns hosts found but no ip.asn lookup — IP probe did not run or no --geoip database",
+				)
 			}
+			seen, inEEA := jt.seen, jt.inEEA
+			countries := jt.countries
+			evidence := jt.evidence
 			// Cite both sides of the correlation.
 			for _, id := range nsHosts {
 				evidence = append(evidence, id)

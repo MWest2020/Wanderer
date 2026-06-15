@@ -119,6 +119,31 @@ func TestApexIPInEEA(t *testing.T) {
 	if got.Score != models.ScoreOnbekend {
 		t.Errorf("no ip.asn: score = %s, want onbekend", got.Score)
 	}
+
+	// Apex on an anycast hyperscaler: AS organisation is attributed
+	// but the country is empty. The operator is the jurisdiction
+	// signal — must score afhankelijk, not the misleading onbekend.
+	got = r.Match([]models.Finding{
+		f("d1", "dns.a", map[string]any{"_subject": "example.com", "address": "104.16.0.1"}),
+		f("a1", "ip.asn", map[string]any{"_subject": "example.com", "country": "", "organisation": "Cloudflare, Inc."}),
+	})
+	if got.Score != models.ScoreAfhankelijk {
+		t.Errorf("anycast hyperscaler apex: score = %s, want afhankelijk", got.Score)
+	}
+	if len(got.Evidence) == 0 {
+		t.Errorf("anycast hyperscaler apex: expected evidence citing the ip.asn finding")
+	}
+
+	// AS organisation with no country and not a known hyperscaler:
+	// honest onbekend that says jurisdiction is undetermined, not
+	// "IP probe did not run".
+	got = r.Match([]models.Finding{
+		f("d1", "dns.a", map[string]any{"_subject": "example.com", "address": "192.0.2.1"}),
+		f("a1", "ip.asn", map[string]any{"_subject": "example.com", "country": "", "organisation": "Some Anycast BV"}),
+	})
+	if got.Score != models.ScoreOnbekend {
+		t.Errorf("anycast non-hyperscaler apex: score = %s, want onbekend", got.Score)
+	}
 }
 
 func TestMXVendorJurisdiction(t *testing.T) {
@@ -137,6 +162,20 @@ func TestMXVendorJurisdiction(t *testing.T) {
 	got = r.Match(nil)
 	if got.Score != models.ScoreOnbekend {
 		t.Errorf("no findings: score = %s, want onbekend", got.Score)
+	}
+
+	// Mail behind a US hyperscaler whose anycast IPs carry no country
+	// (e.g. Microsoft 365 / Cloudflare Email Routing): the operator is
+	// the jurisdiction signal — afhankelijk, not a bare onbekend.
+	got = r.Match([]models.Finding{
+		f("m1", "dns.mx", map[string]any{"_subject": "example.com", "host": "example-com.mail.protection.outlook.com"}),
+		f("a1", "ip.asn", map[string]any{"_subject": "example-com.mail.protection.outlook.com", "country": "", "organisation": "Microsoft Corporation"}),
+	})
+	if got.Score != models.ScoreAfhankelijk {
+		t.Errorf("anycast hyperscaler mx: score = %s, want afhankelijk", got.Score)
+	}
+	if !strings.Contains(got.Verdict, "Microsoft") {
+		t.Errorf("verdict should name the operator, got %q", got.Verdict)
 	}
 }
 
