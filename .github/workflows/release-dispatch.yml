@@ -1,0 +1,39 @@
+name: release-dispatch
+
+# On a published GitHub release, notify the downstream Nextcloud ExApp
+# repo so it rebuilds its image pinned to this release. Keeps
+# MWest2020/wanderer-exapp current with the core (see ADR-0014).
+#
+# Requires a repo secret EXAPP_DISPATCH_TOKEN: a fine-grained PAT with
+# "Contents: read-only" + "metadata" on MWest2020/wanderer-exapp and
+# the repository_dispatch permission. The default GITHUB_TOKEN cannot
+# dispatch to another repository, so this manual secret is needed.
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to send to wanderer-exapp"
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  notify-exapp:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Dispatch to wanderer-exapp
+        env:
+          GH_TOKEN: ${{ secrets.EXAPP_DISPATCH_TOKEN }}
+          VERSION: ${{ github.event.release.tag_name || github.event.inputs.version }}
+        run: |
+          if [ -z "$GH_TOKEN" ]; then
+            echo "EXAPP_DISPATCH_TOKEN is not set — add it to repo secrets." >&2
+            exit 1
+          fi
+          gh api repos/MWest2020/wanderer-exapp/dispatches \
+            -f event_type=wanderer-release \
+            -f "client_payload[version]=${VERSION}"

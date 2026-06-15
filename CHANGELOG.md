@@ -9,8 +9,28 @@ once a first release is cut. Until then every entry lives under
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-06-15
+
+First tagged release. Everything below was developed pre-1.0; the tag
+exists so downstream consumers (e.g. the `wanderer-exapp` Nextcloud
+ExApp) can pin a reproducible version instead of `@main`.
+
 ### Added
 
+- **Nextcloud as OIDC login** for `wanderer serve --ui` — accept a
+  Nextcloud (or any OIDC provider) as the identity hub. New
+  `internal/auth/oidc` (go-oidc/v3 + x/oauth2, lazy discovery),
+  server-side SQLite session table (migration 006), a gate that falls
+  back through session → htpasswd break-glass → OIDC redirect, and a
+  `serve.yaml` `oidc:` block. See ADR-0013.
+- **Nextcloud as output** — publish each completed scan into a
+  Nextcloud over WebDAV as a JSON-LD + Markdown bundle. New
+  `internal/export/nextcloud` + a post-scan publisher hook (bounded
+  retry, never fails the scan, ADR-0008 redaction + Evidence-drop
+  before publish) and a `serve.yaml` `nextcloud:` block.
+- **Marketplace distribution decided** — Wanderer ships as a Nextcloud
+  AppAPI ExApp (architecture D) from the downstream `wanderer-exapp`
+  repo; the core stays PHP/Composer-free. See ADR-0014.
 - **Playwright smoke tests for the UI.** New `tests/playwright/`
   with `@playwright/test` 1.59.1 pinned, two spec files
   (`dar.spec.ts` covering DAR layering + organisation scope
