@@ -61,15 +61,19 @@ dependency is the honest coupling.
   stay current; that wiring (a dispatch step in the core's release
   workflow) is a follow-up once the core tags releases. Until then the
   ExApp pins `WANDERER_VERSION=main`.
-- **Not yet validated end-to-end.** The ExApp Go shim builds, vets,
-  and passes unit tests, but the live AppAPI deploy against a real
-  Nextcloud was not smoke-tested (no Docker in the authoring
-  environment). The downstream repo carries the docker-compose harness
-  and a clear "unverified" note; live validation is the next step.
-- The ExApp `info.xml` manifest is a template — the AppAPI manifest
+- **Validated end-to-end (2026-06-15).** The ExApp was smoke-tested
+  against a live Nextcloud 30.0.17 + AppAPI 4.0.6: the image builds
+  (buildx), the container runs the shim + the pinned core binary, and
+  AppAPI registered it via a `manual-install` daemon — authenticating
+  with the real `AUTHORIZATION-APP-API` secret, calling `/init`, and
+  ending with `app_api:app:list` showing `wanderer … [enabled]`. The
+  runtime contract (auth, lifecycle, proxy) is proven.
+- The ExApp `info.xml` manifest is still a template — the live
+  validation registered the app via `--json-info` (the runtime path),
+  not `info.xml` (the App-Store packaging path). The AppAPI manifest
   schema drifted across versions (3.0+ deprecated `<scopes>`/`<system>`)
   and must be validated against the target AppAPI version before the
-  app is published.
+  app is published to the store.
 
 **Alternatives considered.**
 
