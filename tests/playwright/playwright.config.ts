@@ -52,7 +52,7 @@ export default defineConfig({
   projects: [
     {
       name: "baseline",
-      testMatch: ["dar.spec.ts", "reporting-catalogue.spec.ts"],
+      testMatch: ["dar.spec.ts", "reporting-catalogue.spec.ts", "sovereignty-overview.spec.ts"],
       use: {
         ...devices["Desktop Chrome"],
         baseURL: `http://127.0.0.1:${baselinePort}`,

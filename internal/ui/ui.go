@@ -586,6 +586,7 @@ type assessmentView struct {
 	Status       string
 	OrgSlug      string
 	HasReporting bool
+	Flows        []Flow // Sovereignty overview — "what goes where"
 	Frameworks   []frameworkCardView
 }
 
@@ -635,6 +636,7 @@ func assessmentHandler(st *store.Store, tmpl *template.Template) http.HandlerFun
 			Status:       string(scan.Status),
 			OrgSlug:      scopeSlugForScan(r.Context(), st, scan.TargetID),
 			HasReporting: true,
+			Flows:        SovereigntyFlows(assessments),
 		}
 		// Stable framework order: dictu first, then alphabetical.
 		sort.SliceStable(assessments, func(i, j int) bool {

@@ -21,6 +21,23 @@
   </p>
 </header>
 <main>
+{{if .Flows}}
+<section class="sovereignty-overview">
+  <h2>Sovereignty overview</h2>
+  <p class="meta">Where this service lives and what its traffic touches — synthesised from the observed signals.</p>
+  <table class="flows">
+    <tbody>
+    {{range .Flows}}
+      <tr>
+        <th scope="row">{{.Label}}</th>
+        <td><span class="badge score-{{.Score}}">{{.Score}}</span></td>
+        <td>{{.Verdict}}</td>
+      </tr>
+    {{end}}
+    </tbody>
+  </table>
+</section>
+{{end}}
 {{if .Frameworks}}
 <div class="frameworks">
 {{range .Frameworks}}

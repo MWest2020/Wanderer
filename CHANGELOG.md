@@ -11,6 +11,15 @@ once a first release is cut. Until then every entry lives under
 
 ### Added
 
+- **Sovereignty overview** (`propose-sovereignty-overview`, ADR-0015).
+  A synthesis panel on the assessment page that re-groups the
+  already-scored rule rationales into an ordered "what goes where" set
+  of flows — Hosting, Mail, DNS, Transit path, CDN / hyperscaler, Third
+  parties — each with its observed verdict and score. Pure presentation
+  (`internal/ui/SovereigntyFlows`): no new collection, no jurisdiction
+  logic in the view. The synthesis that answers the "weinigzeggend"
+  feedback — the org/host as the spider in the web. (Textual list
+  first; an interactive graph is a follow-up.)
 - **DNS-hosting jurisdiction** (`propose-dns-hosting-jurisdiction`).
   The scanner now feeds `dns.ns` (nameserver) hosts to the IP probe,
   and a new `wand.juridisch.ns_vendor_jurisdiction` rule scores who
