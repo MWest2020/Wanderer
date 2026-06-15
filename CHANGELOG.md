@@ -20,6 +20,13 @@ once a first release is cut. Until then every entry lives under
   logic in the view. The synthesis that answers the "weinigzeggend"
   feedback — the org/host as the spider in the web. (Textual list
   first; an interactive graph is a follow-up.)
+- **Org-level sovereignty roll-up** (`propose-org-sovereignty-rollup`).
+  A "Sovereignty by flow" section on the dashboard (instance and
+  per-organisation) that rolls the per-target flows up across the scans
+  in scope — per flow category: how many targets, how many outside the
+  EEA, and the worst score reached. The organisation-as-the-spider-in-
+  the-web posture ("Mail: 3 of 5 outside EEA"). Reuses the flow model;
+  no new collection.
 - **DNS-hosting jurisdiction** (`propose-dns-hosting-jurisdiction`).
   The scanner now feeds `dns.ns` (nameserver) hosts to the IP probe,
   and a new `wand.juridisch.ns_vendor_jurisdiction` rule scores who

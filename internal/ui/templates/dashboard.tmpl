@@ -74,6 +74,25 @@
   {{end}}
 </section>
 
+{{if .FlowRollup}}
+<section class="dashboard-section sovereignty-rollup">
+  <h2>Sovereignty by flow <span class="scope-label">what goes where</span></h2>
+  <table class="flows">
+    <tbody>
+    {{range .FlowRollup}}
+      <tr>
+        <th scope="row">{{.Label}}</th>
+        <td><span class="badge score-{{.Worst}}">{{.Worst}}</span></td>
+        <td>
+          {{if gt .Afhankelijk 0}}{{.Afhankelijk}} of {{.Total}} outside EEA{{else}}all {{.Total}} in EEA{{end}}
+        </td>
+      </tr>
+    {{end}}
+    </tbody>
+  </table>
+</section>
+{{end}}
+
 {{if .OrganisationsList}}
 <section class="dashboard-section">
   <h2>Organisations</h2>

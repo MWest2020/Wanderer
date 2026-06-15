@@ -61,3 +61,82 @@ func SovereigntyFlows(assessments []models.Assessment) []Flow {
 	}
 	return flows
 }
+
+// FlowRollup is one flow category aggregated across an organisation's
+// targets: how many were assessed for it and how many landed
+// afhankelijk (the actionable count), with the worst score reached for
+// the pill colour. It turns the per-scan overview into the org-as-the-
+// spider-in-the-web posture ("across your services, mail is the weak
+// spot").
+type FlowRollup struct {
+	Label       string
+	Total       int
+	Afhankelijk int
+	Worst       string
+}
+
+// SovereigntyFlowRollup aggregates the per-target flows across a set of
+// snapshots (an organisation's latest scans) into one row per flow
+// category. Categories no target was assessed for are omitted.
+func SovereigntyFlowRollup(snaps []TargetSnapshot) []FlowRollup {
+	type acc struct {
+		total, afh int
+		worst      models.Score
+	}
+	byLabel := map[string]*acc{}
+	for _, s := range snaps {
+		assessments := make([]models.Assessment, 0, len(s.Assessments))
+		for _, a := range s.Assessments {
+			assessments = append(assessments, a)
+		}
+		for _, f := range SovereigntyFlows(assessments) {
+			a := byLabel[f.Label]
+			if a == nil {
+				a = &acc{}
+				byLabel[f.Label] = a
+			}
+			a.total++
+			score := models.Score(f.Score)
+			if score == models.ScoreAfhankelijk {
+				a.afh++
+			}
+			if worseScore(score, a.worst) {
+				a.worst = score
+			}
+		}
+	}
+	var out []FlowRollup
+	for _, fr := range flowRules { // fixed order
+		a := byLabel[fr.label]
+		if a == nil {
+			continue
+		}
+		out = append(out, FlowRollup{
+			Label:       fr.label,
+			Total:       a.total,
+			Afhankelijk: a.afh,
+			Worst:       string(a.worst),
+		})
+	}
+	return out
+}
+
+// worseScore reports whether candidate is a worse (less sovereign)
+// score than current, treating onbekend as the mildest so a genuine
+// afhankelijk/voldoende always wins the pill. Empty current loses.
+func worseScore(candidate, current models.Score) bool {
+	return scoreSeverity(candidate) > scoreSeverity(current)
+}
+
+func scoreSeverity(s models.Score) int {
+	switch s {
+	case models.ScoreAfhankelijk:
+		return 3
+	case models.ScoreVoldoende:
+		return 2
+	case models.ScoreSoeverein:
+		return 1
+	default: // onbekend / empty
+		return 0
+	}
+}

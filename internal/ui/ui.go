@@ -110,6 +110,7 @@ type dashboardView struct {
 	OrganisationsList  []organisationLinkView // populated only on the instance-wide /ui/
 	ScopedOrganisation *organisationLinkView  // populated only on /ui/orgs/{slug}
 	Verdicts           []verdictRenderView    // per-framework "is this OK" pill
+	FlowRollup         []FlowRollup           // Sovereignty-by-flow roll-up across targets
 	HasReporting       bool                   // controls whether the Reporting nav link renders
 	OrgSlug            string                 // active org for nav-link scope persistence
 }
@@ -204,6 +205,7 @@ func renderDashboard(w http.ResponseWriter, r *http.Request, st *store.Store, tm
 	if !headline.LastScanAt.IsZero() {
 		view.Headline.LastScanAt = headline.LastScanAt.UTC().Format(time.RFC3339)
 	}
+	view.FlowRollup = SovereigntyFlowRollup(snaps)
 	for _, v := range verdicts {
 		view.Verdicts = append(view.Verdicts, verdictRenderView{
 			Framework: v.Framework,

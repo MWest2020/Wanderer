@@ -31,4 +31,14 @@ test.describe("Sovereignty overview", () => {
       page.locator("section.sovereignty-overview th", { hasText: /Mail|DNS|Hosting/ }).first(),
     ).toBeVisible();
   });
+
+  test("instance dashboard rolls flows up across targets", async ({ page }) => {
+    await page.goto("/ui/");
+    await expect(
+      page.locator("section.sovereignty-rollup h2", { hasText: /Sovereignty by flow/i }),
+    ).toBeVisible();
+    await expect(
+      page.locator("section.sovereignty-rollup th", { hasText: /Hosting|Mail|DNS/ }).first(),
+    ).toBeVisible();
+  });
 });
