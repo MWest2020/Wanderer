@@ -11,6 +11,14 @@ once a first release is cut. Until then every entry lives under
 
 ### Added
 
+- **HTTP exposure scoring** (`propose-http-exposure`). A new
+  `wand.operationeel.http_exposure` rule scores the passive exposure
+  posture from signals the HTTP probe already observed: missing HSTS →
+  afhankelijk, HSTS present but other baseline headers missing →
+  voldoende, all present → soeverein; a Server / X-Powered-By stack
+  disclosure is named in the verdict. The "what is exposed / misusable"
+  axis — passive, no intrusive probing.
+
 - **Sovereignty overview** (`propose-sovereignty-overview`, ADR-0015).
   A synthesis panel on the assessment page that re-groups the
   already-scored rule rationales into an ordered "what goes where" set
