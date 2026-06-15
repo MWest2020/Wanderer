@@ -30,4 +30,10 @@ jobs:
           cache: true
       - uses: golangci/golangci-lint-action@v6
         with:
-          version: latest
+          # Build golangci-lint from source with the runner's Go 1.25
+          # toolchain. The prebuilt "latest" binary is compiled with
+          # Go 1.24 and refuses a module that targets go 1.25.0
+          # ("build go version lower than targeted"). goinstall sidesteps
+          # that while keeping the existing v1 .golangci.yml.
+          version: v1.64.8
+          install-mode: goinstall
