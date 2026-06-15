@@ -1,0 +1,1111 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Wanderer — assessment for s_1781543805832_001wcai59c</title>
+<style>
+:root {
+  --bg: #fff;
+  --fg: #1a1a1a;
+  --muted: #666;
+  --border: #ddd;
+  --accent: #1a73e8;
+  --info: #6c757d;
+  --observation: #ffc107;
+  --concern: #fd7e14;
+  --finding: #d9534f;
+  --soeverein: #198754;
+  --voldoende: #84cc16;
+  --afhankelijk: #d9534f;
+  --onbekend: #6c757d;
+}
+
+* { box-sizing: border-box; }
+body {
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  background: var(--bg);
+  color: var(--fg);
+  margin: 0;
+  padding: 1rem 2rem;
+  line-height: 1.5;
+}
+header { border-bottom: 1px solid var(--border); margin-bottom: 1rem; }
+header h1 { margin-bottom: 0.25rem; }
+.meta { color: var(--muted); font-size: 0.875rem; margin-top: 0; }
+.muted { color: var(--muted); }
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+/* Nav bar — Dashboard / Analysis / Reporting tabs above the page header. */
+.nav-bar {
+  display: flex;
+  gap: 0.25rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 2px solid var(--border);
+  margin-bottom: 1rem;
+}
+.nav-link {
+  padding: 0.5rem 1rem;
+  border-radius: 4px 4px 0 0;
+  color: var(--fg);
+  font-weight: 500;
+}
+.nav-link:hover { background: #f1f5f9; text-decoration: none; }
+.nav-link.is-active {
+  background: var(--accent);
+  color: #fff;
+  font-weight: 600;
+}
+.nav-link.is-active:hover { background: var(--accent); }
+
+/* Headline section — pontificaal opener at the top of /ui/. */
+.headline { padding: 0.5rem 0 1rem 0; }
+.headline h1 { font-size: 1.5rem; margin: 0; }
+.headline-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 0.75rem 1.5rem;
+  margin: 1rem 0 0 0;
+  padding: 0;
+}
+.headline-stats > div { margin: 0; }
+.headline-stats dt {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  color: var(--muted);
+  letter-spacing: 0.05em;
+}
+.headline-stats dd { margin: 0.125rem 0 0 0; font-size: 1rem; font-weight: 500; }
+
+/* Scope label — small typographic tag inside section headers
+   (e.g. "External posture · perimeter scans"). */
+.scope-label {
+  font-weight: 400;
+  font-size: 0.875rem;
+  color: var(--muted);
+  margin-left: 0.5rem;
+}
+.scope-label::before { content: "· "; }
+
+/* Reporting page — per-rule cross-target table. */
+.reporting-rules td.num,
+.reporting-rules th.num { text-align: right; width: 5em; }
+.small { font-size: 0.875rem; }
+.rule-description { font-size: 1rem; color: var(--fg); margin: 0.5rem 0 0 0; }
+
+/* Organisations table — listed on the instance-wide dashboard. */
+.organisations td.num,
+.organisations th.num { text-align: right; width: 6em; }
+
+/* Scope pill — shown in page headers when a filter is active. */
+.scope-pill {
+  display: inline-block;
+  padding: 0.125rem 0.5rem;
+  background: #fff7e6;
+  border: 1px solid #ffd591;
+  border-radius: 999px;
+  font-size: 0.875rem;
+  color: #874d00;
+}
+.scope-pill a { color: inherit; font-weight: 500; }
+
+/* Dashboard verdict pills — one per framework, "is this OK?". */
+.verdict-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1rem;
+}
+.verdict-block {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 1rem;
+}
+.verdict-framework {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  color: var(--muted);
+  letter-spacing: 0.05em;
+  margin-bottom: 0.5rem;
+}
+.verdict-pill {
+  font-size: 1.125rem;
+  padding: 0.375rem 0.875rem;
+  font-weight: 600;
+}
+
+/* Rule catalogue — Reporting layer's reference page. */
+.rule-catalogue td { vertical-align: top; }
+.rule-catalogue details.why { margin-top: 0.25rem; }
+.rule-catalogue details.why summary { cursor: pointer; }
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1rem 0;
+}
+th, td {
+  text-align: left;
+  padding: 0.5rem;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+th { font-weight: 600; background: #fafafa; }
+
+.probe-group { margin-bottom: 2rem; }
+.probe-group h2 {
+  font-size: 1.1rem;
+  text-transform: lowercase;
+  font-family: ui-monospace, monospace;
+  margin-bottom: 0;
+}
+
+code {
+  font-family: ui-monospace, "SFMono-Regular", monospace;
+  font-size: 0.85rem;
+  word-break: break-all;
+}
+
+.status-complete { color: var(--soeverein); }
+.status-partial  { color: var(--observation); }
+.status-failed   { color: var(--finding); }
+.status-running  { color: var(--info); }
+
+.severity-info        { background: rgba(108, 117, 125, 0.05); }
+.severity-observation { background: rgba(255, 193, 7, 0.07); }
+.severity-concern     { background: rgba(253, 126, 20, 0.07); }
+.severity-finding     { background: rgba(217, 83, 79, 0.07); }
+
+.badge {
+  display: inline-block;
+  padding: 0.1rem 0.5rem;
+  border-radius: 0.25rem;
+  font-size: 0.85rem;
+  background: #eef;
+  margin-right: 0.25rem;
+}
+.score-soeverein   { background: rgba(25, 135, 84, 0.12); color: var(--soeverein); }
+.score-voldoende   { background: rgba(132, 204, 22, 0.12); color: var(--voldoende); }
+.score-afhankelijk { background: rgba(217, 83, 79, 0.12); color: var(--afhankelijk); }
+.score-onbekend    { background: rgba(108, 117, 125, 0.12); color: var(--onbekend); }
+
+.links a { font-size: 0.875rem; }
+
+form { margin: 0.5rem 0; }
+input[type="text"] {
+  padding: 0.25rem 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 0.25rem;
+  font-family: inherit;
+}
+button {
+  padding: 0.25rem 0.75rem;
+  border: 1px solid var(--accent);
+  background: var(--accent);
+  color: #fff;
+  border-radius: 0.25rem;
+  cursor: pointer;
+}
+
+/* Assessment / Analysis page. */
+.frameworks {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 2rem;
+}
+@media (min-width: 1100px) {
+  .frameworks { grid-template-columns: 1fr 1fr; }
+}
+.framework h2 {
+  text-transform: uppercase;
+  font-size: 0.875rem;
+  letter-spacing: 0.05rem;
+  color: var(--muted);
+  margin-bottom: 0.25rem;
+}
+.dimension-card {
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  padding: 1rem;
+  margin-bottom: 1rem;
+  background: #fafafa;
+}
+.dimension-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+.dimension-header h3 {
+  margin: 0;
+  font-size: 1rem;
+  text-transform: capitalize;
+}
+.completeness { color: var(--muted); font-size: 0.85rem; }
+.rationales { font-size: 0.9rem; }
+.rationales code { font-size: 0.85rem; }
+.rationales .why summary {
+  cursor: pointer;
+  color: var(--fg);
+  display: inline-block;
+  margin-left: 0.25rem;
+}
+.rationales .why summary:hover { color: var(--accent); }
+.rationale-text {
+  margin: 0.5rem 0 0 0;
+  padding: 0.5rem 0.75rem;
+  border-left: 3px solid var(--accent);
+  background: #fff;
+  color: var(--muted);
+}
+.score-row-afhankelijk { background: rgba(217, 83, 79, 0.04); }
+.score-row-onbekend    { background: rgba(108, 117, 125, 0.04); }
+tr.retired td { opacity: 0.7; font-style: italic; }
+.evidence a { display: inline-block; margin-right: 0.25rem; }
+.empty-state {
+  border: 1px dashed var(--border);
+  padding: 1.5rem;
+  text-align: center;
+  color: var(--muted);
+  border-radius: 0.5rem;
+}
+
+/* Dashboard. */
+.dashboard-section { margin-bottom: 2rem; }
+.dashboard-section h2 {
+  font-size: 1rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05rem;
+  color: var(--muted);
+  margin-bottom: 0.5rem;
+}
+.posture-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1rem;
+}
+.posture-block {
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  padding: 1rem;
+  background: #fafafa;
+}
+.posture-block h3 { margin: 0 0 0.5rem 0; text-transform: uppercase; font-size: 0.875rem; color: var(--accent); }
+.posture-counts {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+.posture-counts li { margin: 0; }
+.concerns code { font-size: 0.85rem; }
+.concerns details summary { cursor: pointer; }
+
+/* Sovereignty overview: table + hub-and-spoke SVG side by side. */
+.sov-layout { display: flex; flex-wrap: wrap; gap: 1.5rem; align-items: flex-start; }
+.sov-layout .flows { flex: 1 1 320px; }
+.sov-diagram { flex: 0 0 auto; max-width: 100%; height: auto; }
+.sov-diagram line { stroke: #cbd5e1; stroke-width: 1.5; }
+.sov-diagram .node { stroke: #fff; stroke-width: 1.5; }
+.sov-diagram .node.score-soeverein   { fill: var(--soeverein); }
+.sov-diagram .node.score-voldoende   { fill: var(--voldoende); }
+.sov-diagram .node.score-afhankelijk { fill: var(--afhankelijk); }
+.sov-diagram .node.score-onbekend,
+.sov-diagram .node                   { fill: var(--onbekend); }
+.sov-diagram text { font-size: 12px; fill: #334155; }
+.sov-diagram .hub { fill: var(--accent); stroke: #fff; stroke-width: 2; }
+.sov-diagram .hub-label { fill: #fff; font-weight: 600; text-anchor: middle; font-size: 11px; }
+
+</style>
+</head>
+<body>
+<nav class="nav-bar">
+  <a class="nav-link " href="/ui/orgs/acme">Dashboard</a>
+  <a class="nav-link is-active" href="/ui/analysis?org=acme">Analysis</a>
+  <a class="nav-link " href="/ui/reporting?org=acme">Reporting</a>
+</nav>
+
+<header>
+  <h1>Assessment for scan s_1781543805832_001wcai59c</h1>
+  <p class="meta">
+    Scan started 2026-05-01T12:00:00Z
+    · Status <span class="status-complete">complete</span>
+  </p>
+  <p>
+    <a href="/ui/">← dashboard</a>
+    · <a href="/ui/targets">all targets</a>
+    · <a href="/ui/scans/s_1781543805832_001wcai59c">Findings (raw) →</a>
+  </p>
+</header>
+<main>
+
+<section class="sovereignty-overview">
+  <h2>Sovereignty overview</h2>
+  <p class="meta">Where this service lives and what its traffic touches — synthesised from the observed signals.</p>
+  <div class="sov-layout">
+  <table class="flows">
+    <tbody>
+    
+      <tr>
+        <th scope="row">Hosting</th>
+        <td><span class="badge score-soeverein">soeverein</span></td>
+        <td>apex IPs in NL (EEA)</td>
+      </tr>
+    
+      <tr>
+        <th scope="row">Mail</th>
+        <td><span class="badge score-soeverein">soeverein</span></td>
+        <td>mx hosts in NL (EEA)</td>
+      </tr>
+    
+      <tr>
+        <th scope="row">DNS</th>
+        <td><span class="badge score-onbekend">onbekend</span></td>
+        <td>ns hosts found but no ip.asn lookup — IP probe did not run or could not geo-locate them</td>
+      </tr>
+    
+      <tr>
+        <th scope="row">Transit path</th>
+        <td><span class="badge score-onbekend">onbekend</span></td>
+        <td>no geo-attributed transit hops — the transit probe did not run, no tracing tool was available, or no GeoLite2 database is configured</td>
+      </tr>
+    
+      <tr>
+        <th scope="row">CDN / hyperscaler</th>
+        <td><span class="badge score-voldoende">voldoende</span></td>
+        <td>no known US hyperscaler in the apex or third-party path</td>
+      </tr>
+    
+      <tr>
+        <th scope="row">Third parties</th>
+        <td><span class="badge score-soeverein">soeverein</span></td>
+        <td>all 1 third-party hosts resolve in the EEA</td>
+      </tr>
+    
+    </tbody>
+  </table>
+  
+  
+  <svg class="sov-diagram" viewBox="0 0 440 440" width="440" height="440" role="img" aria-label="Sovereignty flow diagram — the host at the centre, each flow a spoke coloured by score">
+    
+    <line x1="220" y1="220" x2="220" y2="70"></line>
+    <line x1="220" y1="220" x2="350" y2="145"></line>
+    <line x1="220" y1="220" x2="350" y2="295"></line>
+    <line x1="220" y1="220" x2="220" y2="370"></line>
+    <line x1="220" y1="220" x2="90" y2="295"></line>
+    <line x1="220" y1="220" x2="90" y2="145"></line>
+    
+    <circle class="node score-soeverein" cx="220" cy="70" r="9"></circle>
+    <text x="220" y="48" text-anchor="middle">Hosting</text>
+    <circle class="node score-soeverein" cx="350" cy="145" r="9"></circle>
+    <text x="369" y="134" text-anchor="start">Mail</text>
+    <circle class="node score-onbekend" cx="350" cy="295" r="9"></circle>
+    <text x="369" y="306" text-anchor="start">DNS</text>
+    <circle class="node score-onbekend" cx="220" cy="370" r="9"></circle>
+    <text x="220" y="392" text-anchor="middle">Transit path</text>
+    <circle class="node score-voldoende" cx="90" cy="295" r="9"></circle>
+    <text x="71" y="306" text-anchor="end">CDN / hyperscaler</text>
+    <circle class="node score-soeverein" cx="90" cy="145" r="9"></circle>
+    <text x="71" y="134" text-anchor="end">Third parties</text>
+    
+    <circle class="hub" cx="220" cy="220" r="36"></circle>
+    <text class="hub-label" x="220" y="220" dy="4">acme.example.com</text>
+  </svg>
+  
+  
+  </div>
+</section>
+
+
+<div class="frameworks">
+
+<section class="framework">
+  <h2>eucsf</h2>
+  <p class="meta">Generated 2026-05-01T12:03:00Z</p>
+  
+  <article class="dimension-card">
+    <header class="dimension-header">
+      <h3>juridisch</h3>
+      <span class="badge score-afhankelijk">afhankelijk</span>
+      <span class="completeness">completeness: complete</span>
+    </header>
+    
+    <table class="rationales">
+      <thead>
+        <tr>
+          <th>Criterium</th>
+          <th>Score</th>
+          <th>Verdict</th>
+          <th>Evidence</th>
+        </tr>
+      </thead>
+      <tbody>
+        
+        <tr class="score-row-soeverein">
+          <td>
+            <code>eucsf.sov2.apex_jurisdiction</code>
+            <details class="why">
+              <summary>Apex IP addresses register to ASNs in the EU.</summary>
+              <p class="rationale-text">SOV-2 expects the apex of the service to be hosted in an EU member state&#39;s jurisdiction. The apex IP is the front door of the service; SEAL levels reflect the share of apex traffic landing on EU-registered ASs. Mixed jurisdictions earn a partial level.</p>
+            </details>
+          </td>
+          <td><span class="badge score-soeverein">soeverein</span></td>
+          <td>apex IPs in NL (EU) [SEAL 4]</td>
+          <td class="evidence">
+            
+            <a href="/ui/scans/s_1781543805832_001wcai59c#f_1781543805839_005dzf47om"><code>f_1781543805839_005dzf47om</code></a>
+            
+          </td>
+        </tr>
+        
+        <tr class="score-row-afhankelijk">
+          <td>
+            <code>eucsf.sov2.cert_issuer_eu</code>
+            <details class="why">
+              <summary>TLS certificate issued by a CA registered in the EU.</summary>
+              <p class="rationale-text">Under SOV-2 (EU CSF), the cryptographic identity of an EU-sovereign service is anchored by an EU-registered Certificate Authority. A non-EU CA can be compelled by its home jurisdiction to revoke or refuse renewal — a vector that bypasses any contractual protection in the service&#39;s own SLA.</p>
+            </details>
+          </td>
+          <td><span class="badge score-afhankelijk">afhankelijk</span></td>
+          <td>cert issued in US (outside EU) [SEAL 1]</td>
+          <td class="evidence">
+            
+            <a href="/ui/scans/s_1781543805832_001wcai59c#f_1781543805839_005577pel1"><code>f_1781543805839_005577pel1</code></a>
+            
+          </td>
+        </tr>
+        
+      </tbody>
+    </table>
+    
+  </article>
+  
+  <article class="dimension-card">
+    <header class="dimension-header">
+      <h3>technologie</h3>
+      <span class="badge score-soeverein">soeverein</span>
+      <span class="completeness">completeness: partial</span>
+    </header>
+    
+    <table class="rationales">
+      <thead>
+        <tr>
+          <th>Criterium</th>
+          <th>Score</th>
+          <th>Verdict</th>
+          <th>Evidence</th>
+        </tr>
+      </thead>
+      <tbody>
+        
+        <tr class="score-row-soeverein">
+          <td>
+            <code>eucsf.sov4.operational_eu</code>
+            <details class="why">
+              <summary>Third-party HTTP dependencies resolve to ASNs in the EU.</summary>
+              <p class="rationale-text">SOV-4 is operational sovereignty: the people and processes that keep the service running. The current evidence approximates this by checking that the operational artefacts the perimeter probes can see (nameservers, certificate issuance controls) live within EU jurisdiction. A future revision will add operator-of-record signals from the agent.</p>
+            </details>
+          </td>
+          <td><span class="badge score-soeverein">soeverein</span></td>
+          <td>all 1 third-party hosts resolve in the EU [SEAL 4]</td>
+          <td class="evidence">
+            
+            <a href="/ui/scans/s_1781543805832_001wcai59c#f_1781543805839_005dzf47om"><code>f_1781543805839_005dzf47om</code></a>
+            
+            <a href="/ui/scans/s_1781543805832_001wcai59c#f_1781543805839_007as7gpnf"><code>f_1781543805839_007as7gpnf</code></a>
+            
+          </td>
+        </tr>
+        
+        <tr class="score-row-onbekend">
+          <td>
+            <code>eucsf.sov5.host_no_us_telemetry</code>
+            <details class="why">
+              <summary>No US-headquartered telemetry / observability agent installed or running on the host.</summary>
+              <p class="rationale-text">Supply-chain exposure on a host that an organisation operates inside the EU: even when the perimeter looks sovereign, a US-vendored agent running on the host pipes runtime telemetry back to a foreign control plane. SEAL sov-5 covers this dimension of vendor dependency.</p>
+            </details>
+          </td>
+          <td><span class="badge score-onbekend">onbekend</span></td>
+          <td>no inventory.packages.* / inventory.systemd.service findings — agent did not run or inspectors disabled</td>
+          <td class="evidence">
+            <span class="muted">—</span>
+          </td>
+        </tr>
+        
+        <tr class="score-row-onbekend">
+          <td>
+            <code>eucsf.sov6.container_supply_chain</code>
+            <details class="why">
+              <summary>Container supply chain (images &#43; running containers) draws from no US-headquartered registries.</summary>
+              <p class="rationale-text">EUCSF sov-6 covers vendor dependency. For a host that runs containers the supply chain is two-layered: the set of images present on disk &#43; the set of containers actively running. The rule combines both into one SEAL observation so the dashboard surfaces one supply-chain verdict alongside the wand-side split.</p>
+            </details>
+          </td>
+          <td><span class="badge score-onbekend">onbekend</span></td>
+          <td>no inventory.docker.* findings — Docker inspector did not run or no containers present</td>
+          <td class="evidence">
+            <span class="muted">—</span>
+          </td>
+        </tr>
+        
+        <tr class="score-row-onbekend">
+          <td>
+            <code>eucsf.sov6.nextcloud_supply_chain</code>
+            <details class="why">
+              <summary>Nextcloud supply chain (objectstore &#43; IdP) resolves to EEA jurisdictions.</summary>
+              <p class="rationale-text">EUCSF sov-6 covers vendor dependency. For a Nextcloud deployment the two materially-loaded surfaces are where file data is stored (objectstore) and which identity provider gates access (OIDC). The rule rolls them up into one SEAL observation so the dashboard shows a single supply-chain verdict alongside the wand-side split.</p>
+            </details>
+          </td>
+          <td><span class="badge score-onbekend">onbekend</span></td>
+          <td>no inventory.nextcloud.objectstore / .oidc_provider findings — Nextcloud inspector did not run or no relevant configuration</td>
+          <td class="evidence">
+            <span class="muted">—</span>
+          </td>
+        </tr>
+        
+        <tr class="score-row-soeverein">
+          <td>
+            <code>eucsf.sov6.no_us_hyperscaler</code>
+            <details class="why">
+              <summary>Apex and third-party hosts do not depend on known US hyperscalers.</summary>
+              <p class="rationale-text">SOV-6 mirrors DICTU&#39;s hyperscaler rule under the SEAL framing: a service whose apex or third-party traffic flows through a US-headquartered hyperscaler operates within the CLOUD Act&#39;s jurisdictional reach, regardless of the data centre&#39;s physical location. SEAL 0 when any hyperscaler is in the path; SEAL 4 when none are.</p>
+            </details>
+          </td>
+          <td><span class="badge score-soeverein">soeverein</span></td>
+          <td>no known US hyperscaler in the apex or third-party path [SEAL 4]</td>
+          <td class="evidence">
+            
+            <a href="/ui/scans/s_1781543805832_001wcai59c#f_1781543805839_005dzf47om"><code>f_1781543805839_005dzf47om</code></a>
+            
+          </td>
+        </tr>
+        
+      </tbody>
+    </table>
+    
+  </article>
+  
+  <article class="dimension-card">
+    <header class="dimension-header">
+      <h3>data_ai</h3>
+      <span class="badge score-soeverein">soeverein</span>
+      <span class="completeness">completeness: complete</span>
+    </header>
+    
+    <table class="rationales">
+      <thead>
+        <tr>
+          <th>Criterium</th>
+          <th>Score</th>
+          <th>Verdict</th>
+          <th>Evidence</th>
+        </tr>
+      </thead>
+      <tbody>
+        
+        <tr class="score-row-soeverein">
+          <td>
+            <code>eucsf.sov3.mx_jurisdiction</code>
+            <details class="why">
+              <summary>MX hosts register to ASNs in the EU.</summary>
+              <p class="rationale-text">SOV-3 covers data flows out of the service. Mail destined for the organisation flows through its `MX` host; an MX in a non-EU AS is a continuous outbound data flow into a foreign jurisdiction. SEAL awards higher levels when every MX target lands on an EU-registered AS, partial credit for mixed setups, and SEAL 0 for fully non-EU mail.</p>
+            </details>
+          </td>
+          <td><span class="badge score-soeverein">soeverein</span></td>
+          <td>mx hosts in NL (EU) [SEAL 4]</td>
+          <td class="evidence">
+            
+            <a href="/ui/scans/s_1781543805832_001wcai59c#f_1781543805839_000ntqmam6"><code>f_1781543805839_000ntqmam6</code></a>
+            
+            <a href="/ui/scans/s_1781543805832_001wcai59c#f_1781543805839_003ns459vq"><code>f_1781543805839_003ns459vq</code></a>
+            
+          </td>
+        </tr>
+        
+      </tbody>
+    </table>
+    
+  </article>
+  
+  <article class="dimension-card">
+    <header class="dimension-header">
+      <h3>operationeel</h3>
+      <span class="badge score-onbekend">onbekend</span>
+      <span class="completeness">completeness: incomplete</span>
+    </header>
+    
+    <p class="muted">No rationales for this dimension.</p>
+    
+  </article>
+  
+  <article class="dimension-card">
+    <header class="dimension-header">
+      <h3>mens</h3>
+      <span class="badge score-onbekend">onbekend</span>
+      <span class="completeness">completeness: incomplete</span>
+    </header>
+    
+    <p class="muted">No rationales for this dimension.</p>
+    
+  </article>
+  
+</section>
+
+<section class="framework">
+  <h2>wand</h2>
+  <p class="meta">Generated 2026-05-01T12:03:00Z</p>
+  
+  <article class="dimension-card">
+    <header class="dimension-header">
+      <h3>juridisch</h3>
+      <span class="badge score-afhankelijk">afhankelijk</span>
+      <span class="completeness">completeness: partial</span>
+    </header>
+    
+    <table class="rationales">
+      <thead>
+        <tr>
+          <th>Criterium</th>
+          <th>Score</th>
+          <th>Verdict</th>
+          <th>Evidence</th>
+        </tr>
+      </thead>
+      <tbody>
+        
+        <tr class="score-row-soeverein">
+          <td>
+            <code>wand.juridisch.apex_ip_eea</code>
+            <details class="why">
+              <summary>Apex IP addresses resolve to AS registered in the EEA.</summary>
+              <p class="rationale-text">The IP address that serves the apex domain belongs to an Autonomous System operated by a specific organisation in a specific country. Where that AS is registered determines which legal regime governs the data in transit and the host&#39;s day-to-day operation. Apex traffic landing outside the EEA means the front door of the service depends on a non-EEA operator.</p>
+            </details>
+          </td>
+          <td><span class="badge score-soeverein">soeverein</span></td>
+          <td>apex IPs in NL (EEA)</td>
+          <td class="evidence">
+            
+            <a href="/ui/scans/s_1781543805832_001wcai59c#f_1781543805839_005dzf47om"><code>f_1781543805839_005dzf47om</code></a>
+            
+          </td>
+        </tr>
+        
+        <tr class="score-row-afhankelijk">
+          <td>
+            <code>wand.juridisch.cert_issuer_eea</code>
+            <details class="why">
+              <summary>TLS certificate issued by an authority in the EEA.</summary>
+              <p class="rationale-text">Certificate Authorities can revoke or refuse to renew certificates. When the issuer is incorporated outside the EEA, the authority that controls the cryptographic identity of the site sits under foreign jurisdiction — a sanctions regime or court order in that jurisdiction can pressure the issuer in ways an EEA regulator cannot reach.</p>
+            </details>
+          </td>
+          <td><span class="badge score-afhankelijk">afhankelijk</span></td>
+          <td>cert issued in US (outside EEA)</td>
+          <td class="evidence">
+            
+            <a href="/ui/scans/s_1781543805832_001wcai59c#f_1781543805839_005577pel1"><code>f_1781543805839_005577pel1</code></a>
+            
+          </td>
+        </tr>
+        
+        <tr class="score-row-soeverein">
+          <td>
+            <code>wand.juridisch.mx_vendor_jurisdiction</code>
+            <details class="why">
+              <summary>MX hosts resolve to AS registered in the EEA.</summary>
+              <p class="rationale-text">Email is the most common channel for sensitive correspondence. The mail-exchange host (`MX`) is where the organisation&#39;s inbound messages physically arrive; a non-EEA MX vendor processes citizen correspondence under foreign jurisdiction, with implications under GDPR and the post-Schrems II EU adequacy regime.</p>
+            </details>
+          </td>
+          <td><span class="badge score-soeverein">soeverein</span></td>
+          <td>mx hosts in NL (EEA)</td>
+          <td class="evidence">
+            
+            <a href="/ui/scans/s_1781543805832_001wcai59c#f_1781543805839_000ntqmam6"><code>f_1781543805839_000ntqmam6</code></a>
+            
+            <a href="/ui/scans/s_1781543805832_001wcai59c#f_1781543805839_003ns459vq"><code>f_1781543805839_003ns459vq</code></a>
+            
+          </td>
+        </tr>
+        
+        <tr class="score-row-onbekend">
+          <td>
+            <code>wand.juridisch.ns_vendor_jurisdiction</code>
+            <details class="why">
+              <summary>Authoritative nameserver hosts resolve to AS registered in the EEA.</summary>
+              <p class="rationale-text">Authoritative DNS is the control plane for every hostname the organisation publishes. A non-EEA DNS vendor resolves (and can withhold or redirect) those names under a foreign jurisdiction. The rule names the operator and country so an operator sees who actually runs their DNS.</p>
+            </details>
+          </td>
+          <td><span class="badge score-onbekend">onbekend</span></td>
+          <td>ns hosts found but no ip.asn lookup — IP probe did not run or could not geo-locate them</td>
+          <td class="evidence">
+            <span class="muted">—</span>
+          </td>
+        </tr>
+        
+        <tr class="score-row-soeverein">
+          <td>
+            <code>wand.juridisch.registrar_jurisdiction</code>
+            <details class="why">
+              <summary>Domain registrant registered in an EEA jurisdiction.</summary>
+              <p class="rationale-text">The party legally registered as the domain holder is the entity a court order or law-enforcement request would address first. A registrant in the EEA falls under EU jurisdiction (GDPR, Schrems II); a registrant outside it depends on the cooperation of foreign authorities for any sovereignty-sensitive intervention.</p>
+            </details>
+          </td>
+          <td><span class="badge score-soeverein">soeverein</span></td>
+          <td>registrant in NL (EEA)</td>
+          <td class="evidence">
+            
+            <a href="/ui/scans/s_1781543805832_001wcai59c#f_1781543805839_00civo0068"><code>f_1781543805839_00civo0068</code></a>
+            
+          </td>
+        </tr>
+        
+        <tr class="score-row-onbekend">
+          <td>
+            <code>wand.transit.eu_path</code>
+            <details class="why">
+              <summary>The network path to the target terminates in an EEA jurisdiction (where the target is hosted).</summary>
+              <p class="rationale-text">A traceroute shows where a target actually lives and which jurisdictions its traffic crosses. The hosting jurisdiction (the destination hop) is the load-bearing sovereignty fact; transit through a non-EU carrier is noted so an operator sees the full path, not just the endpoint.</p>
+            </details>
+          </td>
+          <td><span class="badge score-onbekend">onbekend</span></td>
+          <td>no geo-attributed transit hops — the transit probe did not run, no tracing tool was available, or no GeoLite2 database is configured</td>
+          <td class="evidence">
+            <span class="muted">—</span>
+          </td>
+        </tr>
+        
+      </tbody>
+    </table>
+    
+  </article>
+  
+  <article class="dimension-card">
+    <header class="dimension-header">
+      <h3>technologie</h3>
+      <span class="badge score-voldoende">voldoende</span>
+      <span class="completeness">completeness: partial</span>
+    </header>
+    
+    <table class="rationales">
+      <thead>
+        <tr>
+          <th>Criterium</th>
+          <th>Score</th>
+          <th>Verdict</th>
+          <th>Evidence</th>
+        </tr>
+      </thead>
+      <tbody>
+        
+        <tr class="score-row-onbekend">
+          <td>
+            <code>wand.docker.containers_us_registry</code>
+            <details class="why">
+              <summary>Host runs no containers from a US-headquartered registry.</summary>
+              <p class="rationale-text">What is actively running is a stronger signal than what is merely available on disk: a US-registry image that sits unused does not carry sovereignty risk today, but a running container does. This rule scopes the verdict to the live surface so the operator sees where data is actually flowing right now.</p>
+            </details>
+          </td>
+          <td><span class="badge score-onbekend">onbekend</span></td>
+          <td>no inventory.docker.container findings — Docker inspector did not run or no containers are present</td>
+          <td class="evidence">
+            <span class="muted">—</span>
+          </td>
+        </tr>
+        
+        <tr class="score-row-onbekend">
+          <td>
+            <code>wand.docker.images_us_registry</code>
+            <details class="why">
+              <summary>Host has no container images sourced from a US-headquartered registry.</summary>
+              <p class="rationale-text">Container images are runtime supply-chain dependencies. An image pulled from a US-headquartered registry routes the layer download — and any future updates — through a control plane in a foreign jurisdiction. The rule names the registry without forbidding the image: operators choose registries, the assessor surfaces the choice.</p>
+            </details>
+          </td>
+          <td><span class="badge score-onbekend">onbekend</span></td>
+          <td>no inventory.docker.image findings — Docker inspector did not run or no images are present</td>
+          <td class="evidence">
+            <span class="muted">—</span>
+          </td>
+        </tr>
+        
+        <tr class="score-row-onbekend">
+          <td>
+            <code>wand.host.eu_package_origin</code>
+            <details class="why">
+              <summary>Installed packages source from EU-vendored distributions.</summary>
+              <p class="rationale-text">The package vendor is the upstream the host trusts for binary updates, security patches, and the bill of materials in the registry. A Fedora host trusts Red Hat to ship `bash` and decide its security backports; an openSUSE host trusts SUSE; a Debian host trusts the Debian project. The rule names that trust without forbidding any choice — operators pick distributions, the assessor surfaces the jurisdiction the choice lands in.</p>
+            </details>
+          </td>
+          <td><span class="badge score-onbekend">onbekend</span></td>
+          <td>no inventory.packages.* findings — agent did not run or packages inspector disabled</td>
+          <td class="evidence">
+            <span class="muted">—</span>
+          </td>
+        </tr>
+        
+        <tr class="score-row-onbekend">
+          <td>
+            <code>wand.host.no_us_telemetry_packages</code>
+            <details class="why">
+              <summary>Host carries no installed US-headquartered telemetry / observability agent.</summary>
+              <p class="rationale-text">Telemetry and observability agents (Datadog, New Relic, AWS CloudWatch, Splunk, Dynatrace, Google Cloud Ops, Azure Monitor, etc.) phone home to their vendor&#39;s control plane on behalf of the host. When that control plane sits in a foreign jurisdiction, the host&#39;s runtime telemetry — process names, environment metadata, sometimes file contents — lands in a system the operator does not control. The rule&#39;s job is not to forbid these agents, but to make the dependency visible.</p>
+            </details>
+          </td>
+          <td><span class="badge score-onbekend">onbekend</span></td>
+          <td>no inventory.packages.* findings — agent did not run or packages inspector disabled</td>
+          <td class="evidence">
+            <span class="muted">—</span>
+          </td>
+        </tr>
+        
+        <tr class="score-row-onbekend">
+          <td>
+            <code>wand.host.no_us_telemetry_services</code>
+            <details class="why">
+              <summary>Host runs no systemd unit matching a known US-headquartered telemetry agent.</summary>
+              <p class="rationale-text">Same dependency surface as the package-side rule, but catches telemetry agents installed outside the package manager — a tarball drop-in or a container&#39;s host-side companion that still exposes itself via systemd. The two rules together cover the realistic ways a US-vendored agent reaches a Linux host.</p>
+            </details>
+          </td>
+          <td><span class="badge score-onbekend">onbekend</span></td>
+          <td>no inventory.systemd.service findings — agent did not run or systemd inspector disabled</td>
+          <td class="evidence">
+            <span class="muted">—</span>
+          </td>
+        </tr>
+        
+        <tr class="score-row-onbekend">
+          <td>
+            <code>wand.nextcloud.objectstore_eu</code>
+            <details class="why">
+              <summary>Nextcloud objectstore backend resolves to an EEA jurisdiction.</summary>
+              <p class="rationale-text">Where Nextcloud stores its file data is the single most material sovereignty signal a Nextcloud install produces. An S3 backend resolving to a US-headquartered hyperscaler means every file uploaded through the EU-facing frontend traverses a CLOUD-Act-bound storage layer. The rule flags this without forbidding it — operators choose backends, not the assessor.</p>
+            </details>
+          </td>
+          <td><span class="badge score-onbekend">onbekend</span></td>
+          <td>no inventory.nextcloud.objectstore finding — Nextcloud inspector did not run, or no objectstore is configured</td>
+          <td class="evidence">
+            <span class="muted">—</span>
+          </td>
+        </tr>
+        
+        <tr class="score-row-onbekend">
+          <td>
+            <code>wand.nextcloud.oidc_provider_eu</code>
+            <details class="why">
+              <summary>Nextcloud OIDC identity provider resolves to an EEA jurisdiction.</summary>
+              <p class="rationale-text">An OIDC IdP is the gatekeeper for every Nextcloud login. When the IdP runs in a non-EEA jurisdiction, account creation, group membership, and login traces sit in a foreign control plane. The rule names the jurisdiction so operators can act on it.</p>
+            </details>
+          </td>
+          <td><span class="badge score-onbekend">onbekend</span></td>
+          <td>no inventory.nextcloud.oidc_provider finding — Nextcloud inspector did not run, or no IdP is configured</td>
+          <td class="evidence">
+            <span class="muted">—</span>
+          </td>
+        </tr>
+        
+        <tr class="score-row-voldoende">
+          <td>
+            <code>wand.technologie.no_us_hyperscaler</code>
+            <details class="why">
+              <summary>Apex and third-party hosts are not routed via known US hyperscalers.</summary>
+              <p class="rationale-text">AWS, Google, Microsoft, Cloudflare, Akamai, and Fastly are US-headquartered providers subject to the CLOUD Act, which obliges them to surface customer data on a US warrant regardless of where the data physically sits. A site whose apex or third-party traffic flows through one of these providers operates inside that jurisdictional reach, which the DICTU framework treats as a sovereignty dependency even when individual data centres are in EU countries.</p>
+            </details>
+          </td>
+          <td><span class="badge score-voldoende">voldoende</span></td>
+          <td>no known US hyperscaler in the apex or third-party path</td>
+          <td class="evidence">
+            
+            <a href="/ui/scans/s_1781543805832_001wcai59c#f_1781543805839_005dzf47om"><code>f_1781543805839_005dzf47om</code></a>
+            
+          </td>
+        </tr>
+        
+        <tr class="score-row-soeverein">
+          <td>
+            <code>wand.technologie.third_parties_eea</code>
+            <details class="why">
+              <summary>HTTP third-party dependencies resolve to AS registered in the EEA.</summary>
+              <p class="rationale-text">Modern web pages load fonts, analytics, scripts, and assets from third-party hosts. Each third party that runs on a non-EEA AS adds another foreign-jurisdiction dependency to every page load — the third party sees the visitor&#39;s IP, their browsing context, and often a session cookie. Reducing non-EEA third parties shrinks the export surface citizen data crosses on its way to the screen.</p>
+            </details>
+          </td>
+          <td><span class="badge score-soeverein">soeverein</span></td>
+          <td>all 1 third-party hosts resolve in the EEA</td>
+          <td class="evidence">
+            
+            <a href="/ui/scans/s_1781543805832_001wcai59c#f_1781543805839_005dzf47om"><code>f_1781543805839_005dzf47om</code></a>
+            
+            <a href="/ui/scans/s_1781543805832_001wcai59c#f_1781543805839_007as7gpnf"><code>f_1781543805839_007as7gpnf</code></a>
+            
+          </td>
+        </tr>
+        
+      </tbody>
+    </table>
+    
+  </article>
+  
+  <article class="dimension-card">
+    <header class="dimension-header">
+      <h3>data_ai</h3>
+      <span class="badge score-voldoende">voldoende</span>
+      <span class="completeness">completeness: partial</span>
+    </header>
+    
+    <table class="rationales">
+      <thead>
+        <tr>
+          <th>Criterium</th>
+          <th>Score</th>
+          <th>Verdict</th>
+          <th>Evidence</th>
+        </tr>
+      </thead>
+      <tbody>
+        
+        <tr class="score-row-voldoende">
+          <td>
+            <code>wand.data_ai.mx_present</code>
+            <details class="why">
+              <summary>Domain has configured mail exchangers (routing is knowable).</summary>
+              <p class="rationale-text">A domain without `MX` records cannot route inbound mail. For an organisation that publishes contact addresses on the apex domain, missing MX records mean that mail addressed to the organisation silently fails — a posture issue (the organisation publishes an unreachable contact path) and a data-flow issue (citizen messages vanish without a clear delivery report).</p>
+            </details>
+          </td>
+          <td><span class="badge score-voldoende">voldoende</span></td>
+          <td>1 MX records published</td>
+          <td class="evidence">
+            
+            <a href="/ui/scans/s_1781543805832_001wcai59c#f_1781543805839_003ns459vq"><code>f_1781543805839_003ns459vq</code></a>
+            
+          </td>
+        </tr>
+        
+        <tr class="score-row-onbekend">
+          <td>
+            <code>wand.data_ai.oidc_federation</code>
+            <details class="why">
+              <summary>Identity federation endpoints are sovereign. Requires the egress probe (not yet landed).</summary>
+              <p class="rationale-text">OpenID Connect (OIDC) federation lets users sign in with credentials managed by an external identity provider. Each authentication round-trip sends the user&#39;s identity, organisation, and login context through that provider&#39;s infrastructure; a non-sovereign IdP becomes the single most sensitive third-party dependency on every protected endpoint. The rule will fire once the egress probe surfaces the configured `OIDC_ISSUER` endpoints; today it returns no evidence as a placeholder.</p>
+            </details>
+          </td>
+          <td><span class="badge score-onbekend">onbekend</span></td>
+          <td>no evidence — requires add-egress-probe</td>
+          <td class="evidence">
+            <span class="muted">—</span>
+          </td>
+        </tr>
+        
+      </tbody>
+    </table>
+    
+  </article>
+  
+  <article class="dimension-card">
+    <header class="dimension-header">
+      <h3>operationeel</h3>
+      <span class="badge score-voldoende">voldoende</span>
+      <span class="completeness">completeness: partial</span>
+    </header>
+    
+    <table class="rationales">
+      <thead>
+        <tr>
+          <th>Criterium</th>
+          <th>Score</th>
+          <th>Verdict</th>
+          <th>Evidence</th>
+        </tr>
+      </thead>
+      <tbody>
+        
+        <tr class="score-row-voldoende">
+          <td>
+            <code>wand.operationeel.caa_restricts_issuance</code>
+            <details class="why">
+              <summary>CAA records restrict which CAs may issue certificates.</summary>
+              <p class="rationale-text">A `CAA` DNS record names the Certificate Authorities allowed to issue certificates for the domain. Without one, any CA in the world&#39;s public trust store can mint a valid certificate — including one obtained by an attacker who tricked a CA into issuing it. CAA is a low-cost preventive control with no operational downside.</p>
+            </details>
+          </td>
+          <td><span class="badge score-voldoende">voldoende</span></td>
+          <td>CAA records restrict certificate issuance</td>
+          <td class="evidence">
+            
+            <a href="/ui/scans/s_1781543805832_001wcai59c#f_1781543805839_00a8jebq6p"><code>f_1781543805839_00a8jebq6p</code></a>
+            
+          </td>
+        </tr>
+        
+        <tr class="score-row-soeverein">
+          <td>
+            <code>wand.operationeel.cert_validity</code>
+            <details class="why">
+              <summary>TLS certificate is valid and not expiring within 30 days.</summary>
+              <p class="rationale-text">An expired or imminently-expiring TLS certificate is the single most common cause of unplanned downtime on public-facing services. The rule flags renewals that have not been automated and gives the operator a 30-day lead-time to fix the underlying process before the outage hits.</p>
+            </details>
+          </td>
+          <td><span class="badge score-soeverein">soeverein</span></td>
+          <td>certificate valid, 90 days remaining</td>
+          <td class="evidence">
+            
+            <a href="/ui/scans/s_1781543805832_001wcai59c#f_1781543805839_0026dadlmx"><code>f_1781543805839_0026dadlmx</code></a>
+            
+          </td>
+        </tr>
+        
+        <tr class="score-row-voldoende">
+          <td>
+            <code>wand.operationeel.dns_redundancy</code>
+            <details class="why">
+              <summary>At least two authoritative nameservers are delegated.</summary>
+              <p class="rationale-text">A single authoritative nameserver is a single point of failure for the entire domain — every service the organisation runs becomes unreachable when that one server is down. RFC 2182 recommends at least two; sovereign-grade operators typically run nameservers in two distinct ASs and two distinct geographic regions.</p>
+            </details>
+          </td>
+          <td><span class="badge score-voldoende">voldoende</span></td>
+          <td>2 nameservers delegated</td>
+          <td class="evidence">
+            
+            <a href="/ui/scans/s_1781543805832_001wcai59c#f_1781543805839_005o99zntx"><code>f_1781543805839_005o99zntx</code></a>
+            
+            <a href="/ui/scans/s_1781543805832_001wcai59c#f_1781543805839_00b5ypn5ss"><code>f_1781543805839_00b5ypn5ss</code></a>
+            
+          </td>
+        </tr>
+        
+        <tr class="score-row-onbekend">
+          <td>
+            <code>wand.operationeel.http_exposure</code>
+            <details class="why">
+              <summary>The site enforces the baseline HTTP security headers and does not leak its stack version.</summary>
+              <p class="rationale-text">Missing security headers leave a site open to transport downgrade (no HSTS), clickjacking (no X-Frame-Options/CSP), and MIME/referrer leakage; a Server / X-Powered-By banner that names the exact stack version hands an attacker the version to target. Both are passively observable and cheap to fix.</p>
+            </details>
+          </td>
+          <td><span class="badge score-onbekend">onbekend</span></td>
+          <td>no http.security_headers finding — the HTTP probe did not run or the fetch failed</td>
+          <td class="evidence">
+            <span class="muted">—</span>
+          </td>
+        </tr>
+        
+      </tbody>
+    </table>
+    
+  </article>
+  
+  <article class="dimension-card">
+    <header class="dimension-header">
+      <h3>mens</h3>
+      <span class="badge score-onbekend">onbekend</span>
+      <span class="completeness">completeness: incomplete</span>
+    </header>
+    
+    <p class="muted">No rationales for this dimension.</p>
+    
+  </article>
+  
+</section>
+
+</div>
+
+</main>
+</body>
+</html>
