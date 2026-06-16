@@ -14,7 +14,9 @@ import (
 	"fmt"
 	"html/template"
 	"io/fs"
+	"log/slog"
 	"net/http"
+	"net/url"
 	"sort"
 	"strings"
 	"time"
@@ -81,6 +83,9 @@ func Handler(st *store.Store, opts Options) (http.Handler, error) {
 		// serve --ui-allow-scan (dev mode). The read-only test allows
 		// exactly this POST and no other.
 		r.Post("/scan", scanTriggerHandler(st, opts.Scanner))
+		// Read-only poll page the POST bounces to while the background
+		// scan runs; redirects to the assessment once it lands.
+		r.Get("/scan-status", scanStatusHandler(st, tmpl))
 	}
 	r.Get("/", dashboardHandler(st, tmpl, allowScan))
 	r.Get("/orgs/{slug}", dashboardOrgHandler(st, tmpl, allowScan))
@@ -156,9 +161,14 @@ type headlineRenderView struct {
 }
 
 // scanTriggerHandler is the opt-in dev-mode scan route (POST /ui/scan).
-// It scans the submitted target, assesses it with the wand pack so the
-// Sovereignty overview is populated, and redirects to the result. It is
-// mounted only when serve --ui-allow-scan is set (Options.Scanner != nil).
+// It kicks the scan off in the background and bounces the browser to a
+// status page that polls until the result is ready. Running the scan
+// synchronously would hold the POST open for the full probe budget —
+// the transit probe alone waits up to 30s for traceroute replies — so
+// the browser appears frozen and the user re-submits. Detaching also
+// keeps the DB writes off the request context, which a browser cancel
+// would otherwise abort mid-scan ("begin tx: context canceled").
+// Mounted only when serve --ui-allow-scan is set (Options.Scanner != nil).
 func scanTriggerHandler(st *store.Store, sc ScanTrigger) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		domain := strings.TrimSpace(r.FormValue("domain"))
@@ -166,31 +176,88 @@ func scanTriggerHandler(st *store.Store, sc ScanTrigger) http.HandlerFunc {
 			http.Error(w, "domain is required", http.StatusBadRequest)
 			return
 		}
-		// Detach from the request context: a scan + persist takes
-		// seconds, and if the browser cancels the POST (refresh,
-		// navigate, re-click) the request context would cancel the DB
-		// writes mid-scan ("begin tx: context canceled") and persist
-		// nothing. The scan owns its own bounded context so it always
-		// completes and persists.
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
-		defer cancel()
-		scan, err := sc.Scan(ctx, models.Target{Domain: domain})
+		target := models.Target{Domain: domain}
+		if err := target.Validate(); err != nil {
+			// Reject bad input synchronously so we never launch a
+			// background scan that can only ever fail.
+			http.Error(w, "invalid domain: "+err.Error(), http.StatusBadRequest)
+			return
+		}
+		go func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+			defer cancel()
+			scan, err := sc.Scan(ctx, target)
+			if err != nil {
+				slog.Error("ui.scan.failed", "domain", domain, "err", err)
+				return
+			}
+			// Assess with the wand pack so the Sovereignty overview +
+			// diagram populate on the page the status poller lands on.
+			a := &models.Assessment{
+				ScanID:     scan.ID,
+				Framework:  "wand",
+				Dimensions: assessor.Assess(scan.Findings, wand.DefaultRules()),
+			}
+			if err := st.CreateAssessment(ctx, a); err != nil {
+				slog.Error("ui.scan.assess_failed", "scan_id", scan.ID, "err", err)
+			}
+		}()
+		http.Redirect(w, r, "/ui/scan-status?domain="+url.QueryEscape(domain), http.StatusSeeOther)
+	}
+}
+
+// scanStatusView is the shape consumed by scan-status.tmpl.
+type scanStatusView struct {
+	Domain       string
+	Status       string
+	FindingCount int
+	Failed       bool
+	Error        string
+	HasReporting bool
+}
+
+// scanStatusHandler renders a self-refreshing page for a background
+// scan keyed by domain. It finds the most recent scan for the domain
+// and, once that scan has an assessment, redirects to it — so the page
+// polls (via an HTML meta-refresh, no JS) until the result is ready.
+// Mounted alongside the scan form (dev mode only).
+func scanStatusHandler(st *store.Store, tmpl *template.Template) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		domain := strings.TrimSpace(r.URL.Query().Get("domain"))
+		if domain == "" {
+			http.Redirect(w, r, "/ui/", http.StatusSeeOther)
+			return
+		}
+		scans, err := st.ListScans(r.Context(), store.Selectors{})
 		if err != nil {
-			http.Error(w, "scan failed: "+err.Error(), http.StatusBadGateway)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		// Assess with the wand pack so the overview + diagram populate
-		// immediately on the page we redirect to.
-		a := &models.Assessment{
-			ScanID:     scan.ID,
-			Framework:  "wand",
-			Dimensions: assessor.Assess(scan.Findings, wand.DefaultRules()),
+		var latest *store.ScanRow
+		for i := range scans {
+			if !strings.EqualFold(scans[i].Domain, domain) {
+				continue
+			}
+			if latest == nil || scans[i].StartedAt.After(latest.StartedAt) {
+				latest = &scans[i]
+			}
 		}
-		if err := st.CreateAssessment(ctx, a); err != nil {
-			http.Error(w, "assess failed: "+err.Error(), http.StatusInternalServerError)
-			return
+		if latest != nil {
+			if as, aerr := st.ListAssessmentsForScan(r.Context(), latest.ID); aerr == nil && len(as) > 0 {
+				http.Redirect(w, r, "/ui/scans/"+latest.ID+"/assessment", http.StatusSeeOther)
+				return
+			}
 		}
-		http.Redirect(w, r, "/ui/scans/"+scan.ID+"/assessment", http.StatusSeeOther)
+		view := scanStatusView{Domain: domain, HasReporting: true}
+		if latest != nil {
+			view.Status = latest.Status
+			view.FindingCount = latest.FindingCount
+			if latest.Status == string(models.ScanStatusFailed) {
+				view.Failed = true
+				view.Error = latest.Error
+			}
+		}
+		render(w, tmpl, "scan-status.tmpl", view)
 	}
 }
 
@@ -634,6 +701,7 @@ func driftHandler(st *store.Store, tmpl *template.Template) http.HandlerFunc {
 // renders the "run wanderer assess" hint.
 type assessmentView struct {
 	ScanID       string
+	Domain       string // the subject domain — the identity users recognise
 	StartedAt    string
 	Status       string
 	OrgSlug      string
@@ -690,6 +758,7 @@ func assessmentHandler(st *store.Store, tmpl *template.Template) http.HandlerFun
 		}
 		view := assessmentView{
 			ScanID:       scan.ID,
+			Domain:       subject,
 			StartedAt:    scan.StartedAt.UTC().Format(time.RFC3339),
 			Status:       string(scan.Status),
 			OrgSlug:      scopeSlugForScan(r.Context(), st, scan.TargetID),

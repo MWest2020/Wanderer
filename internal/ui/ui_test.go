@@ -11,6 +11,7 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/MWest2020/wanderer/internal/store"
 	"github.com/MWest2020/wanderer/internal/ui"
@@ -244,7 +245,7 @@ func TestAssessmentPage_RendersDimensionAndRule(t *testing.T) {
 	body, _ := io.ReadAll(resp.Body)
 	bodyStr := string(body)
 	for _, want := range []string{
-		"Assessment for scan",
+		"example.nl", // domain is the heading, not the opaque scan ID
 		"wand",
 		"eucsf",
 		"juridisch",
@@ -764,9 +765,30 @@ func TestUIScan_DevMode_TriggersAndRedirects(t *testing.T) {
 	if resp.StatusCode != http.StatusSeeOther {
 		t.Fatalf("status = %d, want 303", resp.StatusCode)
 	}
+	// The scan runs in the background; the POST bounces to a
+	// domain-keyed status page that polls until the result lands.
 	loc := resp.Header.Get("Location")
-	if !strings.HasPrefix(loc, "/ui/scans/") || !strings.HasSuffix(loc, "/assessment") {
-		t.Errorf("Location = %q, want /ui/scans/<id>/assessment", loc)
+	if loc != "/ui/scan-status?domain=example.nl" {
+		t.Fatalf("Location = %q, want /ui/scan-status?domain=example.nl", loc)
+	}
+	// Poll the status page; once the background scan + assessment
+	// complete it redirects to the assessment for that scan.
+	var assessLoc string
+	for i := 0; i < 50; i++ {
+		sr, serr := client.Get(srv.URL + loc)
+		if serr != nil {
+			t.Fatalf("get status: %v", serr)
+		}
+		l := sr.Header.Get("Location")
+		sr.Body.Close()
+		if sr.StatusCode == http.StatusSeeOther && strings.HasPrefix(l, "/ui/scans/") && strings.HasSuffix(l, "/assessment") {
+			assessLoc = l
+			break
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+	if assessLoc == "" {
+		t.Errorf("status page never redirected to an assessment")
 	}
 }
 

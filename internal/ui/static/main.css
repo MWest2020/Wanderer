@@ -321,3 +321,11 @@ tr.retired td { opacity: 0.7; font-style: italic; }
 .scan-form input { flex: 1 1 240px; padding: .4rem .6rem; border: 1px solid #b6c2cf; border-radius: 6px; }
 .scan-form button { padding: .4rem 1rem; border: 0; border-radius: 6px; background: var(--accent); color: #fff; cursor: pointer; }
 .scan-form .meta { flex-basis: 100%; }
+
+/* Background-scan status page (serve --ui-allow-scan). */
+.scan-progress { display: flex; align-items: center; gap: 1rem; margin: 1.5rem 0; }
+.spinner { flex: 0 0 auto; width: 1.5rem; height: 1.5rem; border-radius: 50%;
+  border: 3px solid var(--border); border-top-color: var(--afhankelijk);
+  animation: wanderer-spin 0.8s linear infinite; }
+@keyframes wanderer-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .spinner { animation: none; } }

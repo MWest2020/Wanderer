@@ -1,0 +1,31 @@
+{{define "scan-status.tmpl"}}<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Wanderer — scanning {{.Domain}}</title>
+<link rel="stylesheet" href="/ui/static/main.css">
+{{if not .Failed}}<meta http-equiv="refresh" content="3">{{end}}
+</head>
+<body>
+{{template "nav.tmpl" dict "Active" "" "HasReporting" .HasReporting "OrgSlug" ""}}
+<header>
+  <h1>{{.Domain}}</h1>
+</header>
+<main>
+{{if .Failed}}
+  <p class="status-failed">De scan van {{.Domain}} is mislukt{{if .Error}}: {{.Error}}{{end}}.</p>
+  <p><a href="/ui/">← terug naar dashboard</a></p>
+{{else}}
+  <div class="scan-progress">
+    <span class="spinner" aria-hidden="true"></span>
+    <div>
+      <p><strong>Bezig met scannen…</strong> de probes lopen (transit kan tot ~30s wachten op traceroute-antwoorden).</p>
+      <p class="meta">Status: {{if .Status}}{{.Status}}{{else}}gestart{{end}} · {{.FindingCount}} findings binnengekomen</p>
+    </div>
+  </div>
+  <p class="meta">Deze pagina ververst automatisch en opent het resultaat zodra het klaar is. <a href="/ui/scan-status?domain={{.Domain}}">nu verversen</a> · <a href="/ui/">dashboard</a></p>
+{{end}}
+</main>
+</body>
+</html>{{end}}
