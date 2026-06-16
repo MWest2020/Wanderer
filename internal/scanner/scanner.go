@@ -172,18 +172,27 @@ func (s *Scanner) runPassConcurrent(ctx context.Context, probes []probe.Probe, t
 			defer wg.Done()
 			findings, err := s.runOne(ctx, p, target, probeLogger)
 			if err != nil {
-				results[i] = result{
-					failed: true,
-					findings: append(findings, models.Finding{
-						ProbeID:    p.ID() + ".error",
-						Subject:    target.Domain,
-						Severity:   models.SeverityConcern,
-						Attributes: map[string]any{"error": err.Error()},
-					}),
-				}
-				return
+				findings = append(findings, models.Finding{
+					ProbeID:    p.ID() + ".error",
+					Subject:    target.Domain,
+					Severity:   models.SeverityConcern,
+					Attributes: map[string]any{"error": err.Error()},
+				})
+				results[i] = result{failed: true, findings: findings}
+			} else {
+				results[i] = result{findings: findings}
 			}
-			results[i] = result{findings: findings}
+			// Persist each probe's findings the moment it finishes,
+			// not after the whole pass. The pass is gated by its
+			// slowest probe (transit waits up to 30s), so a deferred
+			// write left the findings table empty until the end and
+			// made live views — the UI scan-status count — sit at 0
+			// and then jump. Writes serialise on the single DB conn.
+			if len(findings) > 0 {
+				if err := s.Store.AppendFindings(ctx, scanID, findings); err != nil {
+					probeLogger.Error("scan.persist_failed", "err", err)
+				}
+			}
 		}()
 	}
 	wg.Wait()
@@ -194,12 +203,7 @@ func (s *Scanner) runPassConcurrent(ctx context.Context, probes []probe.Probe, t
 		if r.failed {
 			failedCount++
 		}
-		if len(r.findings) > 0 {
-			if err := s.Store.AppendFindings(ctx, scanID, r.findings); err != nil {
-				logger.Error("scan.persist_failed", "err", err)
-			}
-			all = append(all, r.findings...)
-		}
+		all = append(all, r.findings...)
 	}
 	return all, failedCount
 }
