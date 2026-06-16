@@ -3,16 +3,17 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Wanderer — assessment for {{.ScanID}}</title>
+<title>Wanderer — {{.Domain}}</title>
 <link rel="stylesheet" href="/ui/static/main.css">
 </head>
 <body>
 {{template "nav.tmpl" dict "Active" "analysis" "HasReporting" .HasReporting "OrgSlug" .OrgSlug}}
 <header>
-  <h1>Assessment for scan {{.ScanID}}</h1>
+  <h1>{{.Domain}}</h1>
   <p class="meta">
     Scan started {{.StartedAt}}
     · Status <span class="status-{{.Status}}">{{.Status}}</span>
+    · Scan <code>{{.ScanID}}</code>
   </p>
   <p>
     <a href="/ui/">← dashboard</a>
