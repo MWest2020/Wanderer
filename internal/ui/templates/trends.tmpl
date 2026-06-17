@@ -1,0 +1,110 @@
+{{define "trends.tmpl"}}<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Wanderer — trends</title>
+<link rel="stylesheet" href="/ui/static/main.css">
+</head>
+<body>
+{{template "nav.tmpl" dict "Active" "trends" "HasReporting" .HasReporting "OrgSlug" .OrgSlug}}
+<header>
+  <h1>Trends · rules across your fleet</h1>
+  <p class="meta">
+    Every metric Wanderer measures, how it currently scores across your
+    targets, and the per-rule breakdown. Click a rule for the
+    per-target deep dive.
+    · Generated {{.GeneratedAt}}
+    {{if .ScopedOrganisation}}
+    · <span class="scope-pill">Scope: <a href="{{.ScopedOrganisation.URL}}">{{.ScopedOrganisation.Name}}</a></span>
+    · <a href="/ui/trends">show all organisations →</a>
+    {{else}}
+    · <span class="muted">all organisations</span>
+    {{end}}
+  </p>
+</header>
+<main>
+
+<section class="dashboard-section">
+  <h2>Rule catalogue <span class="scope-label">what we measure &amp; how it scores</span></h2>
+  {{if .Catalogue}}
+  <table class="rule-catalogue">
+    <thead>
+      <tr>
+        <th>Framework</th>
+        <th>Dimension</th>
+        <th>Rule</th>
+        <th>What it measures</th>
+        <th>Current state</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{range .Catalogue}}
+      <tr>
+        <td><code>{{.Framework}}</code></td>
+        <td><code>{{.Dimension}}</code></td>
+        <td><a href="/ui/reporting/{{.Framework}}/{{.CriteriumID}}{{if $.OrgSlug}}?org={{$.OrgSlug}}{{end}}"><code>{{.CriteriumID}}</code></a></td>
+        <td>
+          <strong>{{.Description}}</strong>
+          {{if .Rationale}}<details class="why"><summary class="muted small">why this matters</summary><p class="rationale-text">{{.Rationale}}</p></details>{{end}}
+        </td>
+        <td>
+          {{if .Status}}
+          <span class="badge score-{{.Status}}">{{.Status}}</span>
+          <div class="muted small">{{.AtWorst}} of {{.Total}} target{{if ne .Total 1}}s{{end}}</div>
+          {{else}}
+          <span class="muted">no rationale yet</span>
+          {{end}}
+        </td>
+      </tr>
+      {{end}}
+    </tbody>
+  </table>
+  {{else}}
+  <p class="empty-state">No rules registered.</p>
+  {{end}}
+</section>
+
+<section class="dashboard-section">
+  <h2>Score matrix <span class="scope-label">per-rule, across targets</span></h2>
+  {{if .Matrix}}
+  <table class="reporting-rules">
+    <thead>
+      <tr>
+        <th>Framework</th>
+        <th>Rule</th>
+        <th class="num">soeverein</th>
+        <th class="num">voldoende</th>
+        <th class="num">afhankelijk</th>
+        <th class="num">onbekend</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{range .Matrix}}
+      <tr>
+        <td>{{.Framework}}</td>
+        <td>
+          <a href="/ui/reporting/{{.Framework}}/{{.CriteriumID}}{{if $.OrgSlug}}?org={{$.OrgSlug}}{{end}}"><code>{{.CriteriumID}}</code></a>
+          {{if .Description}}<div class="muted small">{{.Description}}</div>{{end}}
+        </td>
+        <td class="num">{{if .SoevereinCount}}<span class="badge score-soeverein">{{.SoevereinCount}}</span>{{else}}<span class="muted">—</span>{{end}}</td>
+        <td class="num">{{if .VoldoendeCount}}<span class="badge score-voldoende">{{.VoldoendeCount}}</span>{{else}}<span class="muted">—</span>{{end}}</td>
+        <td class="num">{{if .AfhankelijkCount}}<span class="badge score-afhankelijk">{{.AfhankelijkCount}}</span>{{else}}<span class="muted">—</span>{{end}}</td>
+        <td class="num">{{if .OnbekendCount}}<span class="badge score-onbekend">{{.OnbekendCount}}</span>{{else}}<span class="muted">—</span>{{end}}</td>
+      </tr>
+      {{end}}
+    </tbody>
+  </table>
+  {{else}}
+  <p class="empty-state">
+    No rules have produced rationales yet. Run
+    <code>wanderer assess &lt;scan-id&gt; --framework both</code> after at least one
+    <code>wanderer scan &lt;domain&gt;</code>.
+  </p>
+  {{end}}
+</section>
+
+</main>
+</body>
+</html>
+{{end}}

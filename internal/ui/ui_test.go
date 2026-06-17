@@ -459,41 +459,14 @@ func TestNoMutatingHandlersInPackage(t *testing.T) {
 	}
 }
 
-func TestReporting_Catalogue_ListsRulesWithDescriptions(t *testing.T) {
-	// /ui/reporting is the rule catalogue after the 2026-05-10 layer
-	// restructure. No scoring data here; just rule descriptions.
-	srv, _ := newServer(t, "")
-	resp, err := http.Get(srv.URL + "/ui/reporting")
-	if err != nil {
-		t.Fatalf("get: %v", err)
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != 200 {
-		t.Fatalf("status = %d", resp.StatusCode)
-	}
-	body, _ := io.ReadAll(resp.Body)
-	bodyStr := string(body)
-	for _, want := range []string{
-		"Reporting · rule catalogue",
-		"wand.juridisch.cert_issuer_eea",
-		"eucsf.sov2.cert_issuer_eu",
-	} {
-		if !strings.Contains(bodyStr, want) {
-			t.Errorf("reporting catalogue missing %q", want)
-		}
-	}
-	// Catalogue must NOT carry scoring data — that lives on /ui/analysis.
-	if strings.Contains(bodyStr, ">soeverein<") {
-		t.Errorf("reporting catalogue must not include score columns")
-	}
-}
-
-func TestAnalysis_RulesMatrix(t *testing.T) {
-	// The rule × score matrix moved to /ui/analysis on 2026-05-10.
+func TestTrends_ConsolidatesCatalogueAndMatrix(t *testing.T) {
+	// After the Tourist/Explorer/Farmer restructure, the rule
+	// catalogue and the rule × score matrix live together on
+	// /ui/trends — the single Farmer surface.
 	srv, st := newServer(t, "")
 	_, scanID := seed(t, st)
 	seedAssessment(t, st, scanID, "wand", "eucsf")
-	resp, err := http.Get(srv.URL + "/ui/analysis")
+	resp, err := http.Get(srv.URL + "/ui/trends")
 	if err != nil {
 		t.Fatalf("get: %v", err)
 	}
@@ -504,13 +477,42 @@ func TestAnalysis_RulesMatrix(t *testing.T) {
 	body, _ := io.ReadAll(resp.Body)
 	bodyStr := string(body)
 	for _, want := range []string{
-		"Analysis · steering matrix",
-		"wand.juridisch.cert_issuer_eea",
+		"Trends · rules across your fleet",
+		"Rule catalogue",                 // catalogue section
+		"Score matrix",                   // matrix section
+		"wand.juridisch.cert_issuer_eea", // rules from both packs
 		"eucsf.sov2.cert_issuer_eu",
-		"soeverein",
+		"soeverein", // the matrix carries score data
 	} {
 		if !strings.Contains(bodyStr, want) {
-			t.Errorf("analysis matrix missing %q", want)
+			t.Errorf("trends page missing %q", want)
+		}
+	}
+}
+
+func TestLegacyAnalysisReporting_RedirectToTrends(t *testing.T) {
+	// /ui/analysis and /ui/reporting consolidated into /ui/trends;
+	// the old routes redirect, preserving the org scope.
+	srv, _ := newServer(t, "")
+	client := &http.Client{CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
+	cases := map[string]string{
+		"/ui/analysis":           "/ui/trends",
+		"/ui/reporting":          "/ui/trends",
+		"/ui/analysis?org=acme":  "/ui/trends?org=acme",
+		"/ui/reporting?org=acme": "/ui/trends?org=acme",
+	}
+	for from, wantLoc := range cases {
+		resp, err := client.Get(srv.URL + from)
+		if err != nil {
+			t.Fatalf("get %s: %v", from, err)
+		}
+		loc := resp.Header.Get("Location")
+		resp.Body.Close()
+		if resp.StatusCode != http.StatusFound {
+			t.Errorf("%s: status = %d, want 302", from, resp.StatusCode)
+		}
+		if loc != wantLoc {
+			t.Errorf("%s: Location = %q, want %q", from, loc, wantLoc)
 		}
 	}
 }
@@ -608,22 +610,26 @@ func TestNav_PerOrgPageThreadsScopeIntoNavLinks(t *testing.T) {
 	body, _ := io.ReadAll(resp.Body)
 	bodyStr := string(body)
 	for _, want := range []string{
-		// All three nav tabs thread the slug. Reporting threads it
-		// because the catalogue's status column is scope-aware
-		// (see add-reporting-status-column).
-		`href="/ui/analysis?org=acme"`,
-		`href="/ui/reporting?org=acme"`,
+		// The two-tab nav (Overview / Trends) threads the slug across
+		// both tabs; Trends is scope-aware (its status column counts
+		// distinct targets in scope).
+		`href="/ui/trends?org=acme"`,
 		`href="/ui/orgs/acme"`,
 	} {
 		if !strings.Contains(bodyStr, want) {
 			t.Errorf("per-org page nav missing %q", want)
 		}
 	}
+	// The retired tabs must be gone from the nav.
+	for _, gone := range []string{`href="/ui/analysis`, `href="/ui/reporting?`} {
+		if strings.Contains(bodyStr, gone) {
+			t.Errorf("per-org nav still references a retired tab %q", gone)
+		}
+	}
 }
 
-func TestNav_AnalysisPagesIncludeReportingTab(t *testing.T) {
-	// Regression: scan/assessment/drift/targets pages used to pass
-	// HasReporting=false to nav.tmpl, omitting the Reporting link.
+func TestNav_PagesIncludeTrendsTab(t *testing.T) {
+	// Every page's nav offers the Trends tab (HasReporting=true).
 	srv, st := newServer(t, "")
 	_, scanID := seed(t, st)
 	for _, path := range []string{"/ui/targets", "/ui/scans/" + scanID, "/ui/scans/" + scanID + "/assessment"} {
@@ -633,11 +639,12 @@ func TestNav_AnalysisPagesIncludeReportingTab(t *testing.T) {
 		}
 		body, _ := io.ReadAll(resp.Body)
 		resp.Body.Close()
-		// Accept either `href="/ui/reporting"` or `href="/ui/reporting?org=...`
-		// — the latter happens whenever the page resolves a scope through
-		// the seeded `default` org. The point is the link is *present*.
-		if !strings.Contains(string(body), `href="/ui/reporting`) {
-			t.Errorf("%s: Reporting nav link missing", path)
+		if !strings.Contains(string(body), `href="/ui/trends`) {
+			t.Errorf("%s: Trends nav link missing", path)
+		}
+		// The old DAR tabs are gone.
+		if strings.Contains(string(body), `>Analysis<`) || strings.Contains(string(body), `>Reporting<`) {
+			t.Errorf("%s: nav still shows a retired Analysis/Reporting tab", path)
 		}
 	}
 }

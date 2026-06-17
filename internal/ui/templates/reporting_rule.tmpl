@@ -7,7 +7,7 @@
 <link rel="stylesheet" href="/ui/static/main.css">
 </head>
 <body>
-{{template "nav.tmpl" dict "Active" "reporting" "HasReporting" .HasReporting "OrgSlug" .OrgSlug}}
+{{template "nav.tmpl" dict "Active" "trends" "HasReporting" .HasReporting "OrgSlug" .OrgSlug}}
 <header>
   <p class="meta">
     {{if .OrgSlug}}<a href="/ui/reporting?org={{.OrgSlug}}">← reporting index</a>{{else}}<a href="/ui/reporting">← reporting index</a>{{end}}

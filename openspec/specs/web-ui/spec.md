@@ -452,44 +452,25 @@ return HTTP 404 with no body content beyond the 404 default.
 
 ### Requirement: DAR nav persists the active organisation scope
 
-Every UI page SHALL render its cross-page nav such that the
-active organisation scope is preserved across the Dashboard,
-Analysis, and Reporting tabs. When the operator is viewing a
-per-organisation page (the Dashboard at `/ui/orgs/{slug}`, or
-any Analysis or Reporting page with `?org=<slug>`), each nav
-link MUST point at the same-org page on the destination layer:
+The UI nav SHALL collapse to two tabs — **Overview** and **Trends** —
+and SHALL preserve the active organisation scope across them. The
+Report is not a nav tab; it is reached by clicking a target on the
+Overview. When the operator is viewing a per-organisation page (the
+Overview at `/ui/orgs/{slug}`, or Trends with `?org=<slug>`), each nav
+link MUST point at the same-org page on the destination tab:
 
-- Dashboard → `/ui/orgs/<slug>`
-- Analysis → `/ui/targets?org=<slug>`
-- Reporting → `/ui/reporting?org=<slug>`
+- Overview → `/ui/orgs/<slug>`
+- Trends → `/ui/trends?org=<slug>`
 
-When no organisation is selected, the nav links MUST point at
-the instance-wide views (`/ui/`, `/ui/targets`, `/ui/reporting`).
+When no organisation is selected, the nav links MUST point at the
+instance-wide views (`/ui/`, `/ui/trends`).
 
-#### Scenario: Per-org dashboard nav threads the slug
+#### Scenario: Per-org Overview nav threads the slug
 
 - **Given** the operator is on `/ui/orgs/acme`
 - **When** the page renders
-- **Then** the Analysis nav link points at `/ui/targets?org=acme`
-- **And** the Reporting nav link points at `/ui/reporting?org=acme`
-
-#### Scenario: Reporting with org filter shows scope label
-
-- **Given** the operator opens `/ui/reporting?org=acme`
-- **When** the page renders
-- **Then** the page header contains the organisation's display
-  name in a "Scope" label so the filtered view is visibly distinct
-  from the global one
-
-#### Scenario: Analysis pages carry the Reporting nav link
-
-- **Given** the operator opens `/ui/scans/{id}` or
-  `/ui/scans/{id}/assessment`
-- **When** the page renders
-- **Then** the cross-page nav contains the Reporting nav link
-  (not omitted as it was when the Reporting route did not exist)
-
----
+- **Then** the Trends nav link points at `/ui/trends?org=acme`
+- **And** there is no separate Analysis or Reporting nav tab
 
 ### Requirement: Targets page accepts an organisation filter
 
@@ -513,98 +494,28 @@ label as the Reporting pages.
 - **When** the operator opens `/ui/targets?org=nope`
 - **Then** the response status is 404
 
-### Requirement: Analysis layer renders the steering matrix
-
-The UI SHALL expose `/ui/analysis` (and
-`/ui/analysis?org=<slug>`) as the central Analysis page. The
-view MUST render a per-rule cross-target table with one row
-per rule that has produced at least one Rationale, and columns
-for distinct-target counts per `soeverein`, `voldoende`,
-`afhankelijk`, and `onbekend` score. Stable row order is
-framework first (`wand` > `eucsf` > alphabetical), then ruleID
-alphabetical within a framework. The page MUST honour the
-`?org=<slug>` filter and render a "Scope: {orgName}" pill in
-the header when active.
-
-#### Scenario: Analysis matrix renders rules and counts
-
-- **Given** rule `wand.juridisch.cert_issuer_eea` has fired on
-  three targets — one soeverein, two afhankelijk — across the
-  current organisation's scans
-- **When** the operator opens `/ui/analysis`
-- **Then** the row for that rule shows soeverein=1,
-  afhankelijk=2, voldoende=0, onbekend=0
-- **And** the row's rule cell links to
-  `/ui/reporting/wand/wand.juridisch.cert_issuer_eea`
-
----
-
-### Requirement: Reporting layer is the rule catalogue
-
-The UI SHALL render `/ui/reporting` as a rule catalogue:
-**every** registered rule from every framework, with the
-framework, dimension, rule ID, human-readable description, and
-rationale text. The catalogue MAY carry a compact "current
-state" column per row — the worst score reached across the
-snapshots in scope plus a triage hint of how many targets sit
-at that score — but MUST NOT render the full per-score matrix
-(that stays on Analysis). Each row links to the existing
-per-rule deep-dive page at
-`/ui/reporting/{framework}/{ruleID}`.
-
-#### Scenario: Catalogue lists rules with descriptions
-
-- **Given** the wand pack registers
-  `wand.juridisch.cert_issuer_eea` and the eucsf pack registers
-  `eucsf.sov2.cert_issuer_eu`
-- **When** the operator opens `/ui/reporting`
-- **Then** both rules appear in the catalogue with their
-  description text
-
-#### Scenario: Catalogue carries a per-rule status hint
-
-- **Given** rule `wand.juridisch.cert_issuer_eea` has fired
-  across the scope with a mix of soeverein + afhankelijk
-  rationales
-- **When** the operator opens `/ui/reporting`
-- **Then** the row for that rule shows a compact "afhankelijk"
-  status pill (the worst score reached) with a "X of Y
-  targets" hint
-- **And** the row does NOT show the full soeverein / voldoende
-  / afhankelijk / onbekend score breakdown (that lives on
-  Analysis)
-
-#### Scenario: Rules without rationale render an explicit placeholder
-
-- **Given** rule `wand.juridisch.cert_issuer_eea` has not yet
-  produced a rationale (no scans assessed under wand)
-- **When** the operator opens `/ui/reporting`
-- **Then** the row's status column reads "no rationale yet"
-  rather than a fake score
-
 ### Requirement: Dashboard is "is dit goed of niet"
 
-The Dashboard at `/ui/` and `/ui/orgs/{slug}` SHALL render
-high-level health information only: the headline-stats strip,
-one verdict pill per framework (worst score reached across all
-targets in scope), and the organisations list (instance-wide
-view only). The page MUST NOT carry the rule × score-counts
-matrix, the Top concerns table, or the External / Internal
-posture distribution blocks — those answer steering questions
-that belong on Analysis.
+The Overview at `/ui/` and `/ui/orgs/{slug}` SHALL render high-level,
+glanceable health information: the **target fleet** table (see "Overview
+leads with the target fleet"), the headline-stats strip, one verdict
+pill per framework (worst score reached across all targets in scope),
+the sovereignty-by-flow rollup, and the organisations list
+(instance-wide view only). The page MUST NOT carry the rule × score
+matrix, the rule catalogue, a Top concerns table, or the External /
+Internal posture distribution blocks — those steering/Farmer questions
+live on Trends.
 
-#### Scenario: Dashboard renders verdict pills, not the matrix
+#### Scenario: Overview renders fleet and verdict pills, not the matrix
 
 - **Given** an operator opens `/ui/`
 - **When** the page renders
-- **Then** the body contains a per-framework verdict pill
-  (e.g. "wand · afhankelijk · 3 of 4 targets")
+- **Then** the body contains the target fleet table
+- **And** the body contains a per-framework verdict pill
+- **And** the body does NOT contain a rule × score matrix
 - **And** the body does NOT contain a "Top concerns" heading
-- **And** the body does NOT contain a "Recent activity" heading
-- **And** the body does NOT contain "External posture" or
-  "Internal posture" headings
-
----
+- **And** the body does NOT contain "External posture" or "Internal
+  posture" headings
 
 ### Requirement: Playwright suite runs against deterministic seeded DBs
 
@@ -770,4 +681,88 @@ private-target guard SHALL continue to apply.
 - **GIVEN** serve is started without `--ui-allow-scan`
 - **WHEN** a client POSTs to `/ui/scan`
 - **THEN** the request does not trigger a scan (the route is not mounted)
+
+### Requirement: Overview leads with the target fleet
+
+The Overview at `/ui/` and `/ui/orgs/{slug}` SHALL render a **target
+fleet** table as the first content block under `<main>`, above the
+verdict pills and the sovereignty-by-flow rollup. The table MUST carry
+one row per target in scope, sorted by domain, with: the domain, a
+single headline verdict (the worst score across the target's preferred
+assessment — wand if present, else any framework, computed the same way
+as the dashboard verdict pills), the last scan time and status, and a
+link to that scan's report at `/ui/scans/{id}/assessment`. A target
+with a scan but no assessment renders an explicit "not assessed"
+placeholder rather than a fake score. Org-scoped Overviews list only
+that organisation's targets.
+
+#### Scenario: Overview lists every target with verdict and report link
+
+- **Given** the scope contains targets `a.example` (soeverein) and
+  `b.example` (afhankelijk), each with a wand assessment
+- **When** the operator opens `/ui/`
+- **Then** the fleet table shows a row for `a.example` with a
+  soeverein verdict and a row for `b.example` with an afhankelijk
+  verdict
+- **And** each row links to that target's `/ui/scans/{id}/assessment`
+- **And** the fleet table appears before the verdict-pill section
+
+#### Scenario: Unassessed target shows a placeholder, not a score
+
+- **Given** target `c.example` has a completed scan but no assessment
+- **When** the operator opens `/ui/`
+- **Then** the row for `c.example` shows a "not assessed" placeholder
+  in the verdict column
+
+### Requirement: The scan assessment is the report
+
+The per-scan assessment page at `/ui/scans/{id}/assessment` SHALL be
+the report surface for one target (the Explorer drill-down). It MUST be
+identified by the target **domain** as its heading and HTML title, with
+the scan ID demoted to a secondary reference. It MUST be reachable by
+clicking a target row on the Overview. The report MUST continue to
+render the Sovereignty overview, the flow diagram, and a path to the
+raw findings.
+
+#### Scenario: Report is titled by domain and reached from the fleet
+
+- **Given** the operator clicks the `a.example` row on `/ui/`
+- **When** the report renders
+- **Then** the page heading and `<title>` are `a.example` (not the
+  scan ID)
+- **And** the scan ID is still present as a secondary reference
+- **And** the page links onward to the raw findings for that scan
+
+### Requirement: Trends layer consolidates fleet rules
+
+The UI SHALL expose `/ui/trends` (and `/ui/trends?org=<slug>`) as the
+single Farmer layer: rules across the fleet. The page MUST render the
+rule catalogue — every registered rule from every framework with
+framework, dimension, rule ID, description, and a compact worst-score
+status hint per rule in scope — and MUST provide access to the per-rule
+cross-target score matrix (soeverein / voldoende / afhankelijk /
+onbekend distinct-target counts), either inline or via a drill-in. Each
+rule links to the per-rule deep-dive at
+`/ui/reporting/{framework}/{ruleID}`. The page MUST honour the
+`?org=<slug>` filter and render the active-scope pill when set.
+
+The legacy routes `/ui/analysis` and `/ui/reporting` (with their
+`?org=` variants) SHALL redirect to `/ui/trends`, preserving the
+organisation scope, so existing deep links survive.
+
+#### Scenario: Trends renders the catalogue and the matrix
+
+- **Given** rule `wand.juridisch.cert_issuer_eea` has fired across the
+  scope with a mix of soeverein and afhankelijk rationales
+- **When** the operator opens `/ui/trends`
+- **Then** the catalogue lists that rule with its description and a
+  worst-score "afhankelijk" status hint
+- **And** the per-rule score matrix (counts per score) is reachable
+  from that row
+
+#### Scenario: Legacy Analysis and Reporting routes redirect to Trends
+
+- **Given** the operator opens `/ui/analysis?org=acme`
+- **When** the request is handled
+- **Then** the response redirects to `/ui/trends?org=acme`
 
