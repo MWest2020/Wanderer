@@ -11,6 +11,18 @@ once a first release is cut. Until then every entry lives under
 
 ### Added
 
+- **Mail routing** (`propose-email-routing`, Wave 1 of
+  `research-high-signal-observability`). The scanner correlates the
+  `dns.mx` hosts with the `ip.asn` lookups run on them and emits one
+  observed `dns.mx_routing` Finding stating it plainly — "inbound mail
+  for example.com lands at Google Workspace (US)". A small curated
+  MX-host suffix table names the operator (Google Workspace, Microsoft
+  365, Proton, …) with the ASN organisation as fallback. The existing
+  `wand.juridisch.mx_vendor_jurisdiction` rule now leads its verdict
+  with the operator, which the Mail row of the Sovereignty overview
+  renders. Degrades gracefully without GeoLite2 (operator only) and on
+  domains with no MX.
+
 - **Dev-mode scan from the UI** (`propose-ui-dev-scan`, ADR-0016).
   `wanderer serve --ui-allow-scan` (default off) adds a "Scan a target"
   form on the dashboard + the single sanctioned mutating route

@@ -588,6 +588,39 @@ Notes:
 - **Budget.** Bounded by `--per-probe-timeout` and a 20-hop default;
   on ICMP-filtered paths a partial path is still recorded.
 
+## Mail routing
+
+Wanderer already collects the pieces that answer *where does my mail
+land?* — the `dns.mx` hosts and the `ip.asn` lookups the IP probe runs
+on them. After the scan correlates the two, it emits one observed
+aggregate Finding, `dns.mx_routing`, that states it plainly:
+
+```
+inbound mail for example.com lands at Google Workspace (US)
+```
+
+The `operator` is resolved from a small curated table of well-known
+MX-host suffixes (Google Workspace, Microsoft 365, Proton, Zoho, …)
+with the ASN organisation as the fallback, so an unlisted operator
+still gets a name. The raw MX host, ASN, and organisation are retained
+in the Finding's `routes` so the observed fact stands even when the
+friendly name is uncertain.
+
+This is the *observed* layer; the `wand.juridisch.mx_vendor_jurisdiction`
+rule annotates it with the EEA-jurisdiction score and now leads its
+verdict with the same operator name ("mail lands at Google Workspace —
+mx hosts in US (outside EEA)"), which is what the **Mail** row of the
+Sovereignty overview renders.
+
+Notes:
+
+- **No GeoLite2** degrades gracefully: the operator is still named from
+  the MX-host suffix table, with the country reported as undetermined.
+- **No MX / null MX** yields a Finding stating there is no inbound mail
+  routing rather than nothing at all.
+- **Inbound only.** Outbound sending infrastructure (SPF/DKIM/DMARC) is
+  a separate, larger lead.
+
 ## Package vendor jurisdiction
 
 Both package inspectors now emit a vendor / maintainer
