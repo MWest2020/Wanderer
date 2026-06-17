@@ -42,6 +42,6 @@
 
 ## 3. Wrap-up
 
-- [ ] 3.1 Commit + push.
-- [ ] 3.2 Archive (email-routing capability spec merged); tick
+- [x] 3.1 Commit + push.
+- [x] 3.2 Archive (email-routing capability spec merged); tick
   `research-high-signal-observability` task 2.2.
