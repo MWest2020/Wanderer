@@ -128,6 +128,19 @@ type dashboardView struct {
 	HasReporting       bool                   // controls whether the Reporting nav link renders
 	OrgSlug            string                 // active org for nav-link scope persistence
 	AllowScan          bool                   // dev-mode: render the "Scan a target" form
+	Targets            []dashboardTargetRow   // the fleet: one row per target, newest scan first
+}
+
+// dashboardTargetRow is the glanceable per-target line on the
+// dashboard — domain, when it was last scanned, and its headline
+// sovereignty verdict, linking straight to that scan's report.
+type dashboardTargetRow struct {
+	Domain     string
+	Kind       string
+	LastScanAt string
+	LastStatus string
+	Verdict    string // worst score across the preferred assessment; "" when not yet assessed
+	ReportURL  string // /ui/scans/{id}/assessment
 }
 
 // verdictRenderView is the per-framework verdict pill on the
@@ -323,6 +336,35 @@ func renderDashboard(w http.ResponseWriter, r *http.Request, st *store.Store, tm
 		view.Headline.LastScanAt = headline.LastScanAt.UTC().Format(time.RFC3339)
 	}
 	view.FlowRollup = SovereigntyFlowRollup(snaps)
+	// The fleet table — the Tourist's primary view: every target with
+	// its last scan and a one-glance verdict, linking to the report.
+	for _, s := range snaps {
+		row := dashboardTargetRow{
+			Domain:     s.Domain,
+			Kind:       string(s.Kind),
+			LastStatus: s.LastStatus,
+		}
+		if !s.LastScanAt.IsZero() {
+			row.LastScanAt = s.LastScanAt.UTC().Format(time.RFC3339)
+		}
+		if s.LastScanID != "" {
+			row.ReportURL = "/ui/scans/" + s.LastScanID + "/assessment"
+		}
+		// Prefer the wand pack for the headline verdict; fall back to
+		// whatever framework was assessed.
+		if a, ok := s.Assessments["wand"]; ok {
+			row.Verdict = string(WorstScore(a.Dimensions))
+		} else {
+			for _, a := range s.Assessments {
+				row.Verdict = string(WorstScore(a.Dimensions))
+				break
+			}
+		}
+		view.Targets = append(view.Targets, row)
+	}
+	sort.Slice(view.Targets, func(i, j int) bool {
+		return view.Targets[i].Domain < view.Targets[j].Domain
+	})
 	for _, v := range verdicts {
 		view.Verdicts = append(view.Verdicts, verdictRenderView{
 			Framework: v.Framework,

@@ -142,6 +142,14 @@ func TestDashboard_VerdictPill_PerFramework(t *testing.T) {
 		"Verdict",
 		"verdict-pill",
 		"score-afhankelijk", // worst across {soeverein, afhankelijk, onbekend}
+		// Fleet table — the per-target Tourist view: every target,
+		// its verdict, and a link to that scan's report.
+		"targets-fleet",
+		"a.example",
+		"b.example",
+		"c.example",
+		"report →",
+		"/assessment",
 	} {
 		if !strings.Contains(bodyStr, want) {
 			t.Errorf("dashboard missing %q", want)

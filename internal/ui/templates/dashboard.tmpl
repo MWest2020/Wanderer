@@ -56,6 +56,30 @@
 </p>
 {{else}}
 
+{{if .Targets}}
+<section class="dashboard-section targets-fleet">
+  <h2>Targets <span class="scope-label">your fleet, last scan &amp; verdict</span></h2>
+  <table class="targets">
+    <thead>
+      <tr><th>Target</th><th>Verdict</th><th>Last scan</th><th></th></tr>
+    </thead>
+    <tbody>
+      {{range .Targets}}
+      <tr>
+        <td>
+          {{if .ReportURL}}<a href="{{.ReportURL}}">{{.Domain}}</a>{{else}}{{.Domain}}{{end}}
+          {{if eq .Kind "host"}}<span class="badge kind-host">host</span>{{end}}
+        </td>
+        <td>{{if .Verdict}}<span class="badge score-{{.Verdict}}">{{.Verdict}}</span>{{else}}<span class="muted">not assessed</span>{{end}}</td>
+        <td>{{if .LastScanAt}}<code>{{.LastScanAt}}</code> <span class="status-{{.LastStatus}}">{{.LastStatus}}</span>{{else}}<span class="muted">never</span>{{end}}</td>
+        <td>{{if .ReportURL}}<a href="{{.ReportURL}}">report →</a>{{end}}</td>
+      </tr>
+      {{end}}
+    </tbody>
+  </table>
+</section>
+{{end}}
+
 <section class="dashboard-section">
   <h2>Verdict <span class="scope-label">is this OK?</span></h2>
   {{if .Verdicts}}
