@@ -177,6 +177,24 @@ func TestMXVendorJurisdiction(t *testing.T) {
 	if !strings.Contains(got.Verdict, "Microsoft") {
 		t.Errorf("verdict should name the operator, got %q", got.Verdict)
 	}
+
+	// When the scanner's dns.mx_routing synthesis named the operator, the
+	// rule leads its verdict with the recognisable "who" and keeps the
+	// country detail.
+	got = r.Match([]models.Finding{
+		f("m1", "dns.mx", map[string]any{"_subject": "example.com", "host": "aspmx.l.google.com"}),
+		f("a1", "ip.asn", map[string]any{"_subject": "aspmx.l.google.com", "country": "US", "organisation": "GOOGLE"}),
+		f("r1", "dns.mx_routing", map[string]any{
+			"_subject": "example.com",
+			"routes":   []map[string]any{{"host": "aspmx.l.google.com", "operator": "Google Workspace", "country": "US"}},
+		}),
+	})
+	if got.Score != models.ScoreAfhankelijk {
+		t.Errorf("us mx: score = %s, want afhankelijk", got.Score)
+	}
+	if !strings.Contains(got.Verdict, "mail lands at Google Workspace") || !strings.Contains(got.Verdict, "outside EEA") {
+		t.Errorf("verdict should lead with operator and keep country detail, got %q", got.Verdict)
+	}
 }
 
 func TestCertValidity(t *testing.T) {

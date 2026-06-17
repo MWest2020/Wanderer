@@ -112,6 +112,18 @@ func (s *Scanner) Scan(ctx context.Context, target models.Target) (*models.Scan,
 	pass2Findings, pass2Failed := s.runPassConcurrent(rootCtx, pass2, enriched, scan.ID, logger)
 	scan.Findings = append(scan.Findings, pass2Findings...)
 
+	// Synthesis: correlate dns.mx × ip.asn into one observed
+	// mail-routing Finding ("inbound mail lands at <operator>
+	// (<country>)"). Runs after pass 2 because it needs the ip.asn
+	// lookups the IP probe ran on the MX hosts pass 1 discovered. The
+	// observed fact leads; the wand rule annotates the score.
+	if mr, ok := synthesiseMailRouting(enriched, scan.Findings); ok {
+		scan.Findings = append(scan.Findings, mr)
+		if err := s.Store.AppendFindings(rootCtx, scan.ID, []models.Finding{mr}); err != nil {
+			logger.Error("scan.persist_failed", "probe", mr.ProbeID, "err", err)
+		}
+	}
+
 	totalProbes := len(pass1) + len(pass2)
 	failed := pass1Failed + pass2Failed
 	completed := totalProbes - failed
