@@ -15,8 +15,11 @@ tracked as their own proposals.
 
 - [x] 2.1 Transit path → `propose-transit-path-probe` (done — the
   template).
-- [ ] 2.2 Email routing (MX → host → jurisdiction).
-- [ ] 2.3 DNS hosting (NS → who/where).
+- [x] 2.2 Email routing (MX → host → jurisdiction) →
+  `propose-email-routing` (proposed 2026-06-17; second instance after
+  transit-path).
+- [x] 2.3 DNS hosting (NS → who/where) → `propose-dns-hosting` (proposed
+  2026-06-18; third instance after transit-path and email-routing).
 - [ ] 2.4 Destination hosting identity (rDNS + whois/ASN enrichment).
 - [ ] 2.5 Web third-party origin map.
 - [ ] 2.6 CDN / front detection; TLS-chain geography polish.
