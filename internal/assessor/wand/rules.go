@@ -336,13 +336,19 @@ func observedMailOperators(findings []models.Finding) []string {
 // mailLandsAt renders the observed operators as a phrase — "Google
 // Workspace" or "Microsoft 365 and Proton". Empty input yields "".
 func mailLandsAt(ops []string) string {
-	switch len(ops) {
+	return joinAnd(ops)
+}
+
+// joinAnd renders a list as an English "a, b and c" phrase. Empty input
+// yields "". Shared by the mail and DNS operator-led verdicts.
+func joinAnd(parts []string) string {
+	switch len(parts) {
 	case 0:
 		return ""
 	case 1:
-		return ops[0]
+		return parts[0]
 	default:
-		return strings.Join(ops[:len(ops)-1], ", ") + " and " + ops[len(ops)-1]
+		return strings.Join(parts[:len(parts)-1], ", ") + " and " + parts[len(parts)-1]
 	}
 }
 

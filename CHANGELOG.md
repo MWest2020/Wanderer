@@ -11,6 +11,20 @@ once a first release is cut. Until then every entry lives under
 
 ### Added
 
+- **DNS hosting** (`propose-dns-hosting`, Wave 1 of
+  `research-high-signal-observability`; structural twin of mail routing).
+  The scanner correlates the `dns.ns` hosts with the `ip.asn` lookups run
+  on them and emits one observed `dns.ns_hosting` Finding stating it
+  plainly — "DNS for example.com is run by Cloudflare (US)". A small
+  curated NS-host suffix table names the managed-DNS operator (Cloudflare,
+  AWS Route 53, Azure DNS, Google Cloud DNS, NS1, TransIP, …) with the
+  ASN organisation as fallback. The existing
+  `wand.juridisch.ns_vendor_jurisdiction` rule now leads its verdict with
+  the operator, which the DNS row of the Sovereignty overview renders.
+  Degrades gracefully without GeoLite2 (operator only), on anycast
+  nameservers (country undetermined), and on domains with no resolvable
+  authoritative DNS.
+
 - **Mail routing** (`propose-email-routing`, Wave 1 of
   `research-high-signal-observability`). The scanner correlates the
   `dns.mx` hosts with the `ip.asn` lookups run on them and emits one

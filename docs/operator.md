@@ -621,6 +621,44 @@ Notes:
 - **Inbound only.** Outbound sending infrastructure (SPF/DKIM/DMARC) is
   a separate, larger lead.
 
+## DNS hosting
+
+The structural twin of mail routing, for the control plane: *who runs my
+authoritative DNS, and where?* Wanderer already collects the pieces — the
+`dns.ns` hosts and the `ip.asn` lookups the IP probe runs on them (the
+scanner expands the NS hosts into `Target.Related`). After the scan
+correlates the two, it emits one observed aggregate Finding,
+`dns.ns_hosting`, that states it plainly:
+
+```
+DNS for example.com is run by Cloudflare (US)
+```
+
+The `operator` is resolved from a small curated table of well-known
+NS-host suffixes (Cloudflare, AWS Route 53, Azure DNS, Google Cloud DNS,
+NS1, TransIP, …) with the ASN organisation as the fallback, so an
+unlisted operator still gets a name. The raw NS host, ASN, and
+organisation are retained in the Finding's `routes` so the observed fact
+stands even when the friendly name is uncertain.
+
+This is the *observed* layer; the `wand.juridisch.ns_vendor_jurisdiction`
+rule annotates it with the EEA-jurisdiction score and now leads its
+verdict with the same operator name ("DNS run by Cloudflare —
+authoritative DNS in US (outside EEA)"), which is what the **DNS** row of
+the Sovereignty overview renders.
+
+Notes:
+
+- **No GeoLite2** degrades gracefully: the operator is still named from
+  the NS-host suffix table, with the country reported as undetermined.
+- **Anycast** nameservers (the common case for large DNS providers) carry
+  no country; the Finding names the operator with the country
+  undetermined.
+- **No resolvable authoritative DNS** yields a Finding stating so rather
+  than nothing at all.
+- **Authoritative NS only.** Recursive-resolver choice, DNSSEC signing
+  posture, and registrar jurisdiction are separate, larger leads.
+
 ## Package vendor jurisdiction
 
 Both package inspectors now emit a vendor / maintainer

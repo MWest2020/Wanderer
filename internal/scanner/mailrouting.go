@@ -15,12 +15,32 @@ import (
 // wand.juridisch.mx_vendor_jurisdiction annotating the EEA-jurisdiction
 // score behind it (research-high-signal-observability, Wave 1).
 
+// operatorSuffix maps a known host suffix to a recognisable operator
+// name. Shared by the mail- and DNS-hosting synthesis (the suffix→name
+// table is the same machinery for both, only the entries differ).
+type operatorSuffix struct{ suffix, operator string }
+
+// operatorBySuffix resolves a host to a recognisable operator name: the
+// curated suffix table is the hint, the ASN organisation the fallback so
+// unlisted operators still get a name. Returns "" only when neither
+// knows. Matching is on a label boundary so "notgoogle.com" never
+// matches "google.com".
+func operatorBySuffix(host string, table []operatorSuffix, asnOrg string) string {
+	h := normHost(host)
+	for _, e := range table {
+		if h == e.suffix || strings.HasSuffix(h, "."+e.suffix) {
+			return e.operator
+		}
+	}
+	return strings.TrimSpace(asnOrg)
+}
+
 // mailOperatorSuffixes maps a known MX-host suffix to a recognisable
 // operator name. Deliberately small and curated — the common operators a
 // public-sector domain actually uses — and grown in-repo the way the
 // egress vendor list grows, not via a third-party dependency. Anything
 // not listed falls back to the ASN organisation (see mailOperator).
-var mailOperatorSuffixes = []struct{ suffix, operator string }{
+var mailOperatorSuffixes = []operatorSuffix{
 	{"aspmx.l.google.com", "Google Workspace"},
 	{"googlemail.com", "Google Workspace"},
 	{"google.com", "Google Workspace"},
@@ -37,18 +57,10 @@ var mailOperatorSuffixes = []struct{ suffix, operator string }{
 	{"transip.nl", "TransIP"},
 }
 
-// mailOperator resolves an MX host to a recognisable operator name. The
-// curated suffix table is the hint; the ASN organisation is the
-// fallback so unlisted operators still get a name. Returns "" only when
-// neither knows.
+// mailOperator resolves an MX host to a recognisable operator name via
+// the curated mail-operator table, with the ASN organisation as fallback.
 func mailOperator(mxHost, asnOrg string) string {
-	h := normHost(mxHost)
-	for _, e := range mailOperatorSuffixes {
-		if h == e.suffix || strings.HasSuffix(h, "."+e.suffix) {
-			return e.operator
-		}
-	}
-	return strings.TrimSpace(asnOrg)
+	return operatorBySuffix(mxHost, mailOperatorSuffixes, asnOrg)
 }
 
 // normHost lowercases and strips a trailing dot — MX hosts arrive

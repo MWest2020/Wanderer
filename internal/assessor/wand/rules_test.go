@@ -244,6 +244,46 @@ func TestDNSRedundancy(t *testing.T) {
 	}
 }
 
+func TestNSVendorJurisdiction(t *testing.T) {
+	r := ruleByID(t, "wand.juridisch.ns_vendor_jurisdiction")
+
+	// EEA nameservers score soeverein and cite both sides of the
+	// correlation.
+	got := r.Match([]models.Finding{
+		f("n1", "dns.ns", map[string]any{"_subject": "example.nl", "host": "ns1.transip.net"}),
+		f("a1", "ip.asn", map[string]any{"_subject": "ns1.transip.net", "country": "NL", "organisation": "TransIP B.V."}),
+	})
+	if got.Score != models.ScoreSoeverein {
+		t.Errorf("EEA ns: score = %s, want soeverein", got.Score)
+	}
+	if len(got.Evidence) < 2 {
+		t.Errorf("expected evidence to cite both dns.ns and ip.asn findings; got %v", got.Evidence)
+	}
+
+	got = r.Match(nil)
+	if got.Score != models.ScoreOnbekend {
+		t.Errorf("no findings: score = %s, want onbekend", got.Score)
+	}
+
+	// When the scanner's dns.ns_hosting synthesis named the operator, the
+	// rule leads its verdict with the recognisable "who" and keeps the
+	// country detail.
+	got = r.Match([]models.Finding{
+		f("n1", "dns.ns", map[string]any{"_subject": "example.com", "host": "ns1.cloudflare.com"}),
+		f("a1", "ip.asn", map[string]any{"_subject": "ns1.cloudflare.com", "country": "US", "organisation": "CLOUDFLARENET"}),
+		f("r1", "dns.ns_hosting", map[string]any{
+			"_subject": "example.com",
+			"routes":   []map[string]any{{"host": "ns1.cloudflare.com", "operator": "Cloudflare", "country": "US"}},
+		}),
+	})
+	if got.Score != models.ScoreAfhankelijk {
+		t.Errorf("us ns: score = %s, want afhankelijk", got.Score)
+	}
+	if !strings.Contains(got.Verdict, "DNS run by Cloudflare") || !strings.Contains(got.Verdict, "outside EEA") {
+		t.Errorf("verdict should lead with operator and keep country detail, got %q", got.Verdict)
+	}
+}
+
 func TestCAARestricts(t *testing.T) {
 	r := ruleByID(t, "wand.operationeel.caa_restricts_issuance")
 	got := r.Match([]models.Finding{

@@ -124,6 +124,17 @@ func (s *Scanner) Scan(ctx context.Context, target models.Target) (*models.Scan,
 		}
 	}
 
+	// Synthesis: correlate dns.ns × ip.asn into one observed DNS-hosting
+	// Finding ("DNS for X is run by <operator> (<country>)"). Same shape
+	// as mail routing — the observed fact leads; the wand NS rule
+	// annotates the EEA-jurisdiction score.
+	if dh, ok := synthesiseDNSHosting(enriched, scan.Findings); ok {
+		scan.Findings = append(scan.Findings, dh)
+		if err := s.Store.AppendFindings(rootCtx, scan.ID, []models.Finding{dh}); err != nil {
+			logger.Error("scan.persist_failed", "probe", dh.ProbeID, "err", err)
+		}
+	}
+
 	totalProbes := len(pass1) + len(pass2)
 	failed := pass1Failed + pass2Failed
 	completed := totalProbes - failed

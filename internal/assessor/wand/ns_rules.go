@@ -9,6 +9,45 @@ import (
 	"github.com/MWest2020/wanderer/pkg/models"
 )
 
+// observedDNSOperators returns the recognisable managed-DNS operator
+// names the scanner's dns.ns_hosting synthesis observed (de-duplicated),
+// so the rule can lead its verdict with the "who" — "DNS run by
+// Cloudflare …" rather than a bare country. Tolerant of the routes
+// attribute's in-memory ([]map[string]any) and JSON-reloaded ([]any)
+// shapes. Empty when the synthesis named no operator, in which case the
+// rule keeps its country-only verdict.
+func observedDNSOperators(findings []models.Finding) []string {
+	var ops []string
+	seen := map[string]bool{}
+	add := func(m map[string]any) {
+		op, _ := m["operator"].(string)
+		if op == "" || seen[op] {
+			return
+		}
+		seen[op] = true
+		ops = append(ops, op)
+	}
+	for _, f := range findings {
+		if f.ProbeID != "dns.ns_hosting" {
+			continue
+		}
+		switch routes := f.Attributes["routes"].(type) {
+		case []map[string]any:
+			for _, m := range routes {
+				add(m)
+			}
+		case []any:
+			for _, r := range routes {
+				if m, ok := r.(map[string]any); ok {
+					add(m)
+				}
+			}
+		}
+		break
+	}
+	return ops
+}
+
 // nsVendorJurisdiction scores who runs the organisation's authoritative
 // DNS and where. It correlates the dns.ns hosts with the ip.asn lookups
 // the IP probe performed on them (the scanner adds NS hosts to
@@ -68,23 +107,32 @@ func nsVendorJurisdiction() assessor.Rule {
 				evidence = append(evidence, id)
 			}
 			sort.Strings(countries)
+			// Lead with the observed operator ("DNS run by Cloudflare —
+			// …") when the scanner named one; otherwise keep the
+			// country-only verdict.
+			lead := func(detail string) string {
+				if who := joinAnd(observedDNSOperators(findings)); who != "" {
+					return fmt.Sprintf("DNS run by %s — %s", who, detail)
+				}
+				return detail
+			}
 			switch {
 			case inEEA == seen:
 				return assessor.RuleResult{
 					Score:    models.ScoreSoeverein,
-					Verdict:  fmt.Sprintf("authoritative DNS in %s (EEA)", strings.Join(dedupe(countries), ",")),
+					Verdict:  lead(fmt.Sprintf("authoritative DNS in %s (EEA)", strings.Join(dedupe(countries), ","))),
 					Evidence: evidence,
 				}
 			case inEEA > 0:
 				return assessor.RuleResult{
 					Score:    models.ScoreVoldoende,
-					Verdict:  fmt.Sprintf("authoritative DNS split across %s", strings.Join(dedupe(countries), ",")),
+					Verdict:  lead(fmt.Sprintf("authoritative DNS split across %s", strings.Join(dedupe(countries), ","))),
 					Evidence: evidence,
 				}
 			default:
 				return assessor.RuleResult{
 					Score:    models.ScoreAfhankelijk,
-					Verdict:  fmt.Sprintf("authoritative DNS in %s (outside EEA)", strings.Join(dedupe(countries), ",")),
+					Verdict:  lead(fmt.Sprintf("authoritative DNS in %s (outside EEA)", strings.Join(dedupe(countries), ","))),
 					Evidence: evidence,
 				}
 			}
