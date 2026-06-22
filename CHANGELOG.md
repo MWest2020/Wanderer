@@ -11,6 +11,22 @@ once a first release is cut. Until then every entry lives under
 
 ### Added
 
+- **Web third-party origin map** (`propose-third-party-origin`, the first
+  Wave-2 lead of `research-high-signal-observability`). The scanner
+  correlates the `http.third_party` hosts (and the resource `kinds` they
+  serve) with the `ip.asn` lookups run on them and emits one observed
+  `http.origin_map` Finding, grouped by vendor — "example.com loads fonts
+  from Google Fonts (US), scripts from jsDelivr (US)". A small in-repo
+  host-suffix table (reusing `operatorBySuffix`) names the common vendors
+  (Google Fonts/Analytics/Tag Manager, jsDelivr, cdnjs, Meta, …) with the
+  ASN organisation as fallback; hosts from one vendor collapse into a
+  single entry. The existing `wand.technologie.third_parties_eea` rule now
+  leads its verdict with the non-EEA vendor names (the export surface)
+  while keeping the in/out-EEA host count; all-EEA pages stay clean. The
+  Third-parties row of the Sovereignty overview renders it. Degrades
+  gracefully without GeoLite2 and on pages that load no third parties.
+  Reuses `http.third_party`/`ip.asn` — no new network, no schema change.
+
 - **Hosting identity** (`propose-hosting-identity`, Wave 1 of
   `research-high-signal-observability`; the fourth and last cheap
   who/where twin, after transit, mail, and DNS). The scanner correlates

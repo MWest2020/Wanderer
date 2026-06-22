@@ -146,6 +146,18 @@ func (s *Scanner) Scan(ctx context.Context, target models.Target) (*models.Scan,
 		}
 	}
 
+	// Synthesis: correlate http.third_party (+ resource kinds) × ip.asn
+	// into one observed origin-map Finding ("X loads fonts from Google
+	// (US), …"), grouped by vendor. The first Wave-2 surface signal — the
+	// observed map leads; the wand third-party rule annotates the
+	// in/out-EEA count and names the non-EEA vendors.
+	if om, ok := synthesiseOriginMap(enriched, scan.Findings); ok {
+		scan.Findings = append(scan.Findings, om)
+		if err := s.Store.AppendFindings(rootCtx, scan.ID, []models.Finding{om}); err != nil {
+			logger.Error("scan.persist_failed", "probe", om.ProbeID, "err", err)
+		}
+	}
+
 	totalProbes := len(pass1) + len(pass2)
 	failed := pass1Failed + pass2Failed
 	completed := totalProbes - failed

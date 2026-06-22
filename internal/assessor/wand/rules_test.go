@@ -341,6 +341,32 @@ func TestThirdPartiesEEA(t *testing.T) {
 	if got.Score != models.ScoreOnbekend {
 		t.Errorf("no third parties: score = %s, want onbekend", got.Score)
 	}
+
+	// When the scanner's http.origin_map synthesis named a non-EEA vendor,
+	// the rule leads its verdict with the recognisable "who" and keeps the
+	// count detail. An EEA vendor in the same map is not called out.
+	got = r.Match([]models.Finding{
+		f("t1", "http.third_party", map[string]any{"_subject": "fonts.googleapis.com", "source_domain": "example.nl"}),
+		f("a1", "ip.asn", map[string]any{"_subject": "fonts.googleapis.com", "country": "US", "organisation": "GOOGLE"}),
+		f("t2", "http.third_party", map[string]any{"_subject": "cdn.example.nl", "source_domain": "example.nl"}),
+		f("a2", "ip.asn", map[string]any{"_subject": "cdn.example.nl", "country": "NL", "organisation": "Leaseweb"}),
+		f("m1", "http.origin_map", map[string]any{
+			"_subject": "example.nl",
+			"vendors": []map[string]any{
+				{"vendor": "Google Fonts", "country": "US"},
+				{"vendor": "Leaseweb", "country": "NL"},
+			},
+		}),
+	})
+	if got.Score != models.ScoreVoldoende {
+		t.Errorf("mixed third parties: score = %s, want voldoende", got.Score)
+	}
+	if !strings.Contains(got.Verdict, "loads from Google Fonts") || !strings.Contains(got.Verdict, "1 of 2") {
+		t.Errorf("verdict should lead with the non-EEA vendor and keep the count, got %q", got.Verdict)
+	}
+	if strings.Contains(got.Verdict, "Leaseweb") {
+		t.Errorf("EEA vendor should not be called out as export surface, got %q", got.Verdict)
+	}
 }
 
 func TestNoUSHyperscaler(t *testing.T) {

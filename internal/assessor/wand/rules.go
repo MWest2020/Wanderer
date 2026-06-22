@@ -627,6 +627,51 @@ func caaRestricts() assessor.Rule {
 
 // ---------- Technologie ----------
 
+// observedNonEEAVendors returns the recognisable vendor names the
+// scanner's http.origin_map synthesis observed in a non-EEA country
+// (de-duplicated, the actionable export surface), so the rule can lead its
+// verdict with the "who" — "loads from Google (US) …" rather than a bare
+// count. Vendors with no observed country are not flagged (undetermined,
+// not non-EEA). Tolerant of the vendors attribute's in-memory
+// ([]map[string]any) and JSON-reloaded ([]any) shapes. Empty when the
+// synthesis named no non-EEA vendor, in which case the rule keeps its
+// count-only verdict.
+func observedNonEEAVendors(findings []models.Finding) []string {
+	var vendors []string
+	seen := map[string]bool{}
+	add := func(m map[string]any) {
+		v, _ := m["vendor"].(string)
+		country, _ := m["country"].(string)
+		if v == "" || country == "" || seen[v] {
+			return
+		}
+		if eeaCountries[strings.ToUpper(country)] {
+			return
+		}
+		seen[v] = true
+		vendors = append(vendors, v)
+	}
+	for _, f := range findings {
+		if f.ProbeID != "http.origin_map" {
+			continue
+		}
+		switch vs := f.Attributes["vendors"].(type) {
+		case []map[string]any:
+			for _, m := range vs {
+				add(m)
+			}
+		case []any:
+			for _, r := range vs {
+				if m, ok := r.(map[string]any); ok {
+					add(m)
+				}
+			}
+		}
+		break
+	}
+	return vendors
+}
+
 func thirdPartiesEEA() assessor.Rule {
 	return assessor.Rule{
 		ID:          "wand.technologie.third_parties_eea",
@@ -672,6 +717,15 @@ func thirdPartiesEEA() assessor.Rule {
 			for _, id := range thirdParties {
 				evidence = append(evidence, id)
 			}
+			// Lead with the observed non-EEA vendors ("loads from Google,
+			// Cloudflare (non-EEA) — …") when the scanner named any; the
+			// all-EEA case keeps its clean count with no scary lead.
+			lead := func(detail string) string {
+				if who := joinAnd(observedNonEEAVendors(findings)); who != "" {
+					return fmt.Sprintf("loads from %s (non-EEA) — %s", who, detail)
+				}
+				return detail
+			}
 			switch {
 			case inEEA == seen:
 				return assessor.RuleResult{
@@ -682,13 +736,13 @@ func thirdPartiesEEA() assessor.Rule {
 			case inEEA > 0:
 				return assessor.RuleResult{
 					Score:    models.ScoreVoldoende,
-					Verdict:  fmt.Sprintf("%d of %d third-party hosts resolve in the EEA", inEEA, seen),
+					Verdict:  lead(fmt.Sprintf("%d of %d third-party hosts resolve in the EEA", inEEA, seen)),
 					Evidence: evidence,
 				}
 			default:
 				return assessor.RuleResult{
 					Score:    models.ScoreAfhankelijk,
-					Verdict:  fmt.Sprintf("all %d third-party hosts resolve outside the EEA", seen),
+					Verdict:  lead(fmt.Sprintf("all %d third-party hosts resolve outside the EEA", seen)),
 					Evidence: evidence,
 				}
 			}

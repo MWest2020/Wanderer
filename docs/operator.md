@@ -698,6 +698,51 @@ Notes:
 - **Authoritative NS only.** Recursive-resolver choice, DNSSEC signing
   posture, and registrar jurisdiction are separate, larger leads.
 
+## Web third-party origin map
+
+The first Wave-2 signal — what a *page* pulls in, rather than where an
+endpoint sits. Wanderer already collects the pieces: the `http` probe
+records one `http.third_party` host per external resource the apex page
+loads (with the `kinds` of resource — script, link, img, iframe), the
+scanner expands those hosts into `Target.Related`, and the `ip` probe
+attaches `ip.asn`. After the scan correlates them, it emits one observed
+aggregate Finding, `http.origin_map`, grouped by **vendor**:
+
+```
+example.com loads fonts from Google Fonts (US), scripts from jsDelivr (US)
+```
+
+Each third-party host is mapped to a recognisable vendor (Google Fonts,
+Google Analytics, jsDelivr, cdnjs, Meta, …) from a small in-repo
+host-suffix table — the same `operatorBySuffix` machinery the mail and DNS
+twins use — with the ASN organisation as the fallback so an unlisted host
+still gets a name. Several hosts from one vendor (`fonts.googleapis.com` +
+`fonts.gstatic.com`) collapse into a single entry, with the union of what
+they serve and their country; the raw hosts and ASN organisations are
+retained as evidence.
+
+This is the *observed* layer; the `wand.technologie.third_parties_eea`
+rule annotates it with the in/out-EEA host count and now leads its verdict
+with the **non-EEA** vendor names — the export surface — when there are
+any ("loads from Google Fonts (non-EEA) — 3 of 5 third-party hosts resolve
+in the EEA"). An all-EEA page keeps its clean "all N hosts in the EEA"
+with no scary lead. The **Third parties** row of the Sovereignty overview
+renders the result.
+
+Notes:
+
+- **No GeoLite2** degrades gracefully: the vendors are still named from
+  the host suffix table, with the country reported as undetermined.
+- **Vendor jurisdiction is the rule's call.** The map records each
+  vendor's observed country; whether that is non-EEA is decided by the
+  rule (which owns the EEA membership table), not the scanner.
+- **No third parties** on a fetched page yields a Finding stating the page
+  loads nothing external, rather than nothing at all.
+- **Served HTML only.** The probe parses the served markup, so
+  script-injected third parties are missed. Per-subpage crawling,
+  CSP/`connect-src` analysis, and runtime request capture are separate,
+  larger leads.
+
 ## Package vendor jurisdiction
 
 Both package inspectors now emit a vendor / maintainer
