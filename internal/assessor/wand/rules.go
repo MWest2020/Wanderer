@@ -750,6 +750,26 @@ func thirdPartiesEEA() assessor.Rule {
 	}
 }
 
+// observedApexFront returns the edge name and country the scanner's
+// http.cdn_front synthesis observed when the apex is fronted, so the
+// hyperscaler rule can lead its verdict with the named front ("apex
+// fronted by Cloudflare (US) — …"). Tolerant of the attribute shapes;
+// returns empty edge when the apex is not fronted or no map was produced.
+func observedApexFront(findings []models.Finding) (edge, country string) {
+	for _, f := range findings {
+		if f.ProbeID != "http.cdn_front" {
+			continue
+		}
+		if fronted, _ := f.Attributes["fronted"].(bool); !fronted {
+			return "", ""
+		}
+		edge, _ = f.Attributes["edge"].(string)
+		country, _ = f.Attributes["country"].(string)
+		return edge, country
+	}
+	return "", ""
+}
+
 func noUSHyperscaler() assessor.Rule {
 	return assessor.Rule{
 		ID:          "wand.technologie.no_us_hyperscaler",
@@ -797,9 +817,21 @@ func noUSHyperscaler() assessor.Rule {
 				}
 				return assessor.RuleResult{Score: models.ScoreOnbekend, Verdict: "no ip.asn finding — IP probe did not run"}
 			}
+			// Lead with the observed apex front when the scanner detected
+			// one ("apex fronted by Cloudflare (US); …"), so the verdict
+			// names the edge and says it is a front, not just an org in the
+			// path. The US-hyperscaler-in-path detail is kept behind it.
+			detail := fmt.Sprintf("US hyperscaler in path: %s", strings.Join(dedupe(matched), ", "))
+			if edge, country := observedApexFront(findings); edge != "" {
+				loc := country
+				if loc == "" {
+					loc = "country undetermined"
+				}
+				detail = fmt.Sprintf("apex fronted by %s (%s); %s", edge, loc, detail)
+			}
 			return assessor.RuleResult{
 				Score:    models.ScoreAfhankelijk,
-				Verdict:  fmt.Sprintf("US hyperscaler in path: %s", strings.Join(dedupe(matched), ", ")),
+				Verdict:  detail,
 				Evidence: evidence,
 			}
 		},

@@ -11,6 +11,23 @@ once a first release is cut. Until then every entry lives under
 
 ### Added
 
+- **CDN / front detection** (`propose-cdn-front`, the second Wave-2 lead
+  of `research-high-signal-observability`). A CDN-fronted apex reads as
+  "hosted at Cloudflare (US)" — but that is the edge, not the origin. The
+  scanner correlates the apex `ip.asn` organisation with the
+  `http.response` `server` header (and `tls.issuer` as corroboration)
+  against a conservative CDN-signature table and emits one observed
+  `http.cdn_front` Finding — "discord.com's apex is fronted by Cloudflare
+  (US)", or "no CDN/edge front detected — apex served directly". It
+  records which signal(s) fired (ASN org, server header) as evidence. The
+  existing `wand.technologie.no_us_hyperscaler` rule now leads its verdict
+  with the named front ("apex fronted by Cloudflare (US); …"), which the
+  CDN / hyperscaler row of the Sovereignty overview renders; its
+  US-hyperscaler-reach scoring is unchanged. Degrades gracefully without
+  GeoLite2 (server-header-only) and on anycast edges. Reuses
+  `ip.asn`/`http.response`/`tls.issuer` — no new network, no schema
+  change. TLS-chain geography polish split to its own follow-up lead.
+
 - **Web third-party origin map** (`propose-third-party-origin`, the first
   Wave-2 lead of `research-high-signal-observability`). The scanner
   correlates the `http.third_party` hosts (and the resource `kinds` they

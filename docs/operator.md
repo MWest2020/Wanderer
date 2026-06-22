@@ -743,6 +743,48 @@ Notes:
   CSP/`connect-src` analysis, and runtime request capture are separate,
   larger leads.
 
+## CDN / front detection
+
+The hosting-identity signal reads the apex IP's ASN organisation and says
+"hosted at Cloudflare (US)". For a CDN-fronted site that is the **edge**,
+not the origin: the apex IP belongs to the CDN, every request (and the
+TLS handshake) terminates at the edge, and the real origin is masked
+behind it. Wanderer already collects what tells the two apart — the apex
+`ip.asn` organisation, the `http.response` `server` header, and the
+`tls.issuer` — so after the scan it emits one observed aggregate Finding,
+`http.cdn_front`:
+
+```
+discord.com's apex is fronted by Cloudflare (US)
+```
+
+The edge is detected from a small, conservative signature table keyed on
+the ASN organisation *and* the server header (a header match raises
+confidence over org alone): Cloudflare, Fastly, Akamai, Amazon CloudFront,
+Vercel, Netlify, Sucuri, BunnyCDN, Imperva, …. The Finding records which
+signal(s) fired (`asn`, `server`) and the raw values as evidence, so the
+fact stands even when the friendly name is uncertain. A site behind no
+known edge reads "no CDN/edge front detected — apex served directly".
+
+This is the *observed* layer; the `wand.technologie.no_us_hyperscaler`
+rule annotates it with the US-hyperscaler-reach score and now leads its
+verdict with the named front when the apex is fronted ("apex fronted by
+Cloudflare (US); US hyperscaler in path: CLOUDFLARENET"), which is what
+the **CDN / hyperscaler** row of the Sovereignty overview renders.
+
+Notes:
+
+- **No GeoLite2** still names the edge from the server header, with the
+  country reported as undetermined.
+- **Anycast** edge IPs (the common case for big CDNs) carry no country;
+  the Finding names the edge with the country undetermined.
+- **Conservative by design.** The table only claims a front where the
+  signal is a strong tell, to avoid false "fronted by" labels; an unknown
+  edge reads as served-directly rather than guessing.
+- **Apex front only.** TLS-chain geography (issuer + intermediate-CA
+  jurisdictions), origin de-masking (the IP behind the edge), and
+  WAF/bot-management detection are separate, follow-up leads.
+
 ## Package vendor jurisdiction
 
 Both package inspectors now emit a vendor / maintainer

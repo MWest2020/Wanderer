@@ -158,6 +158,18 @@ func (s *Scanner) Scan(ctx context.Context, target models.Target) (*models.Scan,
 		}
 	}
 
+	// Synthesis: correlate the apex ip.asn × http.response (server header)
+	// × tls.issuer into one observed CDN-front Finding ("X's apex is
+	// fronted by Cloudflare (US)") — reframing a fronted apex that the
+	// hosting signal reads as "hosted at". The observed fact leads; the
+	// wand hyperscaler rule annotates the US-reach score.
+	if cf, ok := synthesiseCDNFront(enriched, scan.Findings); ok {
+		scan.Findings = append(scan.Findings, cf)
+		if err := s.Store.AppendFindings(rootCtx, scan.ID, []models.Finding{cf}); err != nil {
+			logger.Error("scan.persist_failed", "probe", cf.ProbeID, "err", err)
+		}
+	}
+
 	totalProbes := len(pass1) + len(pass2)
 	failed := pass1Failed + pass2Failed
 	completed := totalProbes - failed

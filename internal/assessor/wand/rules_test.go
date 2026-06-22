@@ -384,6 +384,29 @@ func TestNoUSHyperscaler(t *testing.T) {
 	if got.Score != models.ScoreAfhankelijk {
 		t.Errorf("Amazon: score = %s, want afhankelijk", got.Score)
 	}
+
+	// When the scanner's http.cdn_front synthesis detected an apex front,
+	// the rule leads its verdict with the named edge and keeps the
+	// hyperscaler-in-path detail.
+	got = r.Match([]models.Finding{
+		f("a1", "ip.asn", map[string]any{"_subject": "example.com", "country": "US", "organisation": "CLOUDFLARENET"}),
+		f("c1", "http.cdn_front", map[string]any{"_subject": "example.com", "fronted": true, "edge": "Cloudflare", "country": "US"}),
+	})
+	if got.Score != models.ScoreAfhankelijk {
+		t.Errorf("fronted apex: score = %s, want afhankelijk", got.Score)
+	}
+	if !strings.Contains(got.Verdict, "apex fronted by Cloudflare (US)") || !strings.Contains(got.Verdict, "US hyperscaler in path") {
+		t.Errorf("verdict should lead with the named front and keep the path detail, got %q", got.Verdict)
+	}
+
+	// A non-fronted apex keeps the plain path verdict (no front lead).
+	got = r.Match([]models.Finding{
+		f("a1", "ip.asn", map[string]any{"_subject": "example.com", "country": "US", "organisation": "Amazon.com, Inc."}),
+		f("c1", "http.cdn_front", map[string]any{"_subject": "example.com", "fronted": false}),
+	})
+	if strings.Contains(got.Verdict, "fronted by") {
+		t.Errorf("non-fronted apex should not claim a front, got %q", got.Verdict)
+	}
 }
 
 func TestMXPresent(t *testing.T) {
