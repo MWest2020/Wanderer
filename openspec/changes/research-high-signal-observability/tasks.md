@@ -20,7 +20,10 @@ tracked as their own proposals.
   transit-path).
 - [x] 2.3 DNS hosting (NS → who/where) → `propose-dns-hosting` (proposed
   2026-06-18; third instance after transit-path and email-routing).
-- [ ] 2.4 Destination hosting identity (rDNS + whois/ASN enrichment).
+- [x] 2.4 Destination hosting identity (ASN-org → who hosts the apex) →
+  `propose-hosting-identity` (proposed + shipped 2026-06-22; fourth twin,
+  completing the cheap Hosting/Mail/DNS/Transit who-where set). rDNS +
+  whois enrichment deferred to a follow-up.
 - [ ] 2.5 Web third-party origin map.
 - [ ] 2.6 CDN / front detection; TLS-chain geography polish.
 - [ ] 2.7 Org-centric data-flow map ("spider in the web") UI.
