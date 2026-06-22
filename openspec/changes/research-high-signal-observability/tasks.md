@@ -24,7 +24,10 @@ tracked as their own proposals.
   `propose-hosting-identity` (proposed + shipped 2026-06-22; fourth twin,
   completing the cheap Hosting/Mail/DNS/Transit who-where set). rDNS +
   whois enrichment deferred to a follow-up.
-- [ ] 2.5 Web third-party origin map.
+- [x] 2.5 Web third-party origin map (vendor-grouped: what a page loads →
+  who → where) → `propose-third-party-origin` (proposed + shipped
+  2026-06-22; first Wave-2 surface signal). Per-subpage crawl + CSP +
+  runtime capture deferred.
 - [ ] 2.6 CDN / front detection; TLS-chain geography polish.
 - [ ] 2.7 Org-centric data-flow map ("spider in the web") UI.
 - [ ] 2.8 Misuse / exposure signals (parallel track).
