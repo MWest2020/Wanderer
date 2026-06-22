@@ -144,6 +144,24 @@ func TestApexIPInEEA(t *testing.T) {
 	if got.Score != models.ScoreOnbekend {
 		t.Errorf("anycast non-hyperscaler apex: score = %s, want onbekend", got.Score)
 	}
+
+	// When the scanner's ip.hosting synthesis named the operator, the rule
+	// leads its verdict with the recognisable "who" and keeps the country
+	// detail.
+	got = r.Match([]models.Finding{
+		f("d1", "dns.a", map[string]any{"_subject": "example.com", "address": "5.6.7.8"}),
+		f("a1", "ip.asn", map[string]any{"_subject": "example.com", "country": "US", "organisation": "AMAZON-02"}),
+		f("h1", "ip.hosting", map[string]any{
+			"_subject": "example.com",
+			"routes":   []map[string]any{{"address": "5.6.7.8", "operator": "AWS", "country": "US"}},
+		}),
+	})
+	if got.Score != models.ScoreAfhankelijk {
+		t.Errorf("us apex: score = %s, want afhankelijk", got.Score)
+	}
+	if !strings.Contains(got.Verdict, "hosted at AWS") || !strings.Contains(got.Verdict, "outside EEA") {
+		t.Errorf("verdict should lead with operator and keep country detail, got %q", got.Verdict)
+	}
 }
 
 func TestMXVendorJurisdiction(t *testing.T) {

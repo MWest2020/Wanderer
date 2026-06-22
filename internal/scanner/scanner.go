@@ -135,6 +135,17 @@ func (s *Scanner) Scan(ctx context.Context, target models.Target) (*models.Scan,
 		}
 	}
 
+	// Synthesis: correlate the apex dns.a/dns.aaaa addresses × ip.asn into
+	// one observed hosting-identity Finding ("X is hosted at <operator>
+	// (<country>)"). The fourth who/where twin — the observed fact leads;
+	// the wand apex rule annotates the EEA-jurisdiction score.
+	if hi, ok := synthesiseHostingIdentity(enriched, scan.Findings); ok {
+		scan.Findings = append(scan.Findings, hi)
+		if err := s.Store.AppendFindings(rootCtx, scan.ID, []models.Finding{hi}); err != nil {
+			logger.Error("scan.persist_failed", "probe", hi.ProbeID, "err", err)
+		}
+	}
+
 	totalProbes := len(pass1) + len(pass2)
 	failed := pass1Failed + pass2Failed
 	completed := totalProbes - failed

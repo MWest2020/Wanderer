@@ -231,6 +231,45 @@ func certIssuerEEA() assessor.Rule {
 	}
 }
 
+// observedHostingOperators returns the recognisable host names the
+// scanner's ip.hosting synthesis observed (de-duplicated), so the rule can
+// lead its verdict with the "who" — "hosted at Hetzner …" rather than a
+// bare country. Tolerant of the routes attribute's in-memory
+// ([]map[string]any) and JSON-reloaded ([]any) shapes. Empty when the
+// synthesis named no operator, in which case the rule keeps its
+// country-only verdict.
+func observedHostingOperators(findings []models.Finding) []string {
+	var ops []string
+	seen := map[string]bool{}
+	add := func(m map[string]any) {
+		op, _ := m["operator"].(string)
+		if op == "" || seen[op] {
+			return
+		}
+		seen[op] = true
+		ops = append(ops, op)
+	}
+	for _, f := range findings {
+		if f.ProbeID != "ip.hosting" {
+			continue
+		}
+		switch routes := f.Attributes["routes"].(type) {
+		case []map[string]any:
+			for _, m := range routes {
+				add(m)
+			}
+		case []any:
+			for _, r := range routes {
+				if m, ok := r.(map[string]any); ok {
+					add(m)
+				}
+			}
+		}
+		break
+	}
+	return ops
+}
+
 func apexIPInEEA() assessor.Rule {
 	return assessor.Rule{
 		ID:          "wand.juridisch.apex_ip_eea",
@@ -270,23 +309,32 @@ func apexIPInEEA() assessor.Rule {
 					"no ip.asn finding for apex — IP probe did not run or no --geoip database",
 				)
 			}
+			// Lead with the observed operator ("hosted at Hetzner — …")
+			// when the scanner named one; otherwise keep the country-only
+			// verdict.
+			lead := func(detail string) string {
+				if who := joinAnd(observedHostingOperators(findings)); who != "" {
+					return fmt.Sprintf("hosted at %s — %s", who, detail)
+				}
+				return detail
+			}
 			switch {
 			case jt.inEEA == jt.seen:
 				return assessor.RuleResult{
 					Score:    models.ScoreSoeverein,
-					Verdict:  fmt.Sprintf("apex IPs in %s (EEA)", strings.Join(jt.countries, ",")),
+					Verdict:  lead(fmt.Sprintf("apex IPs in %s (EEA)", strings.Join(jt.countries, ","))),
 					Evidence: jt.evidence,
 				}
 			case jt.inEEA > 0:
 				return assessor.RuleResult{
 					Score:    models.ScoreVoldoende,
-					Verdict:  fmt.Sprintf("apex IPs split across %s", strings.Join(jt.countries, ",")),
+					Verdict:  lead(fmt.Sprintf("apex IPs split across %s", strings.Join(jt.countries, ","))),
 					Evidence: jt.evidence,
 				}
 			default:
 				return assessor.RuleResult{
 					Score:    models.ScoreAfhankelijk,
-					Verdict:  fmt.Sprintf("apex IPs in %s (outside EEA)", strings.Join(jt.countries, ",")),
+					Verdict:  lead(fmt.Sprintf("apex IPs in %s (outside EEA)", strings.Join(jt.countries, ","))),
 					Evidence: jt.evidence,
 				}
 			}

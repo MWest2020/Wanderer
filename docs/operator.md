@@ -588,6 +588,45 @@ Notes:
 - **Budget.** Bounded by `--per-probe-timeout` and a 20-hop default;
   on ICMP-filtered paths a partial path is still recorded.
 
+## Hosting identity
+
+The first of the four "who/where" signals (with Mail, DNS, and Transit),
+for the front door: *who hosts my service, and where?* Wanderer already
+collects the pieces — the apex `dns.a`/`dns.aaaa` addresses and the
+`ip.asn` lookups the IP probe runs on them. After the scan correlates the
+two, it emits one observed aggregate Finding, `ip.hosting`, that states it
+plainly:
+
+```
+example.com is hosted at Hetzner (DE)
+```
+
+Unlike Mail and DNS there is no operator hostname to map — the apex *is*
+the domain. The `operator` comes from the apex IP's `ip.asn`
+organisation, which is already a "who"; a small in-repo normalisation
+table friendly-names the common, ugly ones (`HETZNER-AS` → Hetzner,
+`AMAZON-02` → AWS, `CLOUDFLARENET` → Cloudflare, …) and falls back to the
+raw organisation so an unlisted host still gets its honest name. The raw
+ASN organisation, ASN, and address are retained in the Finding's `routes`
+so the observed fact stands even when the friendly name is uncertain.
+
+This is the *observed* layer; the `wand.juridisch.apex_ip_eea` rule
+annotates it with the EEA-jurisdiction score and now leads its verdict
+with the same operator name ("hosted at Hetzner — apex IPs in DE (EEA)"),
+which is what the **Hosting** row of the Sovereignty overview renders.
+
+Notes:
+
+- **No GeoLite2** degrades gracefully: with no `ip.asn` the Finding
+  reports the hosting operator as undetermined rather than nothing at all.
+- **Anycast** apex IPs (the common case for hyperscalers / CDN-fronted
+  origins) carry no country; the Finding names the operator with the
+  country undetermined.
+- **No resolvable apex** yields a Finding stating so rather than nothing.
+- **Apex front door only.** Per-host hosting of every related name (MX,
+  NS, third parties — each with its own twin) and rDNS/whois enrichment
+  are separate, follow-up concerns.
+
 ## Mail routing
 
 Wanderer already collects the pieces that answer *where does my mail
