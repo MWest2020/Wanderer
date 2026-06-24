@@ -781,9 +781,48 @@ Notes:
 - **Conservative by design.** The table only claims a front where the
   signal is a strong tell, to avoid false "fronted by" labels; an unknown
   edge reads as served-directly rather than guessing.
-- **Apex front only.** TLS-chain geography (issuer + intermediate-CA
-  jurisdictions), origin de-masking (the IP behind the edge), and
+- **Apex front only.** Origin de-masking (the IP behind the edge) and
   WAF/bot-management detection are separate, follow-up leads.
+
+## TLS-chain geography
+
+The certificate-issuer rule scores *where* a cert was issued ("cert issued
+in US (outside EEA)") but never names *who* issued it — the Certificate
+Authority that controls the site's cryptographic identity and can revoke
+or refuse to renew it. Wanderer already collects the pieces — `tls.issuer`
+(issuer organisation, common name, country) and `tls.chain` (the presented
+intermediates) — so after the scan it emits one observed aggregate
+Finding, `tls.chain_geography`:
+
+```
+the TLS certificate for w3.org is issued by Google Trust Services (US);
+chain ← Google Trust Services (US) ← Google Trust Services (US)
+```
+
+The CA is named from a small in-repo table of issuer org/CN substrings
+(Let's Encrypt, DigiCert, Sectigo, GlobalSign, Google Trust Services,
+Amazon, …) with the raw issuer org/CN as the fallback. The `tls.chain`
+probe is enriched to record each intermediate's organisation and country
+(read from the certificates the handshake already presented — passive, no
+new request), so the chain geography is stated per link.
+
+This is the *observed* layer; the `wand.juridisch.cert_issuer_eea` rule
+annotates it with the EEA-issuer score and now leads its verdict with the
+named CA ("issued by Let's Encrypt — cert issued in US (outside EEA)").
+The certificate also gains its own **Certificate** row in the Sovereignty
+overview, alongside the other who/where flows.
+
+Notes:
+
+- **Issuer country absent** (many CA certs omit it) still names the CA
+  with "jurisdiction undetermined"; the CA brand itself is the practical
+  jurisdiction tell.
+- **Unrecognised issuer** falls back to the raw issuer organisation (or
+  common name), so the observed fact always stands.
+- **Presented chain only.** TLS handshakes usually omit the root, so the
+  chain is stated as served. Full root-store / trust-path analysis,
+  CAA-vs-actual-issuer cross-checks, and CT-log monitoring are separate,
+  larger leads.
 
 ## Package vendor jurisdiction
 

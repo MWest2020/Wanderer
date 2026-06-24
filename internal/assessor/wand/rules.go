@@ -180,6 +180,22 @@ func registrarJurisdiction() assessor.Rule {
 
 // ---------- Juridisch ----------
 
+// observedCertAuthority returns the recognisable CA name the scanner's
+// tls.chain_geography synthesis observed, so the cert rule can lead its
+// verdict with the "who" — "issued by Let's Encrypt …" rather than a bare
+// country. Empty when the synthesis named no CA, in which case the rule
+// keeps its country-only verdict.
+func observedCertAuthority(findings []models.Finding) string {
+	for _, f := range findings {
+		if f.ProbeID != "tls.chain_geography" {
+			continue
+		}
+		ca, _ := f.Attributes["ca"].(string)
+		return ca
+	}
+	return ""
+}
+
 func certIssuerEEA() assessor.Rule {
 	return assessor.Rule{
 		ID:          "wand.juridisch.cert_issuer_eea",
@@ -191,6 +207,15 @@ func certIssuerEEA() assessor.Rule {
 			"jurisdiction — a sanctions regime or court order in that jurisdiction " +
 			"can pressure the issuer in ways an EEA regulator cannot reach.",
 		Match: func(findings []models.Finding) assessor.RuleResult {
+			// Lead with the observed CA name ("issued by Let's Encrypt — …")
+			// when the scanner's tls.chain_geography synthesis named one;
+			// otherwise keep the country-only verdict.
+			lead := func(detail string) string {
+				if ca := observedCertAuthority(findings); ca != "" {
+					return fmt.Sprintf("issued by %s — %s", ca, detail)
+				}
+				return detail
+			}
 			for _, f := range findings {
 				if f.ProbeID != "tls.issuer" {
 					continue
@@ -209,19 +234,19 @@ func certIssuerEEA() assessor.Rule {
 				case inEEA == len(countries):
 					return assessor.RuleResult{
 						Score:    models.ScoreSoeverein,
-						Verdict:  fmt.Sprintf("cert issued in %s (EEA)", strings.Join(countries, ",")),
+						Verdict:  lead(fmt.Sprintf("cert issued in %s (EEA)", strings.Join(countries, ","))),
 						Evidence: []string{f.ID},
 					}
 				case inEEA > 0:
 					return assessor.RuleResult{
 						Score:    models.ScoreVoldoende,
-						Verdict:  fmt.Sprintf("cert issuer jurisdictions %s (mixed EEA)", strings.Join(countries, ",")),
+						Verdict:  lead(fmt.Sprintf("cert issuer jurisdictions %s (mixed EEA)", strings.Join(countries, ","))),
 						Evidence: []string{f.ID},
 					}
 				default:
 					return assessor.RuleResult{
 						Score:    models.ScoreAfhankelijk,
-						Verdict:  fmt.Sprintf("cert issued in %s (outside EEA)", strings.Join(countries, ",")),
+						Verdict:  lead(fmt.Sprintf("cert issued in %s (outside EEA)", strings.Join(countries, ","))),
 						Evidence: []string{f.ID},
 					}
 				}

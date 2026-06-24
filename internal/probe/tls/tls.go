@@ -171,11 +171,24 @@ func inspectState(domain string, state *tls.ConnectionState) []models.Finding {
 		Severity:      sev,
 		Attributes:    attrs,
 	})
-	// Chain length + intermediates
+	// Chain length + intermediates. `intermediates` keeps the bare common
+	// names (backward compatible); `intermediate_details` adds each
+	// intermediate's organisation and country, read from the certificates
+	// the handshake already presented (passive) so the TLS-chain geography
+	// can be stated per link.
 	if len(state.PeerCertificates) > 1 {
 		intermediates := make([]string, 0, len(state.PeerCertificates)-1)
+		details := make([]map[string]any, 0, len(state.PeerCertificates)-1)
 		for _, c := range state.PeerCertificates[1:] {
 			intermediates = append(intermediates, c.Subject.CommonName)
+			d := map[string]any{"cn": c.Subject.CommonName}
+			if len(c.Subject.Organization) > 0 {
+				d["organisation"] = c.Subject.Organization[0]
+			}
+			if len(c.Subject.Country) > 0 {
+				d["country"] = c.Subject.Country[0]
+			}
+			details = append(details, d)
 		}
 		findings = append(findings, models.Finding{
 			ProbeID:       "tls.chain",
@@ -183,8 +196,9 @@ func inspectState(domain string, state *tls.ConnectionState) []models.Finding {
 			Subject:       domain,
 			Severity:      models.SeverityInfo,
 			Attributes: map[string]any{
-				"length":        len(state.PeerCertificates),
-				"intermediates": intermediates,
+				"length":               len(state.PeerCertificates),
+				"intermediates":        intermediates,
+				"intermediate_details": details,
 			},
 		})
 	}

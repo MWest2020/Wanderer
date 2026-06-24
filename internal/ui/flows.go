@@ -23,6 +23,7 @@ var flowRules = []struct {
 	{"wand.juridisch.apex_ip_eea", "Hosting"},
 	{"wand.juridisch.mx_vendor_jurisdiction", "Mail"},
 	{"wand.juridisch.ns_vendor_jurisdiction", "DNS"},
+	{"wand.juridisch.cert_issuer_eea", "Certificate"},
 	{"wand.transit.eu_path", "Transit path"},
 	{"wand.technologie.no_us_hyperscaler", "CDN / hyperscaler"},
 	{"wand.technologie.third_parties_eea", "Third parties"},

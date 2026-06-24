@@ -170,6 +170,17 @@ func (s *Scanner) Scan(ctx context.Context, target models.Target) (*models.Scan,
 		}
 	}
 
+	// Synthesis: read the apex tls.issuer × tls.chain into one observed
+	// cert-chain Finding ("the TLS certificate for X is issued by Let's
+	// Encrypt (US); chain ← …"), naming the CA. The observed fact leads;
+	// the wand cert rule annotates the EEA-issuer score.
+	if cc, ok := synthesiseCertChain(enriched, scan.Findings); ok {
+		scan.Findings = append(scan.Findings, cc)
+		if err := s.Store.AppendFindings(rootCtx, scan.ID, []models.Finding{cc}); err != nil {
+			logger.Error("scan.persist_failed", "probe", cc.ProbeID, "err", err)
+		}
+	}
+
 	totalProbes := len(pass1) + len(pass2)
 	failed := pass1Failed + pass2Failed
 	completed := totalProbes - failed

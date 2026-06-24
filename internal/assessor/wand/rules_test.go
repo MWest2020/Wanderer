@@ -93,6 +93,20 @@ func TestCertIssuerEEA(t *testing.T) {
 			}
 		})
 	}
+
+	// When the scanner's tls.chain_geography synthesis named the CA, the
+	// rule leads its verdict with the recognisable authority and keeps the
+	// country detail.
+	got := r.Match([]models.Finding{
+		f("f1", "tls.issuer", map[string]any{"_subject": "example.com", "issuer_country": []string{"US"}}),
+		f("g1", "tls.chain_geography", map[string]any{"_subject": "example.com", "ca": "Let's Encrypt"}),
+	})
+	if got.Score != models.ScoreAfhankelijk {
+		t.Errorf("US CA: score = %s, want afhankelijk", got.Score)
+	}
+	if !strings.Contains(got.Verdict, "issued by Let's Encrypt") || !strings.Contains(got.Verdict, "outside EEA") {
+		t.Errorf("verdict should lead with the CA and keep country detail, got %q", got.Verdict)
+	}
 }
 
 func TestApexIPInEEA(t *testing.T) {

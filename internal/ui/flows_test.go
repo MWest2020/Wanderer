@@ -34,7 +34,7 @@ func TestSovereigntyFlows_OrdersAndLabels(t *testing.T) {
 
 func TestSovereigntyFlows_EmptyWhenNoFlowRules(t *testing.T) {
 	a := models.Assessment{Framework: "wand", Dimensions: []models.DimensionScore{{
-		Rationale: []models.Rationale{rationale("wand.juridisch.cert_issuer_eea", "x", models.ScoreSoeverein)},
+		Rationale: []models.Rationale{rationale("wand.operationeel.cert_validity", "x", models.ScoreSoeverein)},
 	}}}
 	if f := SovereigntyFlows([]models.Assessment{a}); len(f) != 0 {
 		t.Fatalf("flows = %d, want 0", len(f))

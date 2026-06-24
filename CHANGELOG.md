@@ -11,6 +11,23 @@ once a first release is cut. Until then every entry lives under
 
 ### Added
 
+- **TLS-chain geography** (`propose-tls-chain-geography`, closes Wave 2 of
+  `research-high-signal-observability`). The cert rule scored *where* a
+  cert was issued but never named *who* — the CA that controls the site's
+  cryptographic identity. The scanner reads the apex `tls.issuer` +
+  `tls.chain` into one observed `tls.chain_geography` Finding — "the TLS
+  certificate for w3.org is issued by Google Trust Services (US); chain ←
+  …" — naming the CA from an in-repo issuer-org/CN table (Let's Encrypt,
+  DigiCert, Sectigo, GlobalSign, Google Trust Services, …) with the raw
+  issuer as fallback. The `tls.chain` probe is enriched to record each
+  intermediate's organisation and country (passive, from the presented
+  certs). The existing `wand.juridisch.cert_issuer_eea` rule now leads its
+  verdict with the named CA, and the certificate gains its own
+  **Certificate** row in the Sovereignty overview. EEA scoring unchanged.
+  Reuses `tls.issuer`/`tls.chain` — no new network, no schema change. This
+  completes the seven who/where signals (Hosting, Mail, DNS, Transit, page
+  origin map, CDN front, certificate).
+
 - **CDN / front detection** (`propose-cdn-front`, the second Wave-2 lead
   of `research-high-signal-observability`). A CDN-fronted apex reads as
   "hosted at Cloudflare (US)" — but that is the edge, not the origin. The
