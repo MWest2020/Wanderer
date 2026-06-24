@@ -32,9 +32,10 @@ tracked as their own proposals.
   Akamai) → `propose-cdn-front` (proposed + shipped 2026-06-22; second
   Wave-2 signal). Reframes a fronted apex the hosting signal reads as
   "hosted at".
-- [ ] 2.6b TLS-chain geography polish (cert issuer + intermediate-CA
-  jurisdictions made explicit) — split off from 2.6 (Mark, 2026-06-22);
-  touches `cert_issuer_eea`, independently shippable.
+- [x] 2.6b TLS-chain geography polish (name the CA + map intermediate-CA
+  jurisdictions; new Certificate flow row) → `propose-tls-chain-geography`
+  (proposed + shipped 2026-06-24). **Wave 2 complete** — seven who/where
+  signals now lead with the observed fact.
 - [ ] 2.7 Org-centric data-flow map ("spider in the web") UI.
 - [ ] 2.8 Misuse / exposure signals (parallel track).
 - [ ] 2.9 BGP route-origin + RPKI (later / heavier).
