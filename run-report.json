@@ -1,0 +1,13 @@
+{
+  "role": "reviewer",
+  "change": "apply-docs-contract",
+  "run_id": "reviewer-apply-docs-contract-20260712-184359",
+  "repo": "https://github.com/MWest2020/Wanderer.git",
+  "verdict": "ok",
+  "subtype": "success",
+  "total_cost_usd": "0.33991399999999994",
+  "num_turns": "11",
+  "claude_exit": "0",
+  "finished_at": "2026-07-12T18:45:02Z",
+  "diff_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+}
