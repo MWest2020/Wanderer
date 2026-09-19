@@ -1,0 +1,480 @@
+{
+    "rdapConformance": [
+        "rdap_level_0",
+        "icann_rdap_response_profile_1",
+        "icann_rdap_technical_implementation_guide_1",
+        "redacted"
+    ],
+    "objectClassName": "domain",
+    "notices": [
+        {
+            "title": "Status Codes",
+            "description": [
+                "Meer informatie over domeinstatuscodes vind je op https://icann.org/epp",
+                "For more information on domain status codes, please visit https://icann.org/epp"
+            ],
+            "links": [
+                {
+                    "value": "https://rdap.sidn.nl/domain/rijksoverheid.nl",
+                    "rel": "glossary",
+                    "href": "https://icann.org/epp",
+                    "type": "text/html"
+                }
+            ]
+        },
+        {
+            "title": "Privacy notice",
+            "description": [
+                "De houdergegevens kunnen afgeschermd zijn. Meer informatie hierover vind je op: https://www.sidn.nl/nl-domeinnaam/sidn-en-privacy",
+                "The registrant's details can be withheld from public view. For more information, see https://www.sidn.nl/en/nl-domain-name/sidn-and-privacy"
+            ]
+        },
+        {
+            "title": "Maintainer",
+            "description": [
+                "Administratie door: SIDN BV",
+                "Record maintained by: SIDN BV"
+            ]
+        },
+        {
+            "title": "RDDS Inaccuracy Complaint Form",
+            "description": [
+                "URL of the ICANN RDDS Inaccuracy Complaint Form: https://www.icann.org/wicf"
+            ],
+            "links": [
+                {
+                    "value": "https://rdap.sidn.nl/domain/rijksoverheid.nl",
+                    "rel": "help",
+                    "href": "https://icann.org/wicf",
+                    "type": "text/html"
+                }
+            ]
+        }
+    ],
+    "lang": "nl-NL",
+    "events": [
+        {
+            "eventAction": "registration",
+            "eventDate": "1999-07-06T10:37:04Z"
+        },
+        {
+            "eventAction": "last changed",
+            "eventDate": "2021-10-04T00:51:21Z"
+        },
+        {
+            "eventAction": "last update of RDAP database",
+            "eventDate": "2026-09-19T18:51:50Z"
+        }
+    ],
+    "status": [
+        "active"
+    ],
+    "handle": "REDACTED-BY-SIDN",
+    "ldhName": "rijksoverheid.nl",
+    "secureDNS": {
+        "delegationSigned": true,
+        "dsData": [
+            {
+                "keyTag": 61653,
+                "algorithm": 13,
+                "digestType": 2,
+                "digest": "6DB614922AF22EB83DE77174035AAFD9D20F043F7DF043ADAE54C9F2A2EEAAA4"
+            }
+        ]
+    },
+    "entities": [
+        {
+            "objectClassName": "entity",
+            "handle": "DIE020959-RIJKS",
+            "vcardArray": [
+                "vcard",
+                [
+                    [
+                        "version",
+                        {},
+                        "text",
+                        "4.0"
+                    ],
+                    [
+                        "fn",
+                        {},
+                        "text",
+                        "REDACTED FOR PRIVACY"
+                    ]
+                ]
+            ],
+            "links": [
+                {
+                    "value": "https://rdap.sidn.nl/entity/DIE020959-RIJKS",
+                    "rel": "about",
+                    "href": "https://rdap.sidn.nl/entity/DIE020959-RIJKS",
+                    "type": "application/rdap+json"
+                }
+            ],
+            "roles": [
+                "technical"
+            ]
+        },
+        {
+            "objectClassName": "entity",
+            "handle": "RIJ031105-RIJKS",
+            "vcardArray": [
+                "vcard",
+                [
+                    [
+                        "version",
+                        {},
+                        "text",
+                        "4.0"
+                    ],
+                    [
+                        "fn",
+                        {},
+                        "text",
+                        "REDACTED FOR PRIVACY"
+                    ]
+                ]
+            ],
+            "links": [
+                {
+                    "value": "https://rdap.sidn.nl/entity/RIJ031105-RIJKS",
+                    "rel": "about",
+                    "href": "https://rdap.sidn.nl/entity/RIJ031105-RIJKS",
+                    "type": "application/rdap+json"
+                }
+            ],
+            "roles": [
+                "registrant"
+            ]
+        },
+        {
+            "objectClassName": "entity",
+            "handle": "DIE020959-RIJKS",
+            "vcardArray": [
+                "vcard",
+                [
+                    [
+                        "version",
+                        {},
+                        "text",
+                        "4.0"
+                    ],
+                    [
+                        "fn",
+                        {},
+                        "text",
+                        "REDACTED FOR PRIVACY"
+                    ]
+                ]
+            ],
+            "links": [
+                {
+                    "value": "https://rdap.sidn.nl/entity/DIE020959-RIJKS",
+                    "rel": "about",
+                    "href": "https://rdap.sidn.nl/entity/DIE020959-RIJKS",
+                    "type": "application/rdap+json"
+                }
+            ],
+            "roles": [
+                "administrative"
+            ]
+        },
+        {
+            "objectClassName": "entity",
+            "handle": "0000",
+            "vcardArray": [
+                "vcard",
+                [
+                    [
+                        "version",
+                        {},
+                        "text",
+                        "4.0"
+                    ],
+                    [
+                        "fn",
+                        {},
+                        "text",
+                        "Rijksoverheid"
+                    ],
+                    [
+                        "adr",
+                        {
+                            "cc": "NL"
+                        },
+                        "text",
+                        [
+                            "",
+                            "",
+                            "Buitenhof 34",
+                            "Den Haag",
+                            "",
+                            "2513AH",
+                            ""
+                        ]
+                    ]
+                ]
+            ],
+            "publicIds": [
+                {
+                    "identifier": "0000",
+                    "type": "IANA Registrar ID"
+                }
+            ],
+            "roles": [
+                "registrar"
+            ]
+        }
+    ],
+    "nameservers": [
+        {
+            "ldhName": "ns1.rijksoverheidnl.nl",
+            "unicodeName": "ns1.rijksoverheidnl.nl",
+            "objectClassName": "nameserver",
+            "links": [
+                {
+                    "value": "https://rdap.sidn.nl/nameserver/ns1.rijksoverheidnl.nl",
+                    "rel": "about",
+                    "href": "https://rdap.sidn.nl/nameserver/ns1.rijksoverheidnl.nl",
+                    "type": "application/rdap+json"
+                }
+            ]
+        },
+        {
+            "ldhName": "ns2.rijksoverheidnl.eu",
+            "unicodeName": "ns2.rijksoverheidnl.eu",
+            "objectClassName": "nameserver",
+            "links": [
+                {
+                    "value": "https://rdap.sidn.nl/nameserver/ns2.rijksoverheidnl.eu",
+                    "rel": "about",
+                    "href": "https://rdap.sidn.nl/nameserver/ns2.rijksoverheidnl.eu",
+                    "type": "application/rdap+json"
+                }
+            ]
+        },
+        {
+            "ldhName": "ns3.rijksoverheidnl.org",
+            "unicodeName": "ns3.rijksoverheidnl.org",
+            "objectClassName": "nameserver",
+            "links": [
+                {
+                    "value": "https://rdap.sidn.nl/nameserver/ns3.rijksoverheidnl.org",
+                    "rel": "about",
+                    "href": "https://rdap.sidn.nl/nameserver/ns3.rijksoverheidnl.org",
+                    "type": "application/rdap+json"
+                }
+            ]
+        },
+        {
+            "ldhName": "ns0.rijksoverheidnl.com",
+            "unicodeName": "ns0.rijksoverheidnl.com",
+            "objectClassName": "nameserver",
+            "links": [
+                {
+                    "value": "https://rdap.sidn.nl/nameserver/ns0.rijksoverheidnl.com",
+                    "rel": "about",
+                    "href": "https://rdap.sidn.nl/nameserver/ns0.rijksoverheidnl.com",
+                    "type": "application/rdap+json"
+                }
+            ]
+        }
+    ],
+    "links": [
+        {
+            "value": "https://rdap.sidn.nl/domain/rijksoverheid.nl",
+            "rel": "self",
+            "href": "https://rdap.sidn.nl/domain/rijksoverheid.nl",
+            "type": "application/rdap+json"
+        }
+    ],
+    "redacted": [
+        {
+            "name": {
+                "description": "Domain handle"
+            },
+            "postPath": "$.handle",
+            "pathLang": "jsonpath",
+            "method": "replacementValue",
+            "reason": {
+                "description": "Server policy"
+            }
+        },
+        {
+            "name": {
+                "description": "Registrant phone number"
+            },
+            "prePath": "$.entities[?(@.roles[0]=='registrant')].vcardArray[1][?(@[0]=='tel')]",
+            "pathLang": "jsonpath",
+            "method": "removal",
+            "reason": {
+                "description": "Server policy"
+            }
+        },
+        {
+            "name": {
+                "description": "Registrant email"
+            },
+            "prePath": "$.entities[?(@.roles[0]=='registrant')].vcardArray[1][?(@[0]=='email')]",
+            "pathLang": "jsonpath",
+            "method": "removal",
+            "reason": {
+                "description": "Server policy"
+            }
+        },
+        {
+            "name": {
+                "description": "Registrant name"
+            },
+            "postPath": "$.entities[?(@.roles[0]=='registrant')].vcardArray[1][?(@[0]=='fn')][3]",
+            "pathLang": "jsonpath",
+            "method": "replacementValue",
+            "reason": {
+                "description": "Server policy"
+            }
+        },
+        {
+            "name": {
+                "description": "Registrant address"
+            },
+            "prePath": "$.entities[?(@.roles[0]=='registrant')].vcardArray[1][?(@[0]=='adr')]",
+            "pathLang": "jsonpath",
+            "method": "removal",
+            "reason": {
+                "description": "Server policy"
+            }
+        },
+        {
+            "name": {
+                "description": "Administrative name"
+            },
+            "postPath": "$.entities[?(@.roles[0]=='administrative')].vcardArray[1][?(@[0]=='fn')][3]",
+            "pathLang": "jsonpath",
+            "method": "replacementValue",
+            "reason": {
+                "description": "Server policy"
+            }
+        },
+        {
+            "name": {
+                "description": "Administrative address"
+            },
+            "prePath": "$.entities[?(@.roles[0]=='administrative')].vcardArray[1][?(@[0]=='adr')]",
+            "pathLang": "jsonpath",
+            "method": "removal",
+            "reason": {
+                "description": "Server policy"
+            }
+        },
+        {
+            "name": {
+                "description": "Administrative email"
+            },
+            "prePath": "$.entities[?(@.roles[0]=='administrative')].vcardArray[1][?(@[0]=='email')]",
+            "pathLang": "jsonpath",
+            "method": "removal",
+            "reason": {
+                "description": "Server policy"
+            }
+        },
+        {
+            "name": {
+                "description": "Administrative phone number"
+            },
+            "prePath": "$.entities[?(@.roles[0]=='administrative')].vcardArray[1][?(@[0]=='tel')]",
+            "pathLang": "jsonpath",
+            "method": "removal",
+            "reason": {
+                "description": "Server policy"
+            }
+        },
+        {
+            "name": {
+                "description": "Registrar handle"
+            },
+            "postPath": "$.entities[?(@.roles[0]=='registrar')].handle",
+            "pathLang": "jsonpath",
+            "method": "replacementValue",
+            "reason": {
+                "description": "Server policy"
+            }
+        },
+        {
+            "name": {
+                "description": "Public id"
+            },
+            "postPath": "$.entities[?(@.roles[0]=='registrar')].publicIds[@LAST].identifier",
+            "pathLang": "jsonpath",
+            "method": "replacementValue",
+            "reason": {
+                "description": "Server policy"
+            }
+        },
+        {
+            "name": {
+                "description": "Registrar email"
+            },
+            "prePath": "$.entities[?(@.roles[0]=='registrar')].vcardArray[1][?(@[0]=='email')]",
+            "pathLang": "jsonpath",
+            "method": "removal",
+            "reason": {
+                "description": "Server policy"
+            }
+        },
+        {
+            "name": {
+                "description": "Registrar phone number"
+            },
+            "prePath": "$.entities[?(@.roles[0]=='registrar')].vcardArray[1][?(@[0]=='tel')]",
+            "pathLang": "jsonpath",
+            "method": "removal",
+            "reason": {
+                "description": "Server policy"
+            }
+        },
+        {
+            "name": {
+                "description": "Technical name"
+            },
+            "postPath": "$.entities[?(@.roles[0]=='technical')].vcardArray[1][?(@[0]=='fn')][3]",
+            "pathLang": "jsonpath",
+            "method": "replacementValue",
+            "reason": {
+                "description": "Server policy"
+            }
+        },
+        {
+            "name": {
+                "description": "Technical address"
+            },
+            "prePath": "$.entities[?(@.roles[0]=='technical')].vcardArray[1][?(@[0]=='adr')]",
+            "pathLang": "jsonpath",
+            "method": "removal",
+            "reason": {
+                "description": "Server policy"
+            }
+        },
+        {
+            "name": {
+                "description": "Technical email"
+            },
+            "prePath": "$.entities[?(@.roles[0]=='technical')].vcardArray[1][?(@[0]=='email')]",
+            "pathLang": "jsonpath",
+            "method": "removal",
+            "reason": {
+                "description": "Server policy"
+            }
+        },
+        {
+            "name": {
+                "description": "Technical phone number"
+            },
+            "prePath": "$.entities[?(@.roles[0]=='technical')].vcardArray[1][?(@[0]=='tel')]",
+            "pathLang": "jsonpath",
+            "method": "removal",
+            "reason": {
+                "description": "Server policy"
+            }
+        }
+    ]
+}

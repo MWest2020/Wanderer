@@ -1,0 +1,92 @@
+# Tasks: accountability dimension
+
+Implementation runs through habitat, one run per cluster below
+(`runs/<nn>-*.md` is the `HABITAT_TASK_REF` for that run). A builder
+run checks off only the tasks of its own cluster.
+
+## 1. Design gate
+- [x] 1.1 Review design.md: variants-probe politeness + SSRF-guard
+  reuse; privacy-proxy / registry-redaction YAML location;
+  expected_registrant config shape. → outcome in design.md "Design
+  gate outcome".
+- [ ] 1.2 Decide attribution wording (README + docs/explanation) for
+  the idea lineage (Stegink) — same pattern as the DICTU credit.
+  Needed before run 08.
+
+## 2. Foundation — run 01
+- [ ] 2.1 `models.DimensionHint`: add `accountability`; `Valid()`
+  accepts it.
+- [ ] 2.2 Rename `DICTUDimensions` → `WandDimensions`, append
+  `accountability`; no consumer assumes a count (fix
+  `report_test.go`).
+- [ ] 2.3 Reason codes: `Reason` on `RuleResult`, `reason`
+  (`omitempty`) on `models.Rationale`; one registry table mapping code
+  → class (`structural`/`gap`) + subject (`target`/`scanner`) seeded with the four codes in
+  design.md; unknown code fails a test.
+- [ ] 2.4 `scoreDimension`: structural rationales excluded from worst
+  score and completeness denominator; all-structural dimension →
+  n.v.t.; table-driven tests incl. old assessment JSON without
+  `reason` loading unchanged.
+
+## 3. Organisation — run 02
+- [ ] 3.1 Migration: `organisations.expected_registrant` (JSON array,
+  default `[]`); model + store read/write.
+- [ ] 3.2 `wanderer org add --expected-registrant NAME` (repeatable);
+  `org show` prints the list.
+- [ ] 3.3 Scanner records `config.expected_registrant` for the scan's
+  organisation (empty list → finding with empty list, not omitted).
+
+## 4. RDAP — run 03
+- [ ] 4.1 whois: recursive entity parsing; registrant identity /
+  reseller / status / expiry findings; redacted-vcard fixture.
+- [ ] 4.2 Fixture from live `rijksoverheid.nl` RDAP (2026-09-19):
+  registrant redacted, registrar "Rijksoverheid", no reseller, no
+  expiration event.
+- [ ] 4.3 scanner: NS registrable-domain RDAP lookups with per-scan
+  cache; no-RDAP-TLD fixture.
+
+## 5. DNS + HTTP observations — run 04
+- [ ] 5.1 soa probe: SOA + RNAME resolution findings; lame-delegation
+  fixture; no SMTP.
+- [ ] 5.2 http: security.txt fetch + RFC 9116 parse; 404-is-data and
+  HTML-at-path fixtures.
+
+## 6. Variants probe — run 05
+- [ ] 6.1 8 paths, ≤ 5 hops/path, 24-connection budget,
+  `not_followed_budget`, stop on already-verified origin.
+- [ ] 6.2 SSRF guard on every hop; private-redirect fixture.
+- [ ] 6.3 `scanner_no_ipv6`: v6 paths `not_tested` when the scanner has
+  no IPv6 route (structural, subject scanner).
+
+## 7. Assessor rules + copy — run 06
+- [ ] 7.1 `privacy_proxies.yaml` + `registry_redaction.yaml` (seed
+  `nl: SIDN`) + loaders (pattern: `package_vendors.yaml`).
+- [ ] 7.2 Five accountability rules + `domain_expiry` +
+  `variant_convergence`; table-driven tests incl. every onbekend and
+  n.v.t. path; the rijksoverheid fixture yields no_reseller soeverein,
+  registrant n.v.t. (`registry_redacted`), expiry n.v.t.
+  (`not_published_by_registry`).
+- [ ] 7.3 `accountability_nl.yaml` string table (question, verdict per
+  outcome, remediation) + load-time completeness test.
+
+## 8. UI — run 07
+- [ ] 8.1 Answer-sheet section on the assessment report (Dutch copy
+  from the table, verdicts, remediation lines, evidence expanders).
+- [ ] 8.2 Accountability pill on the Overview rows; "not assessed" and
+  "n.v.t." states; overall score names the dimensions it covers.
+- [ ] 8.3 Review pass against Wordsworth's tone/interaction patterns;
+  scanner-subject reasons render as operator warnings, not answers;
+  a `.nl` fleet must still read as a story (four non-n.v.t.
+  questions carry it); verdict copy readable by a non-specialist or
+  it goes back.
+- [ ] 8.4 Playwright smoke: expand evidence, onbekend vs n.v.t.
+  rendering.
+
+## 9. Wrap-up — run 08
+- [ ] 9.1 docs/reference/assessor.md + findings.md updates (reason
+  codes, new findings, new dimension); CHANGELOG.
+- [ ] 9.2 docs/explanation note: RDAP fields we wish existed
+  (actor/escalation), the `.nl` passive ceiling, why both are out of
+  scope.
+- [ ] 9.3 Attribution text from 1.2.
+- [ ] 9.4 Archive the change.
