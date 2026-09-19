@@ -9,5 +9,5 @@
 - [x] 1.3 `openspec validate 2026-09-19-fix-adr-path-test --strict` groen.
 
 ## 2. Afronding
-- [ ] 2.1 Delta's toepassen op `openspec/specs/project-hygiene/spec.md` en de
+- [x] 2.1 Delta's toepassen op `openspec/specs/project-hygiene/spec.md` en de
   change archiveren (na merge).

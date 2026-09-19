@@ -2,7 +2,9 @@
 
 ## Purpose
 TBD - created by archiving change add-maintainability-baseline. Update Purpose after archive.
+
 ## Requirements
+
 ### Requirement: CHANGELOG is kept current
 
 The project SHALL maintain a `CHANGELOG.md` at the repository root
@@ -29,7 +31,7 @@ entry describing what changed, why, and which files were touched.
 ### Requirement: Architecture decisions are recorded
 
 The project SHALL store Architecture Decision Records under
-`docs/decisions/` using the filename pattern `NNNN-short-title.md`,
+`docs/explanation/adr/` using the filename pattern `NNNN-short-title.md`,
 and any decision that constrains future changes (dependency choice,
 data-model contract, passive-vs-active boundary) SHALL produce one.
 
@@ -38,7 +40,7 @@ data-model contract, passive-vs-active boundary) SHALL produce one.
 - **Given** a proposed change that introduces a new top-level Go
   dependency
 - **When** the change is designed
-- **Then** an ADR exists in `docs/decisions/` explaining why the
+- **Then** an ADR exists in `docs/explanation/adr/` explaining why the
   dependency was chosen over alternatives
 - **And** the change's `design.md` links to the ADR
 
@@ -47,8 +49,6 @@ data-model contract, passive-vs-active boundary) SHALL produce one.
 - **Given** a bug fix that does not constrain future design
 - **When** the fix lands
 - **Then** no ADR is required
-
----
 
 ### Requirement: Public API stability is declared
 
@@ -63,7 +63,7 @@ corresponding ADR.
 - **Given** a change that renames a field on `pkg/models.Finding`
 - **When** the change lands
 - **Then** the CHANGELOG contains a `### Changed (breaking)` entry
-- **And** an ADR under `docs/decisions/` records the rationale
+- **And** an ADR under `docs/explanation/adr/` records the rationale
 
 #### Scenario: Refactor inside internal/scanner
 
@@ -290,7 +290,7 @@ command/function call documented in `docs/operator.md`.
 
 ### Requirement: ADR-0011 records the dictu→wand rename motivation
 
-The numbered ADR set under `docs/decisions/` SHALL include
+The numbered ADR set under `docs/explanation/adr/` SHALL include
 ADR-0011 covering the rename of the first-party rule pack from
 `dictu` to `wand`. The ADR SHALL explain the legal /
 reputational concern (DICTU is a Dutch government agency, not a
@@ -303,7 +303,7 @@ the rename.
 
 #### Scenario: Future contributor reads the rename rationale
 
-- **GIVEN** a contributor opens `docs/decisions/`
+- **GIVEN** a contributor opens `docs/explanation/adr/`
 - **WHEN** they look for the source of the `wand` name
 - **THEN** ADR-0011 documents the rename's motivation,
   references the DICTU framework as the inspiration source, and
@@ -320,14 +320,14 @@ the rename.
 
 The project SHALL maintain one Playwright spec file per ADR
 that describes UI behaviour. A doc-lint check SHALL run as part
-of `go test ./...` to grep `docs/decisions/` for `## UI
+of `go test ./...` to grep `docs/explanation/adr/` for `## UI
 surface` sections and confirm a matching spec exists at
 `tests/playwright/specs/<adr-slug>.spec.ts`. ADRs without UI
 claims need no spec.
 
 #### Scenario: ADR without spec fails the lint
 
-- **Given** an ADR `docs/decisions/0042-some-ui-change.md`
+- **Given** an ADR `docs/explanation/adr/0042-some-ui-change.md`
   contains a `## UI surface` section
 - **And** no file exists at
   `tests/playwright/specs/0042-some-ui-change.spec.ts`
@@ -339,6 +339,14 @@ claims need no spec.
 - **Given** the ADR's spec file exists
 - **When** the doc-lint test runs
 - **Then** the test passes
+
+#### Scenario: Lint reads the contract location
+
+- **Given** the ADRs live under `docs/explanation/adr/` and
+  `docs/decisions/` does not exist
+- **When** the doc-lint test runs
+- **Then** it reads `docs/explanation/adr/` and does not fail on
+  the missing old directory
 
 ### Requirement: Observed signals lead; scores annotate
 
@@ -365,4 +373,3 @@ verdicts.
 - **WHEN** an operator inspects it
 - **THEN** the underlying observed Finding(s) that produced the score
   are available and human-readable
-
