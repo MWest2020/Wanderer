@@ -17,6 +17,7 @@ import (
 	soaprobe "github.com/MWest2020/wanderer/internal/probe/soa"
 	tlsprobe "github.com/MWest2020/wanderer/internal/probe/tls"
 	transitprobe "github.com/MWest2020/wanderer/internal/probe/transit"
+	variantsprobe "github.com/MWest2020/wanderer/internal/probe/variants"
 	whoisprobe "github.com/MWest2020/wanderer/internal/probe/whois"
 	"github.com/MWest2020/wanderer/internal/scanner"
 	"github.com/MWest2020/wanderer/internal/store"
@@ -131,6 +132,7 @@ func buildProbes(geoipPath, geoipCountry string) ([]probe.Probe, error) {
 		httpprobe.New(),
 		whoisprobe.New(),
 		soaprobe.New(),
+		variantsprobe.New(),
 		// Transit traces the path to the target; it reuses the IP
 		// probe's GeoLite2 enrichment (nil-safe in degraded mode) and
 		// degrades to a single "transit.unavailable" finding when no

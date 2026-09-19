@@ -5,7 +5,7 @@ Contract: `openspec/changes/2026-09-19-propose-accountability-dimension/`
 "Variants probe observes path convergence").
 
 ## Scope — ONLY these tasks
-- [ ] 6.1 New variants probe (`internal/probe/variants`, wired into the
+- [x] 6.1 New variants probe (`internal/probe/variants`, wired into the
   scanner's probe list like the existing probes): the 8 paths
   apex/www × IPv4/IPv6 × http/https, redirect depth at most 5 per path,
   a HARD budget of 24 connections per target across all paths, no
@@ -14,11 +14,11 @@ Contract: `openspec/changes/2026-09-19-propose-accountability-dimension/`
   `not_followed_budget`, `not_tested`), the redirect chain, and the
   final origin. A chain MAY stop as soon as it reaches an origin already
   verified in this run. On total failure emit `http.variants.unavailable`.
-- [ ] 6.2 Every redirect hop passes the EXISTING SSRF guard
+- [x] 6.2 Every redirect hop passes the EXISTING SSRF guard
   (`internal/probe/ssrf.go`) — reuse it, do not write a second one. A
   refused hop is recorded as `refused` and never followed. Fixture: a
   redirect chain pointing at 10.0.0.5.
-- [ ] 6.3 When the scanner host has no IPv6 route, the four v6 paths are
+- [x] 6.3 When the scanner host has no IPv6 route, the four v6 paths are
   recorded as `not_tested` with reason `scanner_no_ipv6` (structural,
   subject scanner — see internal/assessor's reason table). A dead v6
   family on the target is only claimed when the scanner could have

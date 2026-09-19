@@ -52,10 +52,10 @@ run checks off only the tasks of its own cluster.
   HTML-at-path fixtures.
 
 ## 6. Variants probe — run 05
-- [ ] 6.1 8 paths, ≤ 5 hops/path, 24-connection budget,
+- [x] 6.1 8 paths, ≤ 5 hops/path, 24-connection budget,
   `not_followed_budget`, stop on already-verified origin.
-- [ ] 6.2 SSRF guard on every hop; private-redirect fixture.
-- [ ] 6.3 `scanner_no_ipv6`: v6 paths `not_tested` when the scanner has
+- [x] 6.2 SSRF guard on every hop; private-redirect fixture.
+- [x] 6.3 `scanner_no_ipv6`: v6 paths `not_tested` when the scanner has
   no IPv6 route (structural, subject scanner).
 
 ## 7. Assessor rules + copy — run 06
