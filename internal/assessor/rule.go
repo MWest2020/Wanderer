@@ -45,6 +45,11 @@ type RuleResult struct {
 	Score    models.Score
 	Verdict  string
 	Evidence []string
+	// Reason is an optional machine-readable code explaining an
+	// onbekend/n.v.t. verdict. When set it MUST be registered in
+	// reasonRegistry (see reason.go) — an unregistered code is a bug
+	// in the rule, not a runtime possibility.
+	Reason string
 }
 
 // IsEvidenceLike reports whether a Finding looks like positive evidence

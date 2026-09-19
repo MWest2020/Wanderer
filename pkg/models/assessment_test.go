@@ -119,3 +119,52 @@ func TestAssessmentJSONRoundTrip(t *testing.T) {
 		t.Errorf("created_at diverged: %v vs %v", got.CreatedAt, a.CreatedAt)
 	}
 }
+
+// TestAssessmentJSON_PreReasonFieldStillLoads pins a snapshot of an
+// Assessment as persisted before the accountability dimension: five
+// DICTU dimensions, no `reason` field anywhere. It must load
+// unchanged — reason is additive, WandDimensions extends the list but
+// does not invalidate assessments that predate it.
+func TestAssessmentJSON_PreReasonFieldStillLoads(t *testing.T) {
+	raw := `{
+		"id": "a_1",
+		"scan_id": "s_1",
+		"framework": "wand",
+		"created_at": "2026-04-24T10:00:00Z",
+		"dimensions": [
+			{"dimension": "juridisch", "score": "afhankelijk", "completeness": "complete",
+			 "rationale": [{"criterium_id": "wand.juridisch.cert_issuer_eea", "verdict": "cert issued in US (outside EEA)", "score": "afhankelijk", "evidence": ["f_1"]}]},
+			{"dimension": "technologie", "score": "onbekend", "completeness": "partial",
+			 "rationale": [{"criterium_id": "wand.technologie.third_parties_eea", "verdict": "no http.third_party finding", "score": "onbekend", "evidence": []}]},
+			{"dimension": "data_ai", "score": "onbekend", "completeness": "incomplete", "rationale": null},
+			{"dimension": "operationeel", "score": "soeverein", "completeness": "complete",
+			 "rationale": [{"criterium_id": "wand.operationeel.cert_validity", "verdict": "certificate valid, 83 days remaining", "score": "soeverein", "evidence": ["f_2"]}]},
+			{"dimension": "mens", "score": "onbekend", "completeness": "incomplete", "rationale": null}
+		]
+	}`
+
+	var got Assessment
+	if err := json.Unmarshal([]byte(raw), &got); err != nil {
+		t.Fatalf("unmarshal pre-reason assessment: %v", err)
+	}
+	if err := got.Validate(); err != nil {
+		t.Fatalf("pre-reason assessment fails validation: %v", err)
+	}
+	if len(got.Dimensions) != 5 {
+		t.Fatalf("want the original 5 dimensions preserved, got %d", len(got.Dimensions))
+	}
+	for _, d := range got.Dimensions {
+		if d.Dimension == DimensionAccountability {
+			t.Fatalf("pre-change assessment should not gain an accountability entry")
+		}
+		for _, r := range d.Rationale {
+			if r.Reason != "" {
+				t.Errorf("want empty Reason on pre-change rationale %s, got %q", r.CriteriumID, r.Reason)
+			}
+		}
+	}
+	jur := got.Dimensions[0]
+	if jur.Dimension != DimensionJuridisch || jur.Score != ScoreAfhankelijk || jur.Completeness != CompletenessComplete {
+		t.Errorf("juridisch dimension changed on load: %+v", jur)
+	}
+}

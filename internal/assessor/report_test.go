@@ -100,9 +100,10 @@ func TestRenderMarkdown_GoldenShape(t *testing.T) {
 	}
 }
 
-func TestRenderJSON_HasFiveDimensions(t *testing.T) {
+func TestRenderJSON_DimensionsPreserved(t *testing.T) {
+	fixture := fixtureAssessment()
 	var buf bytes.Buffer
-	if err := RenderJSON(&buf, fixtureAssessment()); err != nil {
+	if err := RenderJSON(&buf, fixture); err != nil {
 		t.Fatalf("render: %v", err)
 	}
 	var parsed struct {
@@ -111,8 +112,8 @@ func TestRenderJSON_HasFiveDimensions(t *testing.T) {
 	if err := json.Unmarshal(buf.Bytes(), &parsed); err != nil {
 		t.Fatalf("unmarshal: %v", err)
 	}
-	if len(parsed.Dimensions) != 5 {
-		t.Errorf("want 5 dimensions, got %d", len(parsed.Dimensions))
+	if len(parsed.Dimensions) != len(fixture.Dimensions) {
+		t.Errorf("want %d dimensions, got %d", len(fixture.Dimensions), len(parsed.Dimensions))
 	}
 }
 
