@@ -88,6 +88,17 @@ run checks off only the tasks of its own cluster.
   rationale list. Test both.
 - [x] 7.3 `accountability_nl.yaml` string table (question, verdict per
   outcome, remediation) + load-time completeness test.
+- [x] 7.5 Live-smoke defect (`go test ./...` outside the cage, in
+  Europe/Amsterdam, 2026-09-20): `TestDomainExpiry` passed in UTC but
+  failed elsewhere because its own assertion computed the expected
+  date from local `time.Now()` instead of UTC — the cage cannot catch
+  a test that only fails outside it. One zone for dates in verdicts:
+  UTC, because RDAP `events` and RFC 9116 `Expires` both publish in
+  UTC. `wand.operationeel.domain_expiry` and
+  `wand.accountability.securitytxt` now format the named date via
+  `.UTC()` explicitly; the test computes its expected date in UTC too.
+  Added a regression test with a fixed, non-UTC zone
+  (`time.FixedZone`) proving the named date does not shift.
 
 ## 8. UI — run 07
 - [ ] 8.1 Answer-sheet section on the assessment report (Dutch copy

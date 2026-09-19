@@ -241,7 +241,9 @@ func soaRname() assessor.Rule {
 
 // securitytxt scores RFC 9116 security.txt presence and freshness. A
 // 404 is a valid observation, not an error (RFC 9116 does not require
-// the file to exist).
+// the file to exist). Named dates are formatted in UTC (RFC 9116
+// `Expires` is published in UTC), so the verdict does not depend on
+// the scanning machine's local zone.
 func securitytxt() assessor.Rule {
 	return assessor.Rule{
 		ID:          "wand.accountability.securitytxt",
@@ -288,13 +290,13 @@ func securitytxt() assessor.Rule {
 				if !expiresAt.After(time.Now()) {
 					return assessor.RuleResult{
 						Score:    models.ScoreVoldoende,
-						Verdict:  fmt.Sprintf("security.txt expired on %s", expiresAt.Format("2006-01-02")),
+						Verdict:  fmt.Sprintf("security.txt expired on %s", expiresAt.UTC().Format("2006-01-02")),
 						Evidence: []string{fnd.ID},
 					}
 				}
 				return assessor.RuleResult{
 					Score:    models.ScoreSoeverein,
-					Verdict:  fmt.Sprintf("security.txt present with Contact and Expires %s", expiresAt.Format("2006-01-02")),
+					Verdict:  fmt.Sprintf("security.txt present with Contact and Expires %s", expiresAt.UTC().Format("2006-01-02")),
 					Evidence: []string{fnd.ID},
 				}
 			}
@@ -372,7 +374,9 @@ func nsHolderTransparent() assessor.Rule {
 // the registry publishes no expiration event (as SIDN does not for
 // .nl), the rule scores onbekend with reason
 // `not_published_by_registry` — structural, so it never lowers the
-// operationeel dimension's completeness.
+// operationeel dimension's completeness. The named date is always
+// formatted in UTC (RDAP `events` are published in UTC) so the
+// verdict text does not depend on the scanning machine's local zone.
 func domainExpiry() assessor.Rule {
 	return assessor.Rule{
 		ID:          "wand.operationeel.domain_expiry",
@@ -436,7 +440,7 @@ func domainExpiry() assessor.Rule {
 					Score: models.ScoreSoeverein,
 					Verdict: fmt.Sprintf(
 						"domain registration expires %s (%d days out) — no near-term lapse risk",
-						expiresAt.Format("2006-01-02"), daysLeft,
+						expiresAt.UTC().Format("2006-01-02"), daysLeft,
 					),
 					Evidence: []string{expiry.ID},
 				}
@@ -445,7 +449,7 @@ func domainExpiry() assessor.Rule {
 					Score: models.ScoreVoldoende,
 					Verdict: fmt.Sprintf(
 						"domain registration expires %s (%d days out) — renewal due within 90 days",
-						expiresAt.Format("2006-01-02"), daysLeft,
+						expiresAt.UTC().Format("2006-01-02"), daysLeft,
 					),
 					Evidence: []string{expiry.ID},
 				}
@@ -454,7 +458,7 @@ func domainExpiry() assessor.Rule {
 					Score: models.ScoreAfhankelijk,
 					Verdict: fmt.Sprintf(
 						"domain registration expires %s — renewal due within 30 days or already past",
-						expiresAt.Format("2006-01-02"),
+						expiresAt.UTC().Format("2006-01-02"),
 					),
 					Evidence: []string{expiry.ID},
 				}

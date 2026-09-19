@@ -459,8 +459,28 @@ func TestDomainExpiry(t *testing.T) {
 		if got.Score != models.ScoreAfhankelijk {
 			t.Fatalf("score = %s, want afhankelijk", got.Score)
 		}
-		if !strings.Contains(got.Verdict, time.Now().Add(12*24*time.Hour).Format("2006-01-02")) {
+		if !strings.Contains(got.Verdict, time.Now().Add(12*24*time.Hour).UTC().Format("2006-01-02")) {
 			t.Errorf("verdict = %q, want it to name the date", got.Verdict)
+		}
+	})
+
+	t.Run("names the UTC calendar date regardless of the RDAP event's own zone", func(t *testing.T) {
+		// A fixed, non-UTC zone stands in for whatever zone happens to
+		// be on the scanning machine or embedded in the RDAP event —
+		// the named date must not shift with either. 23:00 in UTC-5 on
+		// the 30th is 04:00 UTC on the 1st: naive same-zone formatting
+		// would name the wrong day.
+		fixed := time.FixedZone("UTC-5", -5*60*60)
+		instant := time.Now().Add(12 * 24 * time.Hour)
+		wantDate := instant.UTC().Format("2006-01-02")
+		got := r.Match([]models.Finding{expiryFinding("f1", "example.nl", map[string]any{
+			"present": true, "date": instant.In(fixed).Format(time.RFC3339),
+		})})
+		if got.Score != models.ScoreAfhankelijk {
+			t.Fatalf("score = %s, want afhankelijk", got.Score)
+		}
+		if !strings.Contains(got.Verdict, wantDate) {
+			t.Errorf("verdict = %q, want it to name the UTC date %s", got.Verdict, wantDate)
 		}
 	})
 
