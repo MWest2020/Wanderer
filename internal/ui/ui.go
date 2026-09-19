@@ -138,12 +138,16 @@ type dashboardView struct {
 // dashboard — domain, when it was last scanned, and its headline
 // sovereignty verdict, linking straight to that scan's report.
 type dashboardTargetRow struct {
-	Domain     string
-	Kind       string
-	LastScanAt string
-	LastStatus string
-	Verdict    string // worst score across the preferred assessment; "" when not yet assessed
-	ReportURL  string // /ui/scans/{id}/assessment
+	Domain            string
+	Kind              string
+	LastScanAt        string
+	LastStatus        string
+	Verdict           string // worst score across the preferred assessment; "" when not yet assessed
+	VerdictDimensions string // comma-joined dimensions the worst score was computed over; "" when Verdict is ""
+	ReportURL         string // /ui/scans/{id}/assessment
+	AccountabilityLabel string
+	AccountabilityClass string
+	AccountabilityLink  string // ReportURL + "#accountability"; "" when there is no report yet
 }
 
 // verdictRenderView is the per-framework verdict pill on the
@@ -355,13 +359,27 @@ func renderDashboard(w http.ResponseWriter, r *http.Request, st *store.Store, tm
 		}
 		// Prefer the wand pack for the headline verdict; fall back to
 		// whatever framework was assessed.
+		var dims []models.DimensionScore
 		if a, ok := s.Assessments["wand"]; ok {
-			row.Verdict = string(WorstScore(a.Dimensions))
+			dims = a.Dimensions
 		} else {
 			for _, a := range s.Assessments {
-				row.Verdict = string(WorstScore(a.Dimensions))
+				dims = a.Dimensions
 				break
 			}
+		}
+		verdict, covered := WorstScoreCovering(dims)
+		if !(verdict == models.ScoreOnbekend && len(covered) == 0 && len(dims) == 0) {
+			row.Verdict = string(verdict)
+		}
+		if len(covered) > 0 {
+			row.VerdictDimensions = strings.Join(covered, ", ")
+		}
+		pill := AccountabilityPill(dims)
+		row.AccountabilityLabel = pill.Label
+		row.AccountabilityClass = pill.Class
+		if row.ReportURL != "" && pill.Class != "unassessed" {
+			row.AccountabilityLink = row.ReportURL + "#accountability"
 		}
 		view.Targets = append(view.Targets, row)
 	}
@@ -760,13 +778,29 @@ type frameworkCardView struct {
 	Framework  string
 	CreatedAt  string
 	Dimensions []dimensionCardView
+	// Accountability renders in place of a dimensionCardView for the
+	// accountability dimension (design.md "UI direction": an answer
+	// sheet, not a rule dump). Set only on the "wand" framework, only
+	// when the Assessment carries the dimension.
+	Accountability *accountabilityDimensionView
 }
 
 type dimensionCardView struct {
-	Dimension    string
-	Score        string
-	Completeness string
-	Rationales   []rationaleRowView
+	Dimension       string
+	Score           string
+	Completeness    string
+	Rationales      []rationaleRowView
+	ScannerWarnings []string // operator-environment notices — never a property of the target
+}
+
+// accountabilityDimensionView is the accountability answer sheet for
+// one framework card — spec.md "Accountability renders as an answer
+// sheet, not a rule dump".
+type accountabilityDimensionView struct {
+	Score           string
+	Completeness    string
+	ScannerWarnings []string
+	Answers         []AccountabilityAnswer
 }
 
 type rationaleRowView struct {
@@ -811,6 +845,10 @@ func assessmentHandler(st *store.Store, tmpl *template.Template) http.HandlerFun
 			Flows:        flows,
 			Diagram:      SovereigntyDiagram(subject, flows),
 		}
+		findingsByID := make(map[string]models.Finding, len(scan.Findings))
+		for _, f := range scan.Findings {
+			findingsByID[f.ID] = f
+		}
 		// Stable framework order: dictu first, then alphabetical.
 		sort.SliceStable(assessments, func(i, j int) bool {
 			a, b := assessments[i].Framework, assessments[j].Framework
@@ -828,10 +866,23 @@ func assessmentHandler(st *store.Store, tmpl *template.Template) http.HandlerFun
 				CreatedAt: a.CreatedAt.UTC().Format(time.RFC3339),
 			}
 			for _, d := range a.Dimensions {
+				if d.Dimension == models.DimensionAccountability {
+					// Answer sheet, not a rule dump (design.md "UI
+					// direction") — replaces the generic dimension card
+					// entirely for this dimension.
+					fw.Accountability = &accountabilityDimensionView{
+						Score:           string(d.Score),
+						Completeness:    string(d.Completeness),
+						ScannerWarnings: DimensionScannerWarnings(d),
+						Answers:         BuildAccountabilityAnswers(d, findingsByID, subject),
+					}
+					continue
+				}
 				card := dimensionCardView{
-					Dimension:    string(d.Dimension),
-					Score:        string(d.Score),
-					Completeness: string(d.Completeness),
+					Dimension:       string(d.Dimension),
+					Score:           string(d.Score),
+					Completeness:    string(d.Completeness),
+					ScannerWarnings: DimensionScannerWarnings(d),
 				}
 				for _, rationale := range d.Rationale {
 					row := rationaleRowView{

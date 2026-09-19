@@ -329,3 +329,42 @@ tr.retired td { opacity: 0.7; font-style: italic; }
   animation: wanderer-spin 0.8s linear infinite; }
 @keyframes wanderer-spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .spinner { animation: none; } }
+
+/* Accountability answer sheet (run 08): one plain-language question
+   per rule, ja/nee/onbekend/n.v.t. visually distinct from one another. */
+.answer-sheet .answer-row {
+  border: 1px solid var(--border);
+  border-radius: 0.4rem;
+  padding: 0.75rem 1rem;
+  margin-bottom: 0.75rem;
+  background: #fff;
+}
+.answer-question { font-weight: 600; margin: 0 0 0.35rem 0; }
+.answer-verdict { margin: 0; }
+.answer-badge-ja       { background: rgba(25, 135, 84, 0.12); color: var(--soeverein); }
+.answer-badge-nee      { background: rgba(217, 83, 79, 0.12); color: var(--afhankelijk); }
+.answer-badge-onbekend { background: rgba(108, 117, 125, 0.12); color: var(--onbekend); }
+.answer-badge-nvt      { background: rgba(26, 115, 232, 0.1); color: var(--accent); }
+.answer-row.answer-nee { border-left: 3px solid var(--afhankelijk); }
+.answer-row.answer-onbekend { border-left: 3px solid var(--onbekend); }
+.answer-row.answer-nvt { border-left: 3px solid var(--accent); }
+.answer-remediation { margin: 0.35rem 0 0 0; color: var(--muted); }
+.answer-evidence { margin-top: 0.5rem; font-size: 0.85rem; }
+.answer-evidence summary { cursor: pointer; color: var(--muted); }
+.answer-evidence ul { margin: 0.25rem 0 0.5rem 0; }
+.scanner-warning {
+  background: rgba(255, 193, 7, 0.12);
+  border-left: 3px solid var(--observation);
+  padding: 0.35rem 0.6rem;
+  margin: 0 0 0.75rem 0;
+  font-size: 0.875rem;
+}
+
+/* Overview accountability pill (run 08). */
+.pill-accountability-soeverein   { background: rgba(25, 135, 84, 0.12); color: var(--soeverein); }
+.pill-accountability-voldoende   { background: rgba(132, 204, 22, 0.12); color: var(--voldoende); }
+.pill-accountability-afhankelijk { background: rgba(217, 83, 79, 0.12); color: var(--afhankelijk); }
+.pill-accountability-onbekend    { background: rgba(108, 117, 125, 0.12); color: var(--onbekend); }
+.pill-accountability-nvt         { background: rgba(26, 115, 232, 0.1); color: var(--accent); }
+.pill-accountability-unassessed  { background: #eee; color: var(--muted); }
+.covers { margin-left: 0.35rem; }

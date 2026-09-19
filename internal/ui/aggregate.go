@@ -112,21 +112,99 @@ type ActivityRow struct {
 // (or the slice is empty) the result is `onbekend` — a target we
 // cannot evaluate is unknown, not "worst".
 func WorstScore(dims []models.DimensionScore) models.Score {
+	score, _ := WorstScoreCovering(dims)
+	return score
+}
+
+// WorstScoreCovering returns the same worst score as WorstScore, plus
+// the sorted list of dimension names that contributed to it — every
+// dimension with a rated (non-onbekend) score. A dimension marked
+// NotApplicable always scores onbekend (engine.go) and is excluded
+// the same way; a dimension absent from `dims` entirely (a scan that
+// predates it) is excluded by simply never being iterated. Callers
+// display the covered list alongside the score so "afhankelijk"
+// never reads as "afhankelijk across the whole pack" when only one
+// dimension actually fired.
+func WorstScoreCovering(dims []models.DimensionScore) (models.Score, []string) {
 	worst := models.ScoreOnbekend
 	haveAny := false
+	var covered []string
 	for _, d := range dims {
 		if d.Score == models.ScoreOnbekend || d.Score.Rank() == 0 {
 			continue
 		}
+		covered = append(covered, string(d.Dimension))
 		if !haveAny || d.Score.Rank() < worst.Rank() {
 			worst = d.Score
 			haveAny = true
 		}
 	}
 	if !haveAny {
-		return models.ScoreOnbekend
+		return models.ScoreOnbekend, nil
 	}
-	return worst
+	sort.Strings(covered)
+	return worst, covered
+}
+
+// AccountabilityPillView is the Overview's per-target accountability
+// indicator (design.md "Overview surfaces accountability without
+// adding a tab"): coloured like the dimension's own score, plus two
+// states outside the four-value scale — "n.v.t." when every rule is
+// structural, and "niet beoordeeld" when the Assessment predates the
+// dimension entirely (no accountability entry in dims at all).
+type AccountabilityPillView struct {
+	Label string // score word, "n.v.t.", or "niet beoordeeld"
+	Class string // CSS suffix: "soeverein"/"voldoende"/"afhankelijk"/"onbekend", "nvt", or "unassessed"
+}
+
+// scannerReasonWarnings maps a scanner-subject reason code to the
+// operator-facing warning shown next to the dimension it affects
+// (design.md "UI direction": a scanner limitation is never a property
+// of the target). One entry today; a future scanner-subject reason
+// code needs an entry here or it renders with no banner.
+var scannerReasonWarnings = map[string]string{
+	assessor.ReasonScannerNoIPv6: "scanner heeft geen IPv6 — v6-paden niet gemeten",
+}
+
+// DimensionScannerWarnings returns the distinct operator-environment
+// warnings for dim — one per scanner-subject reason code present
+// across its Rationale, sorted for stable rendering.
+func DimensionScannerWarnings(dim models.DimensionScore) []string {
+	seen := map[string]bool{}
+	var out []string
+	for _, r := range dim.Rationale {
+		if r.Reason == "" {
+			continue
+		}
+		_, subject := assessor.ReasonInfo(r.Reason)
+		if subject != assessor.ReasonSubjectScanner {
+			continue
+		}
+		msg, ok := scannerReasonWarnings[r.Reason]
+		if !ok || seen[msg] {
+			continue
+		}
+		seen[msg] = true
+		out = append(out, msg)
+	}
+	sort.Strings(out)
+	return out
+}
+
+// AccountabilityPill derives the pill for one target from its
+// Assessment's dimensions. Pass nil (or an Assessment without the
+// dimension) for a scan that predates the accountability change.
+func AccountabilityPill(dims []models.DimensionScore) AccountabilityPillView {
+	for _, d := range dims {
+		if d.Dimension != models.DimensionAccountability {
+			continue
+		}
+		if d.NotApplicable {
+			return AccountabilityPillView{Label: "n.v.t.", Class: "nvt"}
+		}
+		return AccountabilityPillView{Label: string(d.Score), Class: string(d.Score)}
+	}
+	return AccountabilityPillView{Label: "niet beoordeeld", Class: "unassessed"}
 }
 
 // PostureCounts buckets each target's worst-dimension score by

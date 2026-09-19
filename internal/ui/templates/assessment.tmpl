@@ -61,6 +61,50 @@
 <section class="framework">
   <h2>{{.Framework}}</h2>
   <p class="meta">Generated {{.CreatedAt}}</p>
+  {{if .Accountability}}
+  {{with .Accountability}}
+  <article class="dimension-card answer-sheet" id="accountability">
+    <header class="dimension-header">
+      <h3>accountability</h3>
+      <span class="badge score-{{.Score}}">{{.Score}}</span>
+      <span class="completeness">completeness: {{.Completeness}}</span>
+    </header>
+    {{range .ScannerWarnings}}
+    <p class="scanner-warning">⚠ {{.}}</p>
+    {{end}}
+    {{if .Answers}}
+    {{range .Answers}}
+    <article class="answer-row answer-{{.AnswerClass}}">
+      <p class="answer-question">{{.Question}}</p>
+      <p class="answer-verdict">
+        <span class="badge answer-badge-{{.AnswerClass}}">{{.AnswerLabel}}</span>
+        {{.Verdict}}
+      </p>
+      {{if .Remediation}}
+      <p class="answer-remediation">→ {{.Remediation}}</p>
+      {{end}}
+      <details class="answer-evidence">
+        <summary>bewijs</summary>
+        <p><code>{{.RuleID}}</code>{{if .RuleDescription}} — {{.RuleDescription}}{{end}}</p>
+        {{if .Evidence}}
+        {{range .Evidence}}
+        <p><code>{{.ProbeID}}</code> op <code>{{.Subject}}</code></p>
+        <ul>
+          {{range .Attributes}}<li><code>{{.Key}}</code>: {{.Value}}</li>{{end}}
+        </ul>
+        {{end}}
+        {{else}}
+        <p class="muted">Geen bewijs beschikbaar{{if .NoEvidenceNote}} — {{.NoEvidenceNote}}{{end}}.</p>
+        {{end}}
+      </details>
+    </article>
+    {{end}}
+    {{else}}
+    <p class="muted">No rationales for this dimension.</p>
+    {{end}}
+  </article>
+  {{end}}
+  {{end}}
   {{range .Dimensions}}
   <article class="dimension-card">
     <header class="dimension-header">
@@ -68,6 +112,9 @@
       <span class="badge score-{{.Score}}">{{.Score}}</span>
       <span class="completeness">completeness: {{.Completeness}}</span>
     </header>
+    {{range .ScannerWarnings}}
+    <p class="scanner-warning">⚠ {{.}}</p>
+    {{end}}
     {{if .Rationales}}
     <table class="rationales">
       <thead>

@@ -70,7 +70,10 @@
           {{if .ReportURL}}<a href="{{.ReportURL}}">{{.Domain}}</a>{{else}}{{.Domain}}{{end}}
           {{if eq .Kind "host"}}<span class="badge kind-host">host</span>{{end}}
         </td>
-        <td>{{if .Verdict}}<span class="badge score-{{.Verdict}}">{{.Verdict}}</span>{{else}}<span class="muted">not assessed</span>{{end}}</td>
+        <td>
+          {{if .Verdict}}<span class="badge score-{{.Verdict}}">{{.Verdict}}</span>{{if .VerdictDimensions}} <span class="meta covers">covers: {{.VerdictDimensions}}</span>{{end}}{{else}}<span class="muted">not assessed</span>{{end}}
+          {{if .AccountabilityLink}}<a class="badge pill-accountability-{{.AccountabilityClass}}" href="{{.AccountabilityLink}}" title="accountability">verantwoording: {{.AccountabilityLabel}}</a>{{else}}<span class="badge pill-accountability-{{.AccountabilityClass}}" title="accountability">verantwoording: {{.AccountabilityLabel}}</span>{{end}}
+        </td>
         <td>{{if .LastScanAt}}<code>{{.LastScanAt}}</code> <span class="status-{{.LastStatus}}">{{.LastStatus}}</span>{{else}}<span class="muted">never</span>{{end}}</td>
         <td>{{if .ReportURL}}<a href="{{.ReportURL}}">report →</a>{{end}}</td>
       </tr>

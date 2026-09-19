@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"strings"
 	"testing"
 	"time"
 
@@ -43,6 +44,80 @@ func TestWorstScore_OnbekendDoesNotDragDown(t *testing.T) {
 	}
 	if got := WorstScore(dims); got != models.ScoreVoldoende {
 		t.Errorf("WorstScore = %s, want voldoende (onbekend ignored)", got)
+	}
+}
+
+func TestWorstScoreCovering_ListsOnlyRatedDimensions(t *testing.T) {
+	dims := []models.DimensionScore{
+		{Dimension: models.DimensionJuridisch, Score: models.ScoreAfhankelijk},
+		{Dimension: models.DimensionOperationeel, Score: models.ScoreSoeverein},
+		{Dimension: models.DimensionDataAI, Score: models.ScoreOnbekend},
+		{Dimension: models.DimensionAccountability, Score: models.ScoreOnbekend, NotApplicable: true},
+	}
+	score, covered := WorstScoreCovering(dims)
+	if score != models.ScoreAfhankelijk {
+		t.Errorf("score = %s, want afhankelijk", score)
+	}
+	want := []string{"juridisch", "operationeel"}
+	if len(covered) != len(want) || covered[0] != want[0] || covered[1] != want[1] {
+		t.Errorf("covered = %v, want %v", covered, want)
+	}
+}
+
+func TestWorstScoreCovering_AbsentDimensionIsNotCovered(t *testing.T) {
+	// A scan predating the accountability dimension simply has no entry
+	// for it — WorstScoreCovering must not invent one.
+	dims := []models.DimensionScore{
+		{Dimension: models.DimensionJuridisch, Score: models.ScoreSoeverein},
+	}
+	_, covered := WorstScoreCovering(dims)
+	for _, c := range covered {
+		if c == string(models.DimensionAccountability) {
+			t.Fatalf("covered = %v, should not list an absent dimension", covered)
+		}
+	}
+}
+
+func TestAccountabilityPill_NotAssessedWhenDimensionAbsent(t *testing.T) {
+	pill := AccountabilityPill([]models.DimensionScore{
+		{Dimension: models.DimensionJuridisch, Score: models.ScoreSoeverein},
+	})
+	if pill.Label != "niet beoordeeld" || pill.Class != "unassessed" {
+		t.Errorf("pill = %+v, want niet beoordeeld/unassessed", pill)
+	}
+}
+
+func TestAccountabilityPill_NotApplicable(t *testing.T) {
+	pill := AccountabilityPill([]models.DimensionScore{
+		{Dimension: models.DimensionAccountability, Score: models.ScoreOnbekend, NotApplicable: true},
+	})
+	if pill.Label != "n.v.t." || pill.Class != "nvt" {
+		t.Errorf("pill = %+v, want n.v.t./nvt", pill)
+	}
+}
+
+func TestAccountabilityPill_ScoredDimension(t *testing.T) {
+	pill := AccountabilityPill([]models.DimensionScore{
+		{Dimension: models.DimensionAccountability, Score: models.ScoreAfhankelijk},
+	})
+	if pill.Label != "afhankelijk" || pill.Class != "afhankelijk" {
+		t.Errorf("pill = %+v, want afhankelijk/afhankelijk", pill)
+	}
+}
+
+func TestDimensionScannerWarnings_ScannerSubjectOnly(t *testing.T) {
+	dim := models.DimensionScore{
+		Rationale: []models.Rationale{
+			{CriteriumID: "wand.operationeel.variant_convergence", Score: models.ScoreOnbekend, Reason: assessor.ReasonScannerNoIPv6},
+			{CriteriumID: "wand.accountability.registrant_identifiable", Score: models.ScoreOnbekend, Reason: assessor.ReasonRegistryRedacted},
+		},
+	}
+	warnings := DimensionScannerWarnings(dim)
+	if len(warnings) != 1 || warnings[0] == "" {
+		t.Fatalf("warnings = %v, want exactly one scanner warning", warnings)
+	}
+	if !strings.Contains(warnings[0], "IPv6") {
+		t.Errorf("warning %q does not mention IPv6", warnings[0])
 	}
 }
 
