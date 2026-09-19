@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 	"time"
 
@@ -260,6 +262,99 @@ func relatedDiff(got, want []string) string {
 		return ""
 	}
 	return "missing=" + fmt.Sprint(missing) + " extra=" + fmt.Sprint(extra)
+}
+
+func nsHostFinding(domain, host string) models.Finding {
+	return models.Finding{
+		ProbeID:    "dns.ns",
+		Subject:    domain,
+		Severity:   models.SeverityObservation,
+		Attributes: map[string]any{"host": host},
+	}
+}
+
+// TestScan_NSHolderTwoProvidersOneLookupEach pins the scanner spec
+// scenario "Two providers, three nameservers": ns1/ns2.provider-a.nl
+// and ns1.provider-b.eu share the RDAP endpoint used in this test, so
+// the scanner MUST dedupe to their two distinct registrable domains
+// and issue exactly two RDAP lookups (N nameservers under one
+// provider cost one lookup), producing exactly two whois.ns_holder
+// findings.
+func TestScan_NSHolderTwoProvidersOneLookupEach(t *testing.T) {
+	s := newStore(t)
+	requests := map[string]int{}
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requests[r.URL.Path]++
+		w.Header().Set("Content-Type", "application/rdap+json")
+		_, _ = w.Write([]byte(`{"entities":[{"roles":["registrant"],"vcardArray":["vcard",[["fn",{},"text","Some Registrant"]]]}]}`))
+	}))
+	defer srv.Close()
+
+	dns := &stubProbe{
+		id: "dns",
+		findings: []models.Finding{
+			nsHostFinding("example.nl", "ns1.provider-a.nl"),
+			nsHostFinding("example.nl", "ns2.provider-a.nl"),
+			nsHostFinding("example.nl", "ns1.provider-b.eu"),
+		},
+	}
+	sc := scanner.New(s, []probe.Probe{dns}, probe.Config{PerProbeTimeout: time.Second})
+	sc.RDAPBaseURL = srv.URL + "/domain/"
+
+	res, err := sc.Scan(context.Background(), models.Target{Domain: "example.nl"})
+	if err != nil {
+		t.Fatalf("scan: %v", err)
+	}
+	if len(requests) != 2 {
+		t.Errorf("RDAP lookups = %d (%v), want exactly 2", len(requests), requests)
+	}
+	var holders int
+	for _, f := range res.Findings {
+		if f.ProbeID == "whois.ns_holder" {
+			holders++
+		}
+	}
+	if holders != 2 {
+		t.Errorf("whois.ns_holder findings = %d, want 2", holders)
+	}
+}
+
+// TestScan_NSHolderUnavailableOnNoRDAPTLD pins the scenario "Registry
+// without RDAP": a 404 from the bootstrap (no RDAP service for the
+// nameserver's TLD) emits whois.ns_holder.unavailable for that domain
+// and the scan continues (status is not failed).
+func TestScan_NSHolderUnavailableOnNoRDAPTLD(t *testing.T) {
+	s := newStore(t)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	defer srv.Close()
+
+	dns := &stubProbe{
+		id: "dns",
+		findings: []models.Finding{
+			nsHostFinding("example.nl", "ns1.no-rdap-tld.zz"),
+		},
+	}
+	sc := scanner.New(s, []probe.Probe{dns}, probe.Config{PerProbeTimeout: time.Second})
+	sc.RDAPBaseURL = srv.URL + "/domain/"
+
+	res, err := sc.Scan(context.Background(), models.Target{Domain: "example.nl"})
+	if err != nil {
+		t.Fatalf("scan: %v", err)
+	}
+	if res.Status == models.ScanStatusFailed {
+		t.Errorf("status = %q, want scan to continue past the ns_holder failure", res.Status)
+	}
+	var sawUnavailable bool
+	for _, f := range res.Findings {
+		if f.ProbeID == "whois.ns_holder.unavailable" && f.Subject == "no-rdap-tld.zz" {
+			sawUnavailable = true
+		}
+	}
+	if !sawUnavailable {
+		t.Errorf("expected whois.ns_holder.unavailable for no-rdap-tld.zz; got %+v", res.Findings)
+	}
 }
 
 func TestScanInvalidDomain(t *testing.T) {

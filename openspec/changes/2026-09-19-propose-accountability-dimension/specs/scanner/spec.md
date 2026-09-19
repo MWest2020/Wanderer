@@ -139,11 +139,11 @@ reason `scanner_no_ipv6`. On total failure the probe SHALL emit
 
 ### Requirement: Scanner looks up NS holder transparency
 
-For each unique registrable domain among the target's `dns.ns` hosts
-the scanner SHALL perform one RDAP lookup and emit `whois.ns_holder`
-(registrant present/proxied/absent). Lookups SHALL be cached per
-scan so N nameservers under one provider cost one lookup; failures
-emit `whois.ns_holder.unavailable` per domain.
+The scanner SHALL, for each unique registrable domain among the
+target's `dns.ns` hosts, perform one RDAP lookup and emit
+`whois.ns_holder` (registrant present/proxied/absent). Lookups SHALL
+be cached per scan so N nameservers under one provider cost one
+lookup; failures emit `whois.ns_holder.unavailable` per domain.
 
 #### Scenario: Two providers, three nameservers
 

@@ -49,6 +49,12 @@ type Scanner struct {
 	// Publisher, when set, receives each completed scan's ID after
 	// the scan is persisted. Opt-in via serve.yaml's nextcloud: block.
 	Publisher Publisher
+
+	// RDAPBaseURL overrides the RDAP endpoint used for the NS-holder
+	// lookups this scanner performs directly (see nsHolderFindings).
+	// Empty means the whois package default (rdap.org). Tests inject
+	// an httptest server URL here.
+	RDAPBaseURL string
 }
 
 // New returns a scanner with sensible defaults. Callers MUST provide a
@@ -194,6 +200,20 @@ func (s *Scanner) Scan(ctx context.Context, target models.Target) (*models.Scan,
 		scan.Findings = append(scan.Findings, cc)
 		if err := s.Store.AppendFindings(rootCtx, scan.ID, []models.Finding{cc}); err != nil {
 			logger.Error("scan.persist_failed", "probe", cc.ProbeID, "err", err)
+		}
+	}
+
+	// NS-holder transparency: one RDAP lookup per unique registrable
+	// domain among the target's dns.ns hosts, checking whether that
+	// domain's own registrant is present/proxied/absent. Unlike the
+	// synthesis steps above this issues its own network calls (it is
+	// not derived purely from findings already collected), so a
+	// per-domain failure emits whois.ns_holder.unavailable rather than
+	// failing the scan.
+	if nsFindings := s.nsHolderFindings(rootCtx, scan.Findings, logger); len(nsFindings) > 0 {
+		scan.Findings = append(scan.Findings, nsFindings...)
+		if err := s.Store.AppendFindings(rootCtx, scan.ID, nsFindings); err != nil {
+			logger.Error("scan.persist_failed", "probe", "whois.ns_holder", "err", err)
 		}
 	}
 
