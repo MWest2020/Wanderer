@@ -416,27 +416,280 @@ func TestNsHolderTransparent(t *testing.T) {
 	})
 }
 
-// ---------- registration wiring ----------
+// ---------- domain_expiry ----------
 
-func TestDefaultRules_RegistersAccountabilityRules(t *testing.T) {
-	want := map[string]bool{
-		"wand.accountability.registrant_identifiable": false,
-		"wand.accountability.no_reseller":              false,
-		"wand.accountability.soa_rname":                false,
-		"wand.accountability.securitytxt":              false,
-		"wand.accountability.ns_holder_transparent":    false,
+func expiryFinding(id, domain string, attrs map[string]any) models.Finding {
+	return models.Finding{
+		ID: id, ProbeID: "whois.expiry", Subject: domain,
+		DimensionHint: models.DimensionAccountability,
+		Severity:      models.SeverityObservation,
+		Attributes:    attrs,
 	}
-	for _, r := range DefaultRules() {
-		if _, ok := want[r.ID]; ok {
-			want[r.ID] = true
-			if r.Dimension != models.DimensionAccountability {
-				t.Errorf("rule %s: Dimension = %s, want accountability", r.ID, r.Dimension)
+}
+
+func TestDomainExpiry(t *testing.T) {
+	r := ruleByID(t, "wand.operationeel.domain_expiry")
+
+	future := func(days int) string {
+		return time.Now().Add(time.Duration(days) * 24 * time.Hour).UTC().Format(time.RFC3339)
+	}
+
+	t.Run("beyond 90 days scores soeverein", func(t *testing.T) {
+		got := r.Match([]models.Finding{expiryFinding("f1", "example.nl", map[string]any{
+			"present": true, "date": future(120),
+		})})
+		if got.Score != models.ScoreSoeverein {
+			t.Fatalf("score = %s, want soeverein", got.Score)
+		}
+	})
+
+	t.Run("within 90 days scores voldoende", func(t *testing.T) {
+		got := r.Match([]models.Finding{expiryFinding("f1", "example.nl", map[string]any{
+			"present": true, "date": future(60),
+		})})
+		if got.Score != models.ScoreVoldoende {
+			t.Fatalf("score = %s, want voldoende", got.Score)
+		}
+	})
+
+	t.Run("within 30 days scores afhankelijk and names the date", func(t *testing.T) {
+		got := r.Match([]models.Finding{expiryFinding("f1", "example.nl", map[string]any{
+			"present": true, "date": future(12),
+		})})
+		if got.Score != models.ScoreAfhankelijk {
+			t.Fatalf("score = %s, want afhankelijk", got.Score)
+		}
+		if !strings.Contains(got.Verdict, time.Now().Add(12*24*time.Hour).Format("2006-01-02")) {
+			t.Errorf("verdict = %q, want it to name the date", got.Verdict)
+		}
+	})
+
+	t.Run("already past scores afhankelijk", func(t *testing.T) {
+		got := r.Match([]models.Finding{expiryFinding("f1", "example.nl", map[string]any{
+			"present": true, "date": future(-5),
+		})})
+		if got.Score != models.ScoreAfhankelijk {
+			t.Fatalf("score = %s, want afhankelijk", got.Score)
+		}
+	})
+
+	t.Run("registry publishes no expiry scores onbekend with not_published_by_registry", func(t *testing.T) {
+		got := r.Match([]models.Finding{expiryFinding("f1", "rijksoverheid.nl", map[string]any{
+			"present": false, "date": "absent",
+		})})
+		if got.Score != models.ScoreOnbekend {
+			t.Fatalf("score = %s, want onbekend", got.Score)
+		}
+		if got.Reason != assessor.ReasonNotPublishedByRegistry {
+			t.Fatalf("reason = %q, want %q", got.Reason, assessor.ReasonNotPublishedByRegistry)
+		}
+	})
+
+	t.Run("RDAP unavailable scores onbekend with probe_unavailable", func(t *testing.T) {
+		got := r.Match([]models.Finding{whoisUnavailableFinding("f1", "example.nl")})
+		if got.Score != models.ScoreOnbekend {
+			t.Fatalf("score = %s, want onbekend", got.Score)
+		}
+		if got.Reason != assessor.ReasonProbeUnavailable {
+			t.Fatalf("reason = %q, want %q", got.Reason, assessor.ReasonProbeUnavailable)
+		}
+	})
+
+	t.Run("no evidence at all scores onbekend with probe_unavailable", func(t *testing.T) {
+		got := r.Match(nil)
+		if got.Score != models.ScoreOnbekend || got.Reason != assessor.ReasonProbeUnavailable {
+			t.Fatalf("score = %s reason = %q, want onbekend/probe_unavailable", got.Score, got.Reason)
+		}
+	})
+}
+
+// ---------- variant_convergence ----------
+
+func variantPath(hostPart, family, scheme, status, finalOrigin, reason string) map[string]any {
+	m := map[string]any{
+		"host_part": hostPart, "family": family, "scheme": scheme, "status": status,
+	}
+	if finalOrigin != "" {
+		m["final_origin"] = finalOrigin
+	}
+	if reason != "" {
+		m["reason"] = reason
+	}
+	return m
+}
+
+func variantsFinding(id, domain string, paths []map[string]any) models.Finding {
+	return models.Finding{
+		ID: id, ProbeID: "http.variants", Subject: domain,
+		DimensionHint: models.DimensionOperationeel,
+		Severity:      models.SeverityObservation,
+		Attributes: map[string]any{
+			"paths": paths,
+		},
+	}
+}
+
+// allEightConverge builds 8 paths (apex/www x v4/v6 x http/https) that
+// all land on origin.
+func allEightConverge(origin string) []map[string]any {
+	var out []map[string]any
+	for _, host := range []string{"apex", "www"} {
+		for _, fam := range []string{"v4", "v6"} {
+			for _, scheme := range []string{"http", "https"} {
+				out = append(out, variantPath(host, fam, scheme, "reachable", origin, ""))
 			}
 		}
 	}
-	for id, seen := range want {
-		if !seen {
-			t.Errorf("accountability rule %q not registered in DefaultRules", id)
+	return out
+}
+
+func TestVariantConvergence(t *testing.T) {
+	r := ruleByID(t, "wand.operationeel.variant_convergence")
+
+	t.Run("full convergence scores soeverein", func(t *testing.T) {
+		got := r.Match([]models.Finding{
+			variantsFinding("f1", "voorbeeld.nl", allEightConverge("https://www.voorbeeld.nl")),
+		})
+		if got.Score != models.ScoreSoeverein {
+			t.Fatalf("score = %s, want soeverein", got.Score)
+		}
+		if got.Reason != "" {
+			t.Errorf("reason = %q, want empty (scanner has full IPv6 reach)", got.Reason)
+		}
+	})
+
+	t.Run("plain HTTP serving content without redirect scores afhankelijk", func(t *testing.T) {
+		paths := allEightConverge("https://www.voorbeeld.nl")
+		paths[0] = variantPath("apex", "v4", "http", "reachable", "http://voorbeeld.nl", "")
+		got := r.Match([]models.Finding{variantsFinding("f1", "voorbeeld.nl", paths)})
+		if got.Score != models.ScoreAfhankelijk {
+			t.Fatalf("score = %s, want afhankelijk", got.Score)
+		}
+		if !strings.Contains(got.Verdict, "apex/v4/http") {
+			t.Errorf("verdict = %q, want it to name the offending path", got.Verdict)
+		}
+	})
+
+	t.Run("scanner without IPv6 does not blame the target", func(t *testing.T) {
+		var paths []map[string]any
+		for _, host := range []string{"apex", "www"} {
+			for _, scheme := range []string{"http", "https"} {
+				paths = append(paths, variantPath(host, "v4", scheme, "reachable", "https://www.voorbeeld.nl", ""))
+				paths = append(paths, variantPath(host, "v6", scheme, "not_tested", "", "scanner_no_ipv6"))
+			}
+		}
+		got := r.Match([]models.Finding{variantsFinding("f1", "voorbeeld.nl", paths)})
+		if got.Score != models.ScoreSoeverein {
+			t.Fatalf("score = %s, want soeverein on the observed v4 paths, not voldoende for a dead v6 family", got.Score)
+		}
+		if got.Reason != assessor.ReasonScannerNoIPv6 {
+			t.Fatalf("reason = %q, want %q", got.Reason, assessor.ReasonScannerNoIPv6)
+		}
+		if !strings.Contains(got.Verdict, "4 of 8") {
+			t.Errorf("verdict = %q, want it to state 4 of 8 paths observed", got.Verdict)
+		}
+	})
+
+	t.Run("diverging paths score voldoende", func(t *testing.T) {
+		paths := allEightConverge("https://www.voorbeeld.nl")
+		paths[0] = variantPath("apex", "v4", "http", "reachable", "https://apex.voorbeeld.nl", "")
+		got := r.Match([]models.Finding{variantsFinding("f1", "voorbeeld.nl", paths)})
+		if got.Score != models.ScoreVoldoende {
+			t.Fatalf("score = %s, want voldoende", got.Score)
+		}
+	})
+
+	t.Run("dead v6 family with a published AAAA record scores voldoende", func(t *testing.T) {
+		var paths []map[string]any
+		for _, host := range []string{"apex", "www"} {
+			for _, scheme := range []string{"http", "https"} {
+				paths = append(paths, variantPath(host, "v4", scheme, "reachable", "https://www.voorbeeld.nl", ""))
+				paths = append(paths, variantPath(host, "v6", scheme, "unreachable", "", ""))
+			}
+		}
+		findings := []models.Finding{
+			variantsFinding("f1", "voorbeeld.nl", paths),
+			{ID: "f2", ProbeID: "dns.aaaa", Subject: "voorbeeld.nl", Attributes: map[string]any{"address": "2001:db8::1"}},
+		}
+		got := r.Match(findings)
+		if got.Score != models.ScoreVoldoende {
+			t.Fatalf("score = %s, want voldoende (v6 published in DNS but unreachable)", got.Score)
+		}
+		if got.Reason != "" {
+			t.Errorf("reason = %q, want empty (this is a real dead family, not a scanner limitation)", got.Reason)
+		}
+	})
+
+	t.Run("v6 unreachable with no AAAA record is not blamed as a dead family", func(t *testing.T) {
+		var paths []map[string]any
+		for _, host := range []string{"apex", "www"} {
+			for _, scheme := range []string{"http", "https"} {
+				paths = append(paths, variantPath(host, "v4", scheme, "reachable", "https://www.voorbeeld.nl", ""))
+				paths = append(paths, variantPath(host, "v6", scheme, "unreachable", "", ""))
+			}
+		}
+		got := r.Match([]models.Finding{variantsFinding("f1", "voorbeeld.nl", paths)})
+		if got.Score != models.ScoreSoeverein {
+			t.Fatalf("score = %s, want soeverein (no AAAA published, v6 was never offered)", got.Score)
+		}
+	})
+
+	t.Run("not_followed_budget paths never count as dead", func(t *testing.T) {
+		paths := allEightConverge("https://www.voorbeeld.nl")
+		paths[len(paths)-1] = variantPath("www", "v6", "https", "not_followed_budget", "", "")
+		got := r.Match([]models.Finding{variantsFinding("f1", "voorbeeld.nl", paths)})
+		if got.Score != models.ScoreSoeverein {
+			t.Fatalf("score = %s, want soeverein (not_followed_budget path excluded, not dead)", got.Score)
+		}
+		if !strings.Contains(got.Verdict, "7 of 8") {
+			t.Errorf("verdict = %q, want it to state 7 of 8 paths observed", got.Verdict)
+		}
+	})
+
+	t.Run("probe unavailable scores onbekend with probe_unavailable", func(t *testing.T) {
+		got := r.Match([]models.Finding{
+			{ID: "f1", ProbeID: "http.variants.unavailable", Subject: "voorbeeld.nl"},
+		})
+		if got.Score != models.ScoreOnbekend {
+			t.Fatalf("score = %s, want onbekend", got.Score)
+		}
+		if got.Reason != assessor.ReasonProbeUnavailable {
+			t.Fatalf("reason = %q, want %q", got.Reason, assessor.ReasonProbeUnavailable)
+		}
+	})
+
+	t.Run("no evidence at all scores onbekend with probe_unavailable", func(t *testing.T) {
+		got := r.Match(nil)
+		if got.Score != models.ScoreOnbekend || got.Reason != assessor.ReasonProbeUnavailable {
+			t.Fatalf("score = %s reason = %q, want onbekend/probe_unavailable", got.Score, got.Reason)
+		}
+	})
+}
+
+// ---------- registration wiring ----------
+
+func TestDefaultRules_RegistersAccountabilityRules(t *testing.T) {
+	want := map[string]models.DimensionHint{
+		"wand.accountability.registrant_identifiable": models.DimensionAccountability,
+		"wand.accountability.no_reseller":              models.DimensionAccountability,
+		"wand.accountability.soa_rname":                models.DimensionAccountability,
+		"wand.accountability.securitytxt":              models.DimensionAccountability,
+		"wand.accountability.ns_holder_transparent":    models.DimensionAccountability,
+		"wand.operationeel.domain_expiry":              models.DimensionOperationeel,
+		"wand.operationeel.variant_convergence":        models.DimensionOperationeel,
+	}
+	seen := map[string]bool{}
+	for _, r := range DefaultRules() {
+		if wantDim, ok := want[r.ID]; ok {
+			seen[r.ID] = true
+			if r.Dimension != wantDim {
+				t.Errorf("rule %s: Dimension = %s, want %s", r.ID, r.Dimension, wantDim)
+			}
+		}
+	}
+	for id := range want {
+		if !seen[id] {
+			t.Errorf("accountability-change rule %q not registered in DefaultRules", id)
 		}
 	}
 }
@@ -481,6 +734,15 @@ func TestAccountabilityRules_RijksoverheidFixture(t *testing.T) {
 	got2 := noResellerRule.Match(all)
 	if got2.Score != models.ScoreSoeverein {
 		t.Fatalf("no_reseller score = %s, want soeverein (no reseller at any nesting level)", got2.Score)
+	}
+
+	expiryRule := ruleByID(t, "wand.operationeel.domain_expiry")
+	got3 := expiryRule.Match(all)
+	if got3.Score != models.ScoreOnbekend {
+		t.Fatalf("domain_expiry score = %s, want onbekend", got3.Score)
+	}
+	if got3.Reason != assessor.ReasonNotPublishedByRegistry {
+		t.Fatalf("domain_expiry reason = %q, want %q (no expiration event in the fixture)", got3.Reason, assessor.ReasonNotPublishedByRegistry)
 	}
 }
 

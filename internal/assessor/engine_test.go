@@ -139,6 +139,77 @@ func TestScoreDimension_AllStructuralIsNotApplicable(t *testing.T) {
 	if len(acc.Rationale) != 2 {
 		t.Errorf("want structural rationale entries retained for display, got %d", len(acc.Rationale))
 	}
+	if !acc.NotApplicable {
+		t.Errorf("want NotApplicable explicitly set true when every rule is structural")
+	}
+}
+
+// TestScoreDimension_NotApplicableExplicitFlag pins task 7.4: a
+// dimension whose every rationale is structural is marked not
+// applicable via an explicit field, not only derivable by a caller
+// re-scanning Rationale for reason class. A dimension with no rules at
+// all (the pre-existing "no rule pack for this dimension" case) is a
+// different situation and must NOT be flagged NotApplicable.
+func TestScoreDimension_NotApplicableExplicitFlag(t *testing.T) {
+	got := Assess(nil, []Rule{
+		ruleAlways("m.1", models.DimensionMens, RuleResult{
+			Score: models.ScoreOnbekend, Verdict: "hit", Evidence: []string{"f1"},
+		}),
+	})
+	mens := findDim(t, got, models.DimensionMens)
+	if mens.NotApplicable {
+		t.Errorf("evidenced dimension must not be NotApplicable")
+	}
+	juridisch := findDim(t, got, models.DimensionJuridisch)
+	if juridisch.NotApplicable {
+		t.Errorf("dimension with zero registered rules must not be NotApplicable (it is simply unaddressed, not structurally inapplicable)")
+	}
+}
+
+// TestScoreDimension_ReasonForcesOnbekend pins task 7.4's engine fix:
+// a rationale with a reason always scores onbekend, whatever the rule
+// itself returned — run 01 passed res.Score through unchanged, which
+// let a buggy rule leak a non-onbekend score alongside a reason.
+func TestScoreDimension_ReasonForcesOnbekend(t *testing.T) {
+	rules := []Rule{
+		ruleAlways("a.1", models.DimensionAccountability, RuleResult{
+			// A rule bug: scores soeverein while also carrying a
+			// reason. The engine must not trust this — it forces
+			// onbekend regardless of the class the reason belongs to.
+			Score: models.ScoreSoeverein, Verdict: "buggy", Evidence: []string{"f1"}, Reason: ReasonProbeUnavailable,
+		}),
+	}
+	got := Assess(nil, rules)
+	acc := findDim(t, got, models.DimensionAccountability)
+	if len(acc.Rationale) != 1 {
+		t.Fatalf("want 1 rationale, got %d", len(acc.Rationale))
+	}
+	if acc.Rationale[0].Score != models.ScoreOnbekend {
+		t.Errorf("rationale.Score = %s, want onbekend forced by the reason", acc.Rationale[0].Score)
+	}
+	if acc.Rationale[0].Reason != ReasonProbeUnavailable {
+		t.Errorf("reason not preserved: got %q", acc.Rationale[0].Reason)
+	}
+}
+
+// TestScoreDimension_OldAssessmentReasonlessUnaffected pins the
+// "keep old assessments loading unchanged" requirement: a rationale
+// with no reason is passed through exactly as returned, untouched by
+// the new forcing behaviour.
+func TestScoreDimension_OldAssessmentReasonlessUnaffected(t *testing.T) {
+	rules := []Rule{
+		ruleAlways("j.1", models.DimensionJuridisch, RuleResult{
+			Score: models.ScoreVoldoende, Verdict: "v1", Evidence: []string{"f1"},
+		}),
+	}
+	got := Assess(nil, rules)
+	jur := findDim(t, got, models.DimensionJuridisch)
+	if jur.Rationale[0].Score != models.ScoreVoldoende {
+		t.Errorf("reasonless rationale.Score = %s, want voldoende unchanged", jur.Rationale[0].Score)
+	}
+	if jur.Rationale[0].Reason != "" {
+		t.Errorf("reasonless rationale.Reason = %q, want empty", jur.Rationale[0].Reason)
+	}
 }
 
 func TestScoreDimension_GapReasonCountsAsHole(t *testing.T) {

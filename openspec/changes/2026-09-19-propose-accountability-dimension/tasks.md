@@ -75,18 +75,18 @@ run checks off only the tasks of its own cluster.
 ## 7. Assessor rules + copy — run 06
 - [x] 7.1 `privacy_proxies.yaml` + `registry_redaction.yaml` (seed
   `nl: SIDN`) + loaders (pattern: `package_vendors.yaml`).
-- [ ] 7.2 Five accountability rules + `domain_expiry` +
+- [x] 7.2 Five accountability rules + `domain_expiry` +
   `variant_convergence`; table-driven tests incl. every onbekend and
   n.v.t. path; the rijksoverheid fixture yields no_reseller soeverein,
   registrant n.v.t. (`registry_redacted`), expiry n.v.t.
   (`not_published_by_registry`).
-- [ ] 7.4 Follow-up from run 01 review: the engine forces a rationale's
+- [x] 7.4 Follow-up from run 01 review: the engine forces a rationale's
   score to onbekend whenever it carries a reason (spec: "a rationale with
   a reason SHALL score onbekend" — run 01 passes `res.Score` through), and
   a dimension whose every rationale is structural is marked not
   applicable explicitly instead of only being derivable from its
   rationale list. Test both.
-- [ ] 7.3 `accountability_nl.yaml` string table (question, verdict per
+- [x] 7.3 `accountability_nl.yaml` string table (question, verdict per
   outcome, remediation) + load-time completeness test.
 
 ## 8. UI — run 07

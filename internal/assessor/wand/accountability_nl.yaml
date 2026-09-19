@@ -1,0 +1,94 @@
+# Dutch answer-sheet copy for the accountability dimension's seven
+# rules (five wand.accountability rules + the two wand.operationeel
+# rules this change adds). One entry per rule ID: the plain-language
+# question, verdict text per outcome, and one remediation line per
+# failing outcome. Templates use named parameters only ({registrant},
+# {date}, {path}, …) — never positional formatting.
+#
+# This is the single Dutch string table (design.md "Copy: one Dutch
+# string table"); there is no i18n machinery. Spec scenarios stay in
+# English (repo convention); this shipped copy is Dutch.
+#
+# "structural" is the verdict shown when the rule scored onbekend with
+# a structural reason (n.v.t.) — see internal/assessor/reason.go.
+# There is no remediation line for it: n.v.t. is not a failure to fix.
+
+rules:
+  wand.accountability.registrant_identifiable:
+    question: "Weten we wie er achter dit domein staat?"
+    verdicts:
+      soeverein: "Ja — de registrant ({registrant}) komt overeen met de organisatie."
+      voldoende: "De registrant ({registrant}) is bekend, maar komt niet overeen met een opgegeven naam van de organisatie."
+      afhankelijk: "De registrant is verborgen achter een commerciële privacydienst ({proxy})."
+      onbekend: "Onbekend — de RDAP-opvraging is mislukt."
+      structural: "N.v.t. — het register ({registry}) publiceert geen registrantgegevens voor .{tld}."
+    remediation:
+      afhankelijk: "Schakel de privacydienst uit bij de registrar en registreer het domein onder de eigen organisatienaam."
+      onbekend: "Probeer de RDAP-opvraging later opnieuw of vraag de gegevens handmatig op bij het register."
+
+  wand.accountability.no_reseller:
+    question: "Heeft de organisatie een rechtstreekse relatie met de registrar?"
+    verdicts:
+      soeverein: "Ja — geen reseller, rechtstreekse relatie met de registrar."
+      voldoende: "De relatie met de registrar kon niet volledig worden bevestigd."
+      afhankelijk: "Er zit een reseller ({reseller}) tussen de organisatie en de registrar."
+      onbekend: "Onbekend — de RDAP-gegevens konden niet worden geïnterpreteerd."
+    remediation:
+      afhankelijk: "Zet het domein rechtstreeks bij de registrar, of vraag {reseller} naar de overdrachtsprocedure."
+      onbekend: "Vraag de RDAP-gegevens handmatig op om de registrar-relatie te bevestigen."
+
+  wand.accountability.soa_rname:
+    question: "Is het contactadres van de DNS-zone bereikbaar?"
+    verdicts:
+      soeverein: "Ja — het mailboxdomein ({mailbox}) bestaat en ontvangt mail (aflevering zelf is niet gecontroleerd)."
+      voldoende: "Het mailboxdomein ({mailbox}) bestaat, maar ontvangt geen mail (geen MX-record)."
+      afhankelijk: "Het mailboxdomein ({mailbox}) bestaat niet — een dood contactadres."
+      onbekend: "Onbekend — de SOA-opvraging is mislukt."
+    remediation:
+      afhankelijk: "Corrigeer het RNAME-veld van de SOA zodat het naar een bestaand, bereikbaar mailboxdomein wijst."
+      onbekend: "Controleer de DNS-configuratie en probeer de SOA-opvraging opnieuw."
+
+  wand.accountability.securitytxt:
+    question: "Is er een security.txt met een actueel contact?"
+    verdicts:
+      soeverein: "Ja — security.txt is aanwezig met een contact en een geldige vervaldatum ({date})."
+      voldoende: "security.txt is aanwezig, maar mist velden of is verlopen ({date})."
+      afhankelijk: "Geen security.txt gepubliceerd op /.well-known/security.txt."
+      onbekend: "Onbekend — het ophalen van security.txt is mislukt."
+    remediation:
+      afhankelijk: "Publiceer een security.txt op /.well-known/security.txt met een Contact- en een Expires-veld."
+      onbekend: "Controleer of /.well-known/security.txt bereikbaar is en probeer het opnieuw."
+
+  wand.accountability.ns_holder_transparent:
+    question: "Is duidelijk wie de nameservers beheert?"
+    verdicts:
+      soeverein: "Ja — alle {count} van {total} nameserver-beheerders zijn identificeerbaar."
+      voldoende: "{count} van {total} nameserver-beheerders zijn identificeerbaar; onduidelijk: {domains}."
+      afhankelijk: "Geen van de nameserver-beheerders is identificeerbaar ({domains})."
+      onbekend: "Onbekend — geen enkele nameserver-opvraging is gelukt."
+    remediation:
+      afhankelijk: "Vraag de nameserver-provider(s) ({domains}) om identificeerbare registrantgegevens te publiceren."
+      onbekend: "Probeer de RDAP-opvraging voor de nameserver-domeinen later opnieuw."
+
+  wand.operationeel.domain_expiry:
+    question: "Loopt de domeinregistratie binnenkort af?"
+    verdicts:
+      soeverein: "Nee — de registratie loopt af op {date}, ruim op tijd."
+      voldoende: "De registratie loopt af op {date} — verlenging is binnen 90 dagen nodig."
+      afhankelijk: "De registratie loopt af op {date} — verlenging is binnen 30 dagen nodig, of al verstreken."
+      onbekend: "Onbekend — de RDAP-opvraging is mislukt."
+      structural: "N.v.t. — het register publiceert geen vervaldatum voor dit domein."
+    remediation:
+      afhankelijk: "Verleng de domeinregistratie direct en zet automatische verlenging aan bij de registrar."
+      onbekend: "Probeer de RDAP-opvraging later opnieuw of controleer de vervaldatum handmatig bij het register."
+
+  wand.operationeel.variant_convergence:
+    question: "Komen alle toegangswegen tot de website uit op hetzelfde, beveiligde adres?"
+    verdicts:
+      soeverein: "Ja — {count} van {total} geteste paden komen uit op hetzelfde, beveiligde adres."
+      voldoende: "{count} van {total} geteste paden komen niet allemaal op hetzelfde adres uit."
+      afhankelijk: "Pad {path} levert inhoud via onbeveiligd HTTP, zonder door te sturen naar HTTPS."
+      onbekend: "Onbekend — de toegangswegen konden niet worden getest."
+    remediation:
+      afhankelijk: "Stel een permanente doorverwijzing van HTTP naar HTTPS in voor {path}."
+      onbekend: "Controleer of de website bereikbaar is en probeer de test later opnieuw."

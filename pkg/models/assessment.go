@@ -101,6 +101,13 @@ type DimensionScore struct {
 	Score        Score         `json:"score"`
 	Completeness Completeness  `json:"completeness"`
 	Rationale    []Rationale   `json:"rationale"`
+	// NotApplicable is true when every rule registered for this
+	// dimension carried a structural reason (n.v.t.), set explicitly
+	// by the engine rather than left for callers to re-derive by
+	// inspecting Rationale. Excluded from any overall score. Additive
+	// (omitempty): assessments persisted before this field existed
+	// still load unchanged, defaulting to false.
+	NotApplicable bool `json:"not_applicable,omitempty"`
 }
 
 // Assessment is the output of running a rule set against a Scan's

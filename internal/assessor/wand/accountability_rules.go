@@ -15,7 +15,9 @@ import (
 	"github.com/MWest2020/wanderer/pkg/models"
 )
 
-// accountabilityRules returns the five accountability rules, wired
+// accountabilityRules returns the five accountability-dimension rules
+// plus the two operationeel rules that share this change's RDAP and
+// variants-probe evidence (domain_expiry, variant_convergence), wired
 // into DefaultRules().
 func accountabilityRules() []assessor.Rule {
 	return []assessor.Rule{
@@ -24,6 +26,8 @@ func accountabilityRules() []assessor.Rule {
 		soaRname(),
 		securitytxt(),
 		nsHolderTransparent(),
+		domainExpiry(),
+		variantConvergence(),
 	}
 }
 
@@ -359,6 +363,335 @@ func nsHolderTransparent() assessor.Rule {
 					Evidence: evidence,
 				}
 			}
+		},
+	}
+}
+
+// domainExpiry scores the registration expiry event under the
+// operationeel dimension. It never guesses: when RDAP answered but
+// the registry publishes no expiration event (as SIDN does not for
+// .nl), the rule scores onbekend with reason
+// `not_published_by_registry` — structural, so it never lowers the
+// operationeel dimension's completeness.
+func domainExpiry() assessor.Rule {
+	return assessor.Rule{
+		ID:          "wand.operationeel.domain_expiry",
+		Dimension:   models.DimensionOperationeel,
+		Description: "The domain registration will not lapse unexpectedly.",
+		Rationale: "A domain that lapses because nobody renewed it in time is an " +
+			"outage an attacker can turn into a takeover: a lapsed domain can be " +
+			"re-registered by anyone, including someone impersonating the " +
+			"organisation. A 90-day horizon gives an operator real lead time; " +
+			"inside 30 days — or already past — the renewal has become urgent.",
+		Match: func(findings []models.Finding) assessor.RuleResult {
+			var expiry models.Finding
+			haveExpiry := false
+			var unavailableID string
+			for _, fnd := range findings {
+				switch fnd.ProbeID {
+				case "whois.expiry":
+					expiry = fnd
+					haveExpiry = true
+				case "whois.unavailable":
+					unavailableID = fnd.ID
+				}
+			}
+			if !haveExpiry {
+				var evidence []string
+				if unavailableID != "" {
+					evidence = []string{unavailableID}
+				}
+				return assessor.RuleResult{
+					Score:    models.ScoreOnbekend,
+					Verdict:  "no whois.expiry finding — RDAP lookup unavailable",
+					Evidence: evidence,
+					Reason:   assessor.ReasonProbeUnavailable,
+				}
+			}
+
+			present, _ := expiry.Attributes["present"].(bool)
+			if !present {
+				return assessor.RuleResult{
+					Score:    models.ScoreOnbekend,
+					Verdict:  "RDAP answered but the registry publishes no expiration date for this domain",
+					Evidence: []string{expiry.ID},
+					Reason:   assessor.ReasonNotPublishedByRegistry,
+				}
+			}
+
+			dateRaw := stringFromAttr(expiry.Attributes, "date")
+			expiresAt, err := time.Parse(time.RFC3339, dateRaw)
+			if err != nil {
+				return assessor.RuleResult{
+					Score:    models.ScoreOnbekend,
+					Verdict:  fmt.Sprintf("whois.expiry date %q could not be parsed", dateRaw),
+					Evidence: []string{expiry.ID},
+				}
+			}
+
+			daysLeft := int(time.Until(expiresAt).Hours() / 24)
+			switch {
+			case daysLeft > 90:
+				return assessor.RuleResult{
+					Score: models.ScoreSoeverein,
+					Verdict: fmt.Sprintf(
+						"domain registration expires %s (%d days out) — no near-term lapse risk",
+						expiresAt.Format("2006-01-02"), daysLeft,
+					),
+					Evidence: []string{expiry.ID},
+				}
+			case daysLeft > 30:
+				return assessor.RuleResult{
+					Score: models.ScoreVoldoende,
+					Verdict: fmt.Sprintf(
+						"domain registration expires %s (%d days out) — renewal due within 90 days",
+						expiresAt.Format("2006-01-02"), daysLeft,
+					),
+					Evidence: []string{expiry.ID},
+				}
+			default:
+				return assessor.RuleResult{
+					Score: models.ScoreAfhankelijk,
+					Verdict: fmt.Sprintf(
+						"domain registration expires %s — renewal due within 30 days or already past",
+						expiresAt.Format("2006-01-02"),
+					),
+					Evidence: []string{expiry.ID},
+				}
+			}
+		},
+	}
+}
+
+// Path status values mirror internal/probe/variants.Status*. Kept as
+// local string literals — not imported from the probe package — so
+// the assessor stays a pure consumer of models.Finding (rule.go: "the
+// package is a pure consumer of models.Finding — it does not probe").
+const (
+	variantStatusReachable         = "reachable"
+	variantStatusNotFollowedBudget = "not_followed_budget"
+	variantStatusNotTested         = "not_tested"
+)
+
+// variantPathInfo is the subset of variants.PathResult the rule reads
+// off the http.variants finding's "paths" attribute. Parsed by hand
+// (not imported from internal/probe/variants) so the assessor package
+// keeps its "pure consumer of Findings" boundary.
+type variantPathInfo struct {
+	HostPart    string
+	Family      string
+	Scheme      string
+	Status      string
+	FinalOrigin string
+	Reason      string
+}
+
+// variantPaths parses the http.variants finding's "paths" attribute,
+// tolerant of both the in-memory ([]variants.PathResult serialised as
+// []map[string]any by the store's JSON round trip becomes []any) and
+// direct-from-probe shapes tests construct.
+func variantPaths(raw any) []variantPathInfo {
+	var out []variantPathInfo
+	add := func(m map[string]any) {
+		out = append(out, variantPathInfo{
+			HostPart:    stringFromAttr(m, "host_part"),
+			Family:      stringFromAttr(m, "family"),
+			Scheme:      stringFromAttr(m, "scheme"),
+			Status:      stringFromAttr(m, "status"),
+			FinalOrigin: stringFromAttr(m, "final_origin"),
+			Reason:      stringFromAttr(m, "reason"),
+		})
+	}
+	switch v := raw.(type) {
+	case []map[string]any:
+		for _, m := range v {
+			add(m)
+		}
+	case []any:
+		for _, r := range v {
+			if m, ok := r.(map[string]any); ok {
+				add(m)
+			}
+		}
+	}
+	return out
+}
+
+// familyHasDNSRecord reports whether the scan recorded an apex A
+// (family "v4") or AAAA (family "v6") record — the signal that
+// distinguishes "this family was never offered" from "this family is
+// offered but broken", so a family the domain never published in DNS
+// is not blamed as "dead".
+func familyHasDNSRecord(findings []models.Finding, family string) bool {
+	probeID := "dns.a"
+	if family == "v6" {
+		probeID = "dns.aaaa"
+	}
+	for _, f := range findings {
+		if f.ProbeID == probeID && assessor.IsEvidenceLike(f) {
+			return true
+		}
+	}
+	return false
+}
+
+// variantConvergence scores, under the operationeel dimension,
+// whether all observed apex/www x IPv4/IPv6 x http/https paths
+// converge on one canonical HTTPS origin (design.md "Politeness
+// (variants probe)"). Paths recorded `not_followed_budget` or
+// `not_tested` never count as dead — a scanner-side limitation
+// (`scanner_no_ipv6`) is reported as a reason on the result, never
+// charged to the target as a missing family.
+func variantConvergence() assessor.Rule {
+	return assessor.Rule{
+		ID:          "wand.operationeel.variant_convergence",
+		Dimension:   models.DimensionOperationeel,
+		Description: "All apex/www x IPv4/IPv6 x http/https paths converge on one canonical HTTPS origin.",
+		Rationale: "A visitor, a bookmark, or a stale link can land on any of eight " +
+			"apex/www x IPv4/IPv6 x http/https combinations. When they don't all " +
+			"funnel to the same secure origin, some of those entry points serve " +
+			"unencrypted content or a different, possibly unmaintained site — a " +
+			"gap an attacker can sit in front of. Convergence is the operational " +
+			"discipline of making every door lead to the same, secured room.",
+		Match: func(findings []models.Finding) assessor.RuleResult {
+			var variantsFinding models.Finding
+			haveVariants := false
+			unavailableID := ""
+			for _, fnd := range findings {
+				switch fnd.ProbeID {
+				case "http.variants":
+					variantsFinding = fnd
+					haveVariants = true
+				case "http.variants.unavailable":
+					unavailableID = fnd.ID
+				}
+			}
+			if !haveVariants {
+				var evidence []string
+				if unavailableID != "" {
+					evidence = []string{unavailableID}
+				}
+				return assessor.RuleResult{
+					Score:    models.ScoreOnbekend,
+					Verdict:  "no http.variants finding — variants probe unavailable",
+					Evidence: evidence,
+					Reason:   assessor.ReasonProbeUnavailable,
+				}
+			}
+
+			paths := variantPaths(variantsFinding.Attributes["paths"])
+			total := len(paths)
+			if total == 0 {
+				return assessor.RuleResult{
+					Score:    models.ScoreOnbekend,
+					Verdict:  "http.variants finding carries no path results",
+					Evidence: []string{variantsFinding.ID},
+					Reason:   assessor.ReasonProbeUnavailable,
+				}
+			}
+
+			var reachable, plainHTTP []variantPathInfo
+			observed := 0
+			scannerBlind := false
+			familyAttempted := map[string]bool{}
+			familyReachable := map[string]bool{}
+			for _, p := range paths {
+				if p.Status == variantStatusNotTested {
+					if p.Reason == assessor.ReasonScannerNoIPv6 {
+						scannerBlind = true
+					}
+					continue
+				}
+				if p.Status == variantStatusNotFollowedBudget {
+					continue
+				}
+				observed++
+				familyAttempted[p.Family] = true
+				if p.Status == variantStatusReachable {
+					familyReachable[p.Family] = true
+					reachable = append(reachable, p)
+					if p.Scheme == "http" && strings.HasPrefix(p.FinalOrigin, "http://") {
+						plainHTTP = append(plainHTTP, p)
+					}
+				}
+			}
+
+			if len(plainHTTP) > 0 {
+				names := make([]string, 0, len(plainHTTP))
+				for _, p := range plainHTTP {
+					names = append(names, fmt.Sprintf("%s/%s/%s", p.HostPart, p.Family, p.Scheme))
+				}
+				return assessor.RuleResult{
+					Score: models.ScoreAfhankelijk,
+					Verdict: fmt.Sprintf(
+						"%s serves content over plain HTTP without redirecting to HTTPS",
+						strings.Join(names, ", "),
+					),
+					Evidence: []string{variantsFinding.ID},
+				}
+			}
+
+			if len(reachable) == 0 {
+				return assessor.RuleResult{
+					Score: models.ScoreAfhankelijk,
+					Verdict: fmt.Sprintf(
+						"no path reached a final destination (%d of %d paths observed)",
+						observed, total,
+					),
+					Evidence: []string{variantsFinding.ID},
+				}
+			}
+
+			origins := map[string]bool{}
+			for _, p := range reachable {
+				origins[p.FinalOrigin] = true
+			}
+
+			var deadFamilies []string
+			for _, fam := range []string{"v4", "v6"} {
+				if !familyAttempted[fam] || familyReachable[fam] {
+					continue
+				}
+				if familyHasDNSRecord(findings, fam) {
+					deadFamilies = append(deadFamilies, fam)
+				}
+			}
+
+			if len(origins) == 1 && len(deadFamilies) == 0 {
+				var origin string
+				for o := range origins {
+					origin = o
+				}
+				res := assessor.RuleResult{
+					Score: models.ScoreSoeverein,
+					Verdict: fmt.Sprintf(
+						"all %d of %d observed paths converge on %s",
+						observed, total, origin,
+					),
+					Evidence: []string{variantsFinding.ID},
+				}
+				if scannerBlind {
+					res.Reason = assessor.ReasonScannerNoIPv6
+				}
+				return res
+			}
+
+			detail := fmt.Sprintf("%d of %d observed paths reach %d distinct origins", observed, total, len(origins))
+			if len(deadFamilies) > 0 {
+				detail = fmt.Sprintf(
+					"%s family unreachable despite a published DNS record; %s",
+					strings.Join(deadFamilies, ", "), detail,
+				)
+			}
+			res := assessor.RuleResult{
+				Score:    models.ScoreVoldoende,
+				Verdict:  detail,
+				Evidence: []string{variantsFinding.ID},
+			}
+			if scannerBlind {
+				res.Reason = assessor.ReasonScannerNoIPv6
+			}
+			return res
 		},
 	}
 }

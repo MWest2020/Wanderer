@@ -56,6 +56,7 @@ func scoreDimension(dim models.DimensionHint, rules []Rule, findings []models.Fi
 
 	evidenced := 0
 	total := 0
+	structural := 0
 	worst := models.Score("")
 	for _, r := range rules {
 		res := safeMatch(r, findings)
@@ -68,6 +69,11 @@ func scoreDimension(dim models.DimensionHint, rules []Rule, findings []models.Fi
 			Reason:      res.Reason,
 		}
 		if res.Reason != "" {
+			// A rationale with a reason always scores onbekend,
+			// whatever the rule itself returned — the four-value scale
+			// is never extended, and callers reading Rationale.Score
+			// don't have to special-case reason-carrying entries.
+			rat.Score = models.ScoreOnbekend
 			class, _ := ReasonInfo(res.Reason)
 			if class == ReasonStructural {
 				// Not applicable to this target: excluded from both the
@@ -75,6 +81,7 @@ func scoreDimension(dim models.DimensionHint, rules []Rule, findings []models.Fi
 				// denominator, not merely from the evidence count. A
 				// dimension whose every rule lands here is left with
 				// total == 0 below and reports as not applicable.
+				structural++
 				ds.Rationale = append(ds.Rationale, rat)
 				continue
 			}
@@ -101,6 +108,13 @@ func scoreDimension(dim models.DimensionHint, rules []Rule, findings []models.Fi
 		}
 		ds.Rationale = append(ds.Rationale, rat)
 	}
+
+	// A dimension whose every registered rule carried a structural
+	// reason is explicitly not applicable, set here rather than left
+	// for callers to re-derive by re-scanning Rationale for reason
+	// class. Left out of any overall score, same as an onbekend
+	// dimension, but distinguishable from "nothing could be measured".
+	ds.NotApplicable = len(rules) > 0 && structural == len(rules)
 
 	switch {
 	case evidenced == 0:
