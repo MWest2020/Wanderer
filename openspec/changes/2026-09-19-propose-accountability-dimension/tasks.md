@@ -119,6 +119,15 @@ run checks off only the tasks of its own cluster.
 - [ ] 8.4 Playwright smoke: expand evidence, onbekend vs n.v.t.
   rendering.
 
+- [ ] 8.6 UI-defect, gevonden toen de spec eindelijk draaide: de
+  rapportpagina rendert per framework een dimensiekaart met
+  `id="<dimensie>"`, dus met twee frameworks staan er twee elementen met
+  `id="accountability"` op één pagina. Dubbele id's zijn ongeldige HTML
+  en maken de ankerlink van de Overview-pil dubbelzinnig (de test faalt
+  erop met "resolved to 2 elements"). Maak het anker uniek per framework
+  (bijv. `wand-accountability`), laat de pil daarheen wijzen en pas de
+  spec aan. Alleen de ankers; de kaartinhoud blijft.
+
 ## 9. Wrap-up — run 08
 - [ ] 9.1 docs/reference/assessor.md + findings.md updates (reason
   codes, new findings, new dimension); CHANGELOG.
