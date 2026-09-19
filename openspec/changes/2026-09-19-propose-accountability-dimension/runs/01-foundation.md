@@ -9,9 +9,11 @@ specs/assessor/spec.md).
 - 2.2 Rename `DICTUDimensions` → `WandDimensions` (append
   `accountability`); no consumer or test assumes a dimension count.
 - 2.3 Reason codes: `Reason` on `RuleResult`, `reason,omitempty` on
-  `models.Rationale`; one registry table (code → `structural`|`gap`)
-  seeded with `registry_redacted`, `not_published_by_registry`
-  (structural), `probe_unavailable`, `scanner_no_ipv6` (gap). Unknown
+  `models.Rationale`; one registry table (code → class
+  `structural`|`gap` + subject `target`|`scanner`) seeded with
+  `registry_redacted`, `not_published_by_registry` (structural,
+  target), `scanner_no_ipv6` (structural, scanner), `probe_unavailable`
+  (gap, target). Unknown
   code → test failure. Generic: no accountability-specific branches.
 - 2.4 `scoreDimension`: structural rationales excluded from worst
   score and completeness denominator; all-structural dimension

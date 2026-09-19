@@ -29,7 +29,14 @@ fifth score. Codes seeded by this change:
 | `registry_redacted` | structural | registrant_identifiable on a TLD in `registry_redaction.yaml` |
 | `not_published_by_registry` | structural | domain_expiry when the registry publishes no expiration event |
 | `probe_unavailable` | gap | any rule backed only by a `*.unavailable` finding |
-| `scanner_no_ipv6` | gap | variant_convergence when the scanner itself has no IPv6 route |
+| `scanner_no_ipv6` | structural (subject: scanner) | variant_convergence paths the scanner could not test because it has no IPv6 route |
+
+Each code also names its **subject**: `target` (default — the verdict
+says something about the scanned domain) or `scanner` (the verdict
+says something about Wanderer's own environment). A scanner-subject
+code never renders as a property of the target: the UI shows it as an
+operator environment warning ("scanner heeft geen IPv6 — v6-paden
+niet gemeten") beside the report, not as an answer.
 
 The standards change adds `not_measured` and `measurement_stale`
 (both `gap`) to the same table. An unknown code is a test failure,
@@ -52,8 +59,10 @@ recorded as `not_followed_budget` and the rule scores on what was
 observed. Allowed optimisation: a chain stops as soon as it lands on
 an origin already verified in this run. If the scanner host has no
 IPv6 route, v6 paths are recorded as `not_tested` with reason
-`scanner_no_ipv6` — a dead v6 family on the target is only claimed
-when the scanner could have reached it.
+`scanner_no_ipv6` (structural, subject scanner) — a dead v6 family on
+the target is only claimed when the scanner could have reached it, and
+the missing measurement is reported to the operator as an environment
+warning, not charged to the target.
 
 At 24 connections this is still less traffic than one browser page
 load. If an operator scans third-party domains they do not own, the

@@ -21,7 +21,7 @@ run checks off only the tasks of its own cluster.
   `report_test.go`).
 - [ ] 2.3 Reason codes: `Reason` on `RuleResult`, `reason`
   (`omitempty`) on `models.Rationale`; one registry table mapping code
-  → class (`structural`/`gap`) seeded with the four codes in
+  → class (`structural`/`gap`) + subject (`target`/`scanner`) seeded with the four codes in
   design.md; unknown code fails a test.
 - [ ] 2.4 `scoreDimension`: structural rationales excluded from worst
   score and completeness denominator; all-structural dimension →
@@ -56,7 +56,7 @@ run checks off only the tasks of its own cluster.
   `not_followed_budget`, stop on already-verified origin.
 - [ ] 6.2 SSRF guard on every hop; private-redirect fixture.
 - [ ] 6.3 `scanner_no_ipv6`: v6 paths `not_tested` when the scanner has
-  no IPv6 route.
+  no IPv6 route (structural, subject scanner).
 
 ## 7. Assessor rules + copy — run 06
 - [ ] 7.1 `privacy_proxies.yaml` + `registry_redaction.yaml` (seed
@@ -75,6 +75,7 @@ run checks off only the tasks of its own cluster.
 - [ ] 8.2 Accountability pill on the Overview rows; "not assessed" and
   "n.v.t." states; overall score names the dimensions it covers.
 - [ ] 8.3 Review pass against Wordsworth's tone/interaction patterns;
+  scanner-subject reasons render as operator warnings, not answers;
   a `.nl` fleet must still read as a story (four non-n.v.t.
   questions carry it); verdict copy readable by a non-specialist or
   it goes back.

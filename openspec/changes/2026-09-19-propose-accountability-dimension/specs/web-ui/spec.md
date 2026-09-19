@@ -130,6 +130,24 @@ the two-tab IA of ADR-0017 intact.
 - **WHEN** the operator opens `/ui/`
 - **THEN** the pill renders as "niet beoordeeld", not as a failure
 
+---
+
+### Requirement: Scanner limitations render as operator warnings
+
+A rationale whose reason code has subject `scanner` SHALL NOT be
+rendered as a property of the target. The report SHALL show it as an
+operator environment warning next to the dimension, and the answer
+itself SHALL be based on what was observed.
+
+#### Scenario: Scanner without IPv6
+
+- **GIVEN** a variant_convergence rationale with reason
+  `scanner_no_ipv6`
+- **WHEN** the operator opens the report
+- **THEN** a warning reads "scanner heeft geen IPv6 — v6-paden niet
+  gemeten", styled as an environment notice
+- **AND** the question's answer reflects only the observed v4 paths
+
 ## MODIFIED Requirements
 
 ### Requirement: Worst-dimension score excludes onbekend dimensions

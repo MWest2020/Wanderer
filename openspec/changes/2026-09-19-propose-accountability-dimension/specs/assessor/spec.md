@@ -231,8 +231,10 @@ observed.
   `not_tested` with reason `scanner_no_ipv6` and whose v4 paths
   converge
 - **WHEN** the assessor runs
-- **THEN** the rule does not score voldoende for a dead v6 family
+- **THEN** the rule scores soeverein on the observed v4 paths and does
+  not score voldoende for a dead v6 family
 - **AND** the verdict states that 4 of 8 paths were observed
+- **AND** the rationale carries reason `scanner_no_ipv6`
 
 #### Scenario: Probe timeout
 
@@ -247,7 +249,8 @@ observed.
 A rule result MAY carry a `reason` code, persisted as `reason`
 (omitted when empty) on the rationale. Every code SHALL be registered
 in one table with exactly one class: `structural` (not applicable) or
-`gap` (measurement hole). A rationale with a reason SHALL score
+`gap` (measurement hole), and one subject: `target` (default) or
+`scanner` (a limitation of Wanderer's own environment). A rationale with a reason SHALL score
 onbekend; the four-value scale SHALL NOT be extended. Emitting a code
 absent from the table SHALL fail the assessor's tests. The mechanism
 SHALL NOT be specific to any dimension or pack.
@@ -256,8 +259,10 @@ SHALL NOT be specific to any dimension or pack.
 
 - **WHEN** the reason-code table is loaded
 - **THEN** it contains `registry_redacted` and
-  `not_published_by_registry` as structural, and `probe_unavailable`
-  and `scanner_no_ipv6` as gap
+  `not_published_by_registry` and `scanner_no_ipv6` as structural,
+  and `probe_unavailable` as gap
+- **AND** `scanner_no_ipv6` has subject `scanner`, all others subject
+  `target`
 
 #### Scenario: Old assessment JSON still loads
 
