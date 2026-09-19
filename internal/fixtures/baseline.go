@@ -99,6 +99,30 @@ func baselineSovereignFindings(domain string) []models.Finding {
 			"organisation": "Leaseweb Netherlands B.V.",
 			"asn":          60781,
 		}),
+		// Accountability-dimension findings (run 08b): shared by both
+		// baseline scans so each scan's answer sheet demonstrates all
+		// four answer states on its own. config.expected_registrant
+		// resolves accountabilityDomain() so registrant_identifiable
+		// can tell conduction.nl's ".nl" TLD (registry-redacted, n.v.t.)
+		// apart from acme.example.com's ".com" (no whois.registrant_identity
+		// finding here, so it reads onbekend/probe_unavailable) — see
+		// internal/assessor/wand/accountability_rules.go.
+		mkFinding("config.expected_registrant", domain, models.DimensionAccountability, map[string]any{
+			"expected_registrant": []string{},
+		}),
+		// no whois.registrant_identity / whois.reseller name lookup
+		// succeeded — whois.reseller "present" below still scores
+		// no_reseller independently of registrant_identifiable.
+		mkFinding("whois.reseller", domain, models.DimensionAccountability, map[string]any{
+			"present": true,
+			"name":    "Reseller Hosting B.V.",
+		}),
+		mkFinding("http.securitytxt", domain, models.DimensionAccountability, map[string]any{
+			"present":   true,
+			"parseable": true,
+			"contact":   []string{"mailto:security@" + domain},
+			"expires":   baseTime.AddDate(1, 0, 0).Format("2006-01-02T15:04:05Z07:00"),
+		}),
 	}
 }
 

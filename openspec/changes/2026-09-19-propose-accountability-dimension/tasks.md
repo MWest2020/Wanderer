@@ -110,7 +110,7 @@ run checks off only the tasks of its own cluster.
   a `.nl` fleet must still read as a story (four non-n.v.t.
   questions carry it); verdict copy readable by a non-specialist or
   it goes back.
-- [ ] 8.5 De spec uit 8.4 draait niet: `tests/playwright/playwright.config.ts`
+- [x] 8.5 De spec uit 8.4 draait niet: `tests/playwright/playwright.config.ts`
   kent hem niet (elke project noemt zijn specs in `testMatch`), en de
   `baseline`-fixture (`internal/fixtures`) bevat geen
   accountability-findings. Zet de spec in het baseline-project en vul de
