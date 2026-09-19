@@ -66,6 +66,12 @@ run checks off only the tasks of its own cluster.
   n.v.t. path; the rijksoverheid fixture yields no_reseller soeverein,
   registrant n.v.t. (`registry_redacted`), expiry n.v.t.
   (`not_published_by_registry`).
+- [ ] 7.4 Follow-up from run 01 review: the engine forces a rationale's
+  score to onbekend whenever it carries a reason (spec: "a rationale with
+  a reason SHALL score onbekend" — run 01 passes `res.Score` through), and
+  a dimension whose every rationale is structural is marked not
+  applicable explicitly instead of only being derivable from its
+  rationale list. Test both.
 - [ ] 7.3 `accountability_nl.yaml` string table (question, verdict per
   outcome, remediation) + load-time completeness test.
 
