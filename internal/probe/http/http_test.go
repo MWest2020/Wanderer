@@ -2,6 +2,8 @@ package http_test
 
 import (
 	"context"
+	"errors"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -67,6 +69,144 @@ func TestHTTPSFetchAndExtract(t *testing.T) {
 	}
 	if _, ok := hosts["images.example.net"]; !ok {
 		t.Errorf("images.example.net not seen in third parties: %v", hosts)
+	}
+}
+
+func findingByProbeID(findings []models.Finding, id string) *models.Finding {
+	for i := range findings {
+		if findings[i].ProbeID == id {
+			return &findings[i]
+		}
+	}
+	return nil
+}
+
+func TestSecurityTxtValid(t *testing.T) {
+	ts := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/robots.txt":
+			http.NotFound(w, r)
+		case "/.well-known/security.txt":
+			w.Header().Set("Content-Type", "text/plain")
+			_, _ = w.Write([]byte("Contact: mailto:security@voorbeeld.nl\nExpires: 2027-01-01T00:00:00.000Z\n"))
+		default:
+			_, _ = w.Write([]byte("<!doctype html><html><body>hi</body></html>"))
+		}
+	}))
+	defer ts.Close()
+	host := strings.TrimPrefix(ts.URL, "https://")
+	p := &httpprobe.Probe{Client: ts.Client()}
+	findings, err := p.Run(context.Background(), models.Target{Domain: host}, probe.Config{})
+	if err != nil {
+		t.Fatalf("run: %v", err)
+	}
+	f := findingByProbeID(findings, "http.securitytxt")
+	if f == nil {
+		t.Fatalf("no http.securitytxt finding, got %+v", findings)
+	}
+	if f.Attributes["present"] != true {
+		t.Errorf("present = %v, want true", f.Attributes["present"])
+	}
+	if f.Attributes["parseable"] != true {
+		t.Errorf("parseable = %v, want true", f.Attributes["parseable"])
+	}
+	contact, _ := f.Attributes["contact"].([]string)
+	if len(contact) != 1 || contact[0] != "mailto:security@voorbeeld.nl" {
+		t.Errorf("contact = %v, want [mailto:security@voorbeeld.nl]", f.Attributes["contact"])
+	}
+	if f.Attributes["expires"] != "2027-01-01T00:00:00.000Z" {
+		t.Errorf("expires = %v", f.Attributes["expires"])
+	}
+}
+
+func TestSecurityTxtNotFound(t *testing.T) {
+	ts := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/robots.txt":
+			http.NotFound(w, r)
+		case "/.well-known/security.txt":
+			http.NotFound(w, r)
+		default:
+			_, _ = w.Write([]byte("<!doctype html><html><body>hi</body></html>"))
+		}
+	}))
+	defer ts.Close()
+	host := strings.TrimPrefix(ts.URL, "https://")
+	p := &httpprobe.Probe{Client: ts.Client()}
+	findings, err := p.Run(context.Background(), models.Target{Domain: host}, probe.Config{})
+	if err != nil {
+		t.Fatalf("run: %v", err)
+	}
+	f := findingByProbeID(findings, "http.securitytxt")
+	if f == nil {
+		t.Fatalf("no http.securitytxt finding, got %+v", findings)
+	}
+	if f.Attributes["present"] != false {
+		t.Errorf("present = %v, want false (404 is a valid observation)", f.Attributes["present"])
+	}
+	if f.Attributes["parseable"] != false {
+		t.Errorf("parseable = %v, want false", f.Attributes["parseable"])
+	}
+	if f.Attributes["status"] != 404 {
+		t.Errorf("status = %v, want 404", f.Attributes["status"])
+	}
+	if findingByProbeID(findings, "http.securitytxt.unavailable") != nil {
+		t.Errorf("404 must not emit http.securitytxt.unavailable")
+	}
+}
+
+func TestSecurityTxtHTMLAtPath(t *testing.T) {
+	ts := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/robots.txt":
+			http.NotFound(w, r)
+		case "/.well-known/security.txt":
+			w.Header().Set("Content-Type", "text/html; charset=utf-8")
+			_, _ = w.Write([]byte("<!doctype html><html><body>Not Found</body></html>"))
+		default:
+			_, _ = w.Write([]byte("<!doctype html><html><body>hi</body></html>"))
+		}
+	}))
+	defer ts.Close()
+	host := strings.TrimPrefix(ts.URL, "https://")
+	p := &httpprobe.Probe{Client: ts.Client()}
+	findings, err := p.Run(context.Background(), models.Target{Domain: host}, probe.Config{})
+	if err != nil {
+		t.Fatalf("run: %v", err)
+	}
+	f := findingByProbeID(findings, "http.securitytxt")
+	if f == nil {
+		t.Fatalf("no http.securitytxt finding, got %+v", findings)
+	}
+	if f.Attributes["present"] != true {
+		t.Errorf("present = %v, want true (200 is present even if unparseable)", f.Attributes["present"])
+	}
+	if f.Attributes["parseable"] != false {
+		t.Errorf("parseable = %v, want false", f.Attributes["parseable"])
+	}
+}
+
+// errTransport always fails, standing in for a transport-level failure
+// (DNS, TLS, connection refused) distinct from a valid 4xx/5xx
+// response.
+type errTransport struct{}
+
+func (errTransport) RoundTrip(*http.Request) (*http.Response, error) {
+	return nil, &net.OpError{Op: "dial", Err: errors.New("connection refused")}
+}
+
+func TestSecurityTxtTransportFailure(t *testing.T) {
+	p := &httpprobe.Probe{Client: &http.Client{Transport: errTransport{}}}
+	findings, err := p.Run(context.Background(), models.Target{Domain: "voorbeeld.nl"}, probe.Config{})
+	if err != nil {
+		t.Fatalf("run: %v", err)
+	}
+	f := findingByProbeID(findings, "http.securitytxt.unavailable")
+	if f == nil {
+		t.Fatalf("no http.securitytxt.unavailable finding, got %+v", findings)
+	}
+	if findingByProbeID(findings, "http.securitytxt") != nil {
+		t.Errorf("transport failure must not emit http.securitytxt")
 	}
 }
 
