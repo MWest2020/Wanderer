@@ -73,7 +73,7 @@ run checks off only the tasks of its own cluster.
   Regression test with a v4-only stub.
 
 ## 7. Assessor rules + copy — run 06
-- [ ] 7.1 `privacy_proxies.yaml` + `registry_redaction.yaml` (seed
+- [x] 7.1 `privacy_proxies.yaml` + `registry_redaction.yaml` (seed
   `nl: SIDN`) + loaders (pattern: `package_vendors.yaml`).
 - [ ] 7.2 Five accountability rules + `domain_expiry` +
   `variant_convergence`; table-driven tests incl. every onbekend and

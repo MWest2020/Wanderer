@@ -110,7 +110,7 @@ func (jt *jurisdictionTally) noCountryResult(operator, undetermined, probeAbsent
 // DefaultRules returns the MVP DICTU rule set. Rules are independently
 // testable — this function exists only as the default wiring.
 func DefaultRules() []assessor.Rule {
-	return []assessor.Rule{
+	rules := []assessor.Rule{
 		certIssuerEEA(),
 		apexIPInEEA(),
 		mxVendorJurisdiction(),
@@ -133,6 +133,7 @@ func DefaultRules() []assessor.Rule {
 		nsVendorJurisdiction(),
 		httpExposure(),
 	}
+	return append(rules, accountabilityRules()...)
 }
 
 // registrarJurisdiction scores the registrar / registrant country

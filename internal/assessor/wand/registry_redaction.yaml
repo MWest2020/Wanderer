@@ -1,0 +1,16 @@
+# Per-TLD registries that redact registrant data for every domain
+# under that TLD, as a blanket registry policy rather than a choice
+# the individual registrant made.
+#
+# Read by wand.accountability.registrant_identifiable. Embedded via
+# go:embed. When the target's TLD matches an entry here, the rule
+# scores onbekend with reason `registry_redacted` regardless of what
+# the RDAP vcard says — see design.md "Privacy proxy vs registry
+# redaction": on such a TLD a "REDACTED FOR PRIVACY" vcard is the
+# registry's policy, not the organisation's choice.
+#
+# TLD is matched case-insensitively, without the leading dot.
+
+redactions:
+  - tld: "nl"
+    registry: "SIDN"

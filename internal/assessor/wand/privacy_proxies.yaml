@@ -1,0 +1,26 @@
+# Commercial privacy-proxy services that publish themselves as the
+# registrant to hide the real one, as distinct from a registry that
+# redacts registrant data for everyone (registry_redaction.yaml).
+#
+# Read by wand.accountability.registrant_identifiable. Embedded via
+# go:embed. Matched case-insensitively as a substring against the
+# whois.registrant_identity "name" attribute.
+#
+# Misses on this list are acceptable — an undetected proxy scores as
+# identifiable-but-unmatched, which still surfaces via the
+# expected_registrant name comparison (design.md "Privacy proxy vs
+# registry redaction"). Generic registry redaction placeholders
+# ("REDACTED FOR PRIVACY", "WITHHELD", …) deliberately do NOT belong
+# on this list: they are not a named commercial service, so they fall
+# through to the same unmatched bucket rather than being misclassified
+# as a proxy relationship.
+
+proxies:
+  - name: "Domains By Proxy"
+  - name: "Whois Privacy Protection Service"
+  - name: "Whois Privacy Corp"
+  - name: "Perfect Privacy, LLC"
+  - name: "WhoisGuard"
+  - name: "Contact Privacy"
+  - name: "PrivacyProtect.org"
+  - name: "Withheld for Privacy"
