@@ -18,6 +18,15 @@ type Organisation struct {
 	Name        string    `json:"name"`
 	Description string    `json:"description,omitempty"`
 	CreatedAt   time.Time `json:"created_at,omitempty"`
+
+	// ExpectedRegistrant lists the name(s) this organisation expects to
+	// see as the RDAP registrant of its targets (e.g. "Gemeente
+	// Voorbeeld"). Used by the accountability dimension's
+	// registrant-identifiability rule. A nil slice on a call to
+	// Store.UpsertOrganisation means "leave the stored list alone" —
+	// see that method's doc comment; a non-nil (possibly empty) slice
+	// overwrites it.
+	ExpectedRegistrant []string `json:"expected_registrant"`
 }
 
 // DefaultOrganisationID is the seeded ID used by migration 005

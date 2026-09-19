@@ -2,6 +2,7 @@ package store
 
 import (
 	"context"
+	"database/sql"
 	"path/filepath"
 	"testing"
 )
@@ -59,6 +60,65 @@ func TestMigrations_AlreadyAppliedSkipped(t *testing.T) {
 	}
 	if count != len(migrations) {
 		t.Errorf("count = %d, want %d", count, len(migrations))
+	}
+}
+
+// TestMigrations_ExpectedRegistrantBackfillsExistingOrganisations pins
+// migration 007: a database that already carries organisations rows
+// from before the column existed (the migration 005 seed, or any
+// operator-created org) must have those rows backfilled to the empty
+// list, not left NULL or absent.
+func TestMigrations_ExpectedRegistrantBackfillsExistingOrganisations(t *testing.T) {
+	dir := t.TempDir()
+	dsn := "file:" + filepath.Join(dir, "backfill.db")
+	ctx := context.Background()
+
+	db, err := sql.Open("sqlite", dsn)
+	if err != nil {
+		t.Fatalf("open raw db: %v", err)
+	}
+	if _, err := db.ExecContext(ctx, `
+		CREATE TABLE schema_migrations (
+			version    INTEGER PRIMARY KEY,
+			name       TEXT NOT NULL,
+			applied_at DATETIME NOT NULL
+		)`); err != nil {
+		t.Fatalf("create schema_migrations: %v", err)
+	}
+	for _, m := range migrations {
+		if m.Version >= 7 {
+			continue
+		}
+		if err := applyOneMigration(ctx, db, m); err != nil {
+			t.Fatalf("apply migration %d: %v", m.Version, err)
+		}
+	}
+	// An operator-created organisation from before migration 007 —
+	// the column does not exist yet at this point in the sequence.
+	if _, err := db.ExecContext(ctx,
+		`INSERT INTO organisations (id, slug, name, description, created_at)
+		 VALUES ('o_pre', 'pre-existing', 'Pre-existing Org', '', CURRENT_TIMESTAMP)`); err != nil {
+		t.Fatalf("seed pre-existing organisation: %v", err)
+	}
+	if err := db.Close(); err != nil {
+		t.Fatalf("close raw db: %v", err)
+	}
+
+	st, err := Open(ctx, dsn)
+	if err != nil {
+		t.Fatalf("open via Store (runs migration 007): %v", err)
+	}
+	defer st.Close()
+
+	for _, slug := range []string{"default", "pre-existing"} {
+		var er string
+		if err := st.db.QueryRowContext(ctx,
+			`SELECT expected_registrant FROM organisations WHERE slug = ?`, slug).Scan(&er); err != nil {
+			t.Fatalf("select expected_registrant for %q: %v", slug, err)
+		}
+		if er != "[]" {
+			t.Errorf("%s: expected_registrant = %q, want %q", slug, er, "[]")
+		}
 	}
 }
 

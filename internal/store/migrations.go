@@ -180,6 +180,19 @@ CREATE TABLE ui_sessions (
 CREATE INDEX idx_ui_sessions_expires_at ON ui_sessions(expires_at);
 `,
 	},
+	{
+		Version: 7,
+		Name:    "add_organisation_expected_registrant",
+		Up: `-- propose-accountability-dimension: the registrant-identifiability
+-- rule needs to know which name(s) a domain's registrant SHOULD
+-- show. Declared on the organisation (wanderer org add
+-- --expected-registrant NAME, repeatable) since one operator's
+-- identity applies to every target underneath it, not per-target.
+-- Existing rows — the migration 005 seed and any operator-created
+-- organisation — get the empty list via the column default.
+ALTER TABLE organisations ADD COLUMN expected_registrant TEXT NOT NULL DEFAULT '[]';
+`,
+	},
 }
 
 // runMigrations applies every migration whose Version is not already

@@ -93,6 +93,22 @@ func (s *Scanner) Scan(ctx context.Context, target models.Target) (*models.Scan,
 	rootCtx, cancel := context.WithTimeout(ctx, s.GlobalBudget)
 	defer cancel()
 
+	// Record the scan's organisation's declared expected registrant
+	// names as a Finding — see expectedRegistrantFinding's doc comment
+	// for why this happens at scan time rather than at assessment time.
+	// UpsertTarget above already resolved target.OrganisationID (to the
+	// default organisation when the caller left it empty), so the
+	// lookup below always has an ID to resolve.
+	if org, err := s.Store.GetOrganisation(rootCtx, target.OrganisationID); err != nil {
+		logger.Error("scan.organisation_lookup_failed", "organisation_id", target.OrganisationID, "err", err)
+	} else {
+		erFinding := expectedRegistrantFinding(target, org.ExpectedRegistrant)
+		scan.Findings = append(scan.Findings, erFinding)
+		if err := s.Store.AppendFindings(rootCtx, scan.ID, []models.Finding{erFinding}); err != nil {
+			logger.Error("scan.persist_failed", "probe", erFinding.ProbeID, "err", err)
+		}
+	}
+
 	// Two-pass execution. Pass 1 (every probe except `ip`) runs
 	// concurrently with errgroup; pass 2 (the `ip` probe) sees a
 	// Target enriched with hosts the pass-1 probes discovered.

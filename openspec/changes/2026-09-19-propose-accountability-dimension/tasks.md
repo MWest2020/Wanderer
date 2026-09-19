@@ -29,11 +29,11 @@ run checks off only the tasks of its own cluster.
   `reason` loading unchanged.
 
 ## 3. Organisation — run 02
-- [ ] 3.1 Migration: `organisations.expected_registrant` (JSON array,
+- [x] 3.1 Migration: `organisations.expected_registrant` (JSON array,
   default `[]`); model + store read/write.
-- [ ] 3.2 `wanderer org add --expected-registrant NAME` (repeatable);
+- [x] 3.2 `wanderer org add --expected-registrant NAME` (repeatable);
   `org show` prints the list.
-- [ ] 3.3 Scanner records `config.expected_registrant` for the scan's
+- [x] 3.3 Scanner records `config.expected_registrant` for the scan's
   organisation (empty list → finding with empty list, not omitted).
 
 ## 4. RDAP — run 03

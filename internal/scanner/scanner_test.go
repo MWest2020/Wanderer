@@ -72,8 +72,10 @@ func TestScanAllProbesSucceed(t *testing.T) {
 	if res.Status != models.ScanStatusComplete {
 		t.Errorf("status = %q, want complete", res.Status)
 	}
-	if len(res.Findings) != 2 {
-		t.Errorf("findings = %d, want 2", len(res.Findings))
+	// 2 probe findings + the config.expected_registrant finding the
+	// scanner always records for the scan's organisation.
+	if len(res.Findings) != 3 {
+		t.Errorf("findings = %d, want 3", len(res.Findings))
 	}
 }
 
@@ -266,5 +268,111 @@ func TestScanInvalidDomain(t *testing.T) {
 	_, err := sc.Scan(context.Background(), models.Target{Domain: ""})
 	if err == nil {
 		t.Fatal("expected error for empty domain")
+	}
+}
+
+// findExpectedRegistrant returns the names attribute of the
+// config.expected_registrant finding, or nil + false if the scan
+// carries none. Accepts both the []string the scanner constructs
+// in-memory and the []interface{} a Finding decodes to once it has
+// round-tripped through the store's JSON-encoded attributes column.
+func findExpectedRegistrant(findings []models.Finding) ([]string, bool) {
+	for _, f := range findings {
+		if f.ProbeID != "config.expected_registrant" {
+			continue
+		}
+		switch v := f.Attributes["expected_registrant"].(type) {
+		case []string:
+			return v, true
+		case []interface{}:
+			out := make([]string, len(v))
+			for i, e := range v {
+				out[i], _ = e.(string)
+			}
+			return out, true
+		default:
+			return nil, true
+		}
+	}
+	return nil, false
+}
+
+func TestScan_RecordsExpectedRegistrantForScanOrganisation(t *testing.T) {
+	s := newStore(t)
+	org := &models.Organisation{Slug: "voorbeeld", Name: "Gemeente Voorbeeld", ExpectedRegistrant: []string{"Gemeente Voorbeeld"}}
+	if err := s.UpsertOrganisation(context.Background(), org); err != nil {
+		t.Fatalf("upsert organisation: %v", err)
+	}
+	probes := []probe.Probe{&stubProbe{id: "a", findings: []models.Finding{mkFinding("a.ok")}}}
+	sc := scanner.New(s, probes, probe.Config{PerProbeTimeout: time.Second})
+
+	res, err := sc.Scan(context.Background(), models.Target{Domain: "example.nl", OrganisationID: org.ID})
+	if err != nil {
+		t.Fatalf("scan: %v", err)
+	}
+	names, ok := findExpectedRegistrant(res.Findings)
+	if !ok {
+		t.Fatal("no config.expected_registrant finding recorded")
+	}
+	if len(names) != 1 || names[0] != "Gemeente Voorbeeld" {
+		t.Errorf("expected_registrant = %v, want [Gemeente Voorbeeld]", names)
+	}
+}
+
+func TestScan_RecordsExpectedRegistrantAsEmptyListWhenOrganisationDeclaresNone(t *testing.T) {
+	s := newStore(t)
+	probes := []probe.Probe{&stubProbe{id: "a", findings: []models.Finding{mkFinding("a.ok")}}}
+	sc := scanner.New(s, probes, probe.Config{PerProbeTimeout: time.Second})
+
+	// No organisation set on the target: the target falls back to the
+	// default organisation, which declares no expected registrant.
+	res, err := sc.Scan(context.Background(), models.Target{Domain: "example.nl"})
+	if err != nil {
+		t.Fatalf("scan: %v", err)
+	}
+	names, ok := findExpectedRegistrant(res.Findings)
+	if !ok {
+		t.Fatal("no config.expected_registrant finding recorded")
+	}
+	if names == nil || len(names) != 0 {
+		t.Errorf("expected_registrant = %v, want an empty (non-nil) list", names)
+	}
+}
+
+// TestScan_ChangingOrganisationListDoesNotRewriteHistory pins the
+// scanner spec scenario "Changing the list does not rewrite history":
+// a scan's config.expected_registrant finding is fixed at scan time,
+// so a later change to the organisation's declared names must not
+// alter what a stored scan (and any re-assessment of it) sees.
+func TestScan_ChangingOrganisationListDoesNotRewriteHistory(t *testing.T) {
+	s := newStore(t)
+	org := &models.Organisation{Slug: "voorbeeld", Name: "Gemeente Voorbeeld", ExpectedRegistrant: []string{"Gemeente Voorbeeld"}}
+	if err := s.UpsertOrganisation(context.Background(), org); err != nil {
+		t.Fatalf("upsert organisation: %v", err)
+	}
+	probes := []probe.Probe{&stubProbe{id: "a", findings: []models.Finding{mkFinding("a.ok")}}}
+	sc := scanner.New(s, probes, probe.Config{PerProbeTimeout: time.Second})
+
+	res, err := sc.Scan(context.Background(), models.Target{Domain: "example.nl", OrganisationID: org.ID})
+	if err != nil {
+		t.Fatalf("scan: %v", err)
+	}
+
+	// The organisation's declared names change after the scan ran.
+	updated := &models.Organisation{Slug: "voorbeeld", Name: "Gemeente Voorbeeld", ExpectedRegistrant: []string{"Gemeente Nieuw"}}
+	if err := s.UpsertOrganisation(context.Background(), updated); err != nil {
+		t.Fatalf("update organisation: %v", err)
+	}
+
+	stored, err := s.GetScan(context.Background(), res.ID)
+	if err != nil {
+		t.Fatalf("get scan: %v", err)
+	}
+	names, ok := findExpectedRegistrant(stored.Findings)
+	if !ok {
+		t.Fatal("no config.expected_registrant finding on stored scan")
+	}
+	if len(names) != 1 || names[0] != "Gemeente Voorbeeld" {
+		t.Errorf("stored scan's expected_registrant = %v, want [Gemeente Voorbeeld] (recorded at scan time)", names)
 	}
 }

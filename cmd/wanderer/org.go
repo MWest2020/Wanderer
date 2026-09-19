@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"text/tabwriter"
 
 	"go.yaml.in/yaml/v2"
@@ -41,6 +42,21 @@ func runOrg(args []string) int {
 	}
 }
 
+// stringSliceFlag collects every occurrence of a repeatable flag (e.g.
+// `--expected-registrant NAME --expected-registrant OTHER`) into a
+// slice, in the order given. Left nil (rather than an empty non-nil
+// slice) when the flag is never passed, so callers can tell "not set"
+// apart from "set to an empty list" — see UpsertOrganisation's doc
+// comment for why that distinction matters.
+type stringSliceFlag []string
+
+func (f *stringSliceFlag) String() string { return fmt.Sprint([]string(*f)) }
+
+func (f *stringSliceFlag) Set(v string) error {
+	*f = append(*f, v)
+	return nil
+}
+
 func runOrgAdd(args []string) int {
 	fs := flag.NewFlagSet("org add", flag.ContinueOnError)
 	dbPath := fs.String("db", envOr("WANDERER_DB", "wanderer.db"), "Path to SQLite database")
@@ -48,6 +64,8 @@ func runOrgAdd(args []string) int {
 	name := fs.String("name", "", "Display name")
 	desc := fs.String("description", "", "Optional free-text description")
 	fromYAML := fs.String("from-yaml", "", "Bulk-seed organisations from a YAML file (idempotent)")
+	var expectedRegistrant stringSliceFlag
+	fs.Var(&expectedRegistrant, "expected-registrant", "Expected RDAP registrant name (repeatable)")
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}
@@ -60,8 +78,8 @@ func runOrgAdd(args []string) int {
 	ctx := context.Background()
 
 	if *fromYAML != "" {
-		if *slug != "" || *name != "" || *desc != "" {
-			fmt.Fprintln(os.Stderr, "wanderer org add: --from-yaml is mutually exclusive with --slug/--name/--description")
+		if *slug != "" || *name != "" || *desc != "" || len(expectedRegistrant) > 0 {
+			fmt.Fprintln(os.Stderr, "wanderer org add: --from-yaml is mutually exclusive with --slug/--name/--description/--expected-registrant")
 			return 2
 		}
 		return runOrgAddFromYAML(ctx, st, *fromYAML)
@@ -70,7 +88,7 @@ func runOrgAdd(args []string) int {
 		fmt.Fprintln(os.Stderr, "wanderer org add: --slug and --name are required (or use --from-yaml)")
 		return 2
 	}
-	o := &models.Organisation{Slug: *slug, Name: *name, Description: *desc}
+	o := &models.Organisation{Slug: *slug, Name: *name, Description: *desc, ExpectedRegistrant: []string(expectedRegistrant)}
 	if err := st.UpsertOrganisation(ctx, o); err != nil {
 		fmt.Fprintf(os.Stderr, "wanderer org add: %v\n", err)
 		return 1
@@ -184,6 +202,11 @@ func runOrgShow(args []string) int {
 		fmt.Printf("Description: %s\n", o.Description)
 	}
 	fmt.Printf("Created:     %s\n", o.CreatedAt.UTC().Format("2006-01-02 15:04 UTC"))
+	if len(o.ExpectedRegistrant) == 0 {
+		fmt.Printf("Expected registrant: (none)\n")
+	} else {
+		fmt.Printf("Expected registrant: %s\n", strings.Join(o.ExpectedRegistrant, ", "))
+	}
 	targets, err := st.ListTargetsByOrganisation(ctx, o.ID)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "wanderer org show: list targets: %v\n", err)

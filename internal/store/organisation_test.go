@@ -66,6 +66,136 @@ func TestOrganisation_UpsertIdempotent(t *testing.T) {
 	}
 }
 
+func TestOrganisation_DefaultExpectedRegistrantIsEmpty(t *testing.T) {
+	st := newOrgTestStore(t)
+	o := &models.Organisation{Slug: "acme", Name: "ACME"}
+	if err := st.UpsertOrganisation(context.Background(), o); err != nil {
+		t.Fatal(err)
+	}
+	got, err := st.GetOrganisationBySlug(context.Background(), "acme")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got.ExpectedRegistrant) != 0 {
+		t.Errorf("ExpectedRegistrant = %v, want empty", got.ExpectedRegistrant)
+	}
+}
+
+func TestOrganisation_ExpectedRegistrant_RoundTrips(t *testing.T) {
+	st := newOrgTestStore(t)
+	o := &models.Organisation{
+		Slug:               "acme",
+		Name:               "ACME B.V.",
+		ExpectedRegistrant: []string{"ACME B.V.", "Stichting ACME"},
+	}
+	if err := st.UpsertOrganisation(context.Background(), o); err != nil {
+		t.Fatal(err)
+	}
+	for name, get := range map[string]func() (*models.Organisation, error){
+		"GetOrganisationBySlug": func() (*models.Organisation, error) {
+			return st.GetOrganisationBySlug(context.Background(), "acme")
+		},
+		"GetOrganisation": func() (*models.Organisation, error) {
+			return st.GetOrganisation(context.Background(), o.ID)
+		},
+	} {
+		got, err := get()
+		if err != nil {
+			t.Fatalf("%s: %v", name, err)
+		}
+		want := []string{"ACME B.V.", "Stichting ACME"}
+		if len(got.ExpectedRegistrant) != len(want) {
+			t.Fatalf("%s: ExpectedRegistrant = %v, want %v", name, got.ExpectedRegistrant, want)
+		}
+		for i := range want {
+			if got.ExpectedRegistrant[i] != want[i] {
+				t.Errorf("%s: ExpectedRegistrant[%d] = %q, want %q", name, i, got.ExpectedRegistrant[i], want[i])
+			}
+		}
+	}
+}
+
+// TestOrganisation_UpsertWithoutNamesDoesNotWipeExisting pins the
+// scanner/organisation spec rule: an upsert that leaves
+// ExpectedRegistrant nil (the CLI's shape when --expected-registrant
+// is never passed) must not erase names a previous call declared.
+func TestOrganisation_UpsertWithoutNamesDoesNotWipeExisting(t *testing.T) {
+	st := newOrgTestStore(t)
+	o := &models.Organisation{Slug: "acme", Name: "ACME B.V.", ExpectedRegistrant: []string{"ACME B.V."}}
+	if err := st.UpsertOrganisation(context.Background(), o); err != nil {
+		t.Fatal(err)
+	}
+
+	o2 := &models.Organisation{Slug: "acme", Name: "ACME Updated B.V."}
+	if err := st.UpsertOrganisation(context.Background(), o2); err != nil {
+		t.Fatal(err)
+	}
+	if len(o2.ExpectedRegistrant) != 1 || o2.ExpectedRegistrant[0] != "ACME B.V." {
+		t.Errorf("in-memory ExpectedRegistrant after upsert = %v, want [ACME B.V.]", o2.ExpectedRegistrant)
+	}
+
+	got, err := st.GetOrganisationBySlug(context.Background(), "acme")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Name != "ACME Updated B.V." {
+		t.Errorf("Name = %q, want updated", got.Name)
+	}
+	if len(got.ExpectedRegistrant) != 1 || got.ExpectedRegistrant[0] != "ACME B.V." {
+		t.Errorf("stored ExpectedRegistrant = %v, want [ACME B.V.] (not wiped)", got.ExpectedRegistrant)
+	}
+}
+
+// TestOrganisation_UpsertWithExplicitEmptyListClears is the escape
+// hatch for the rule above: a caller that explicitly sets a non-nil
+// empty slice (as opposed to leaving the field nil) does overwrite the
+// stored list to empty.
+func TestOrganisation_UpsertWithExplicitEmptyListClears(t *testing.T) {
+	st := newOrgTestStore(t)
+	o := &models.Organisation{Slug: "acme", Name: "ACME B.V.", ExpectedRegistrant: []string{"ACME B.V."}}
+	if err := st.UpsertOrganisation(context.Background(), o); err != nil {
+		t.Fatal(err)
+	}
+
+	o2 := &models.Organisation{Slug: "acme", Name: "ACME B.V.", ExpectedRegistrant: []string{}}
+	if err := st.UpsertOrganisation(context.Background(), o2); err != nil {
+		t.Fatal(err)
+	}
+
+	got, err := st.GetOrganisationBySlug(context.Background(), "acme")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got.ExpectedRegistrant) != 0 {
+		t.Errorf("ExpectedRegistrant = %v, want empty after explicit clear", got.ExpectedRegistrant)
+	}
+}
+
+func TestListOrganisations_IncludesExpectedRegistrant(t *testing.T) {
+	st := newOrgTestStore(t)
+	o := &models.Organisation{Slug: "acme", Name: "ACME", ExpectedRegistrant: []string{"ACME B.V."}}
+	if err := st.UpsertOrganisation(context.Background(), o); err != nil {
+		t.Fatal(err)
+	}
+	list, err := st.ListOrganisations(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	var found bool
+	for _, entry := range list {
+		if entry.Slug != "acme" {
+			continue
+		}
+		found = true
+		if len(entry.ExpectedRegistrant) != 1 || entry.ExpectedRegistrant[0] != "ACME B.V." {
+			t.Errorf("ExpectedRegistrant = %v, want [ACME B.V.]", entry.ExpectedRegistrant)
+		}
+	}
+	if !found {
+		t.Fatal("acme not found in ListOrganisations result")
+	}
+}
+
 func TestOrganisation_GetUnknownSlugReturnsErrNotFound(t *testing.T) {
 	st := newOrgTestStore(t)
 	_, err := st.GetOrganisationBySlug(context.Background(), "nope")
