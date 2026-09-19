@@ -1,0 +1,63 @@
+{
+    "objectClassName": "domain",
+    "ldhName": "example-reseller.nl",
+    "status": [
+        "active",
+        "clientTransferProhibited"
+    ],
+    "events": [
+        {
+            "eventAction": "registration",
+            "eventDate": "2020-01-15T00:00:00Z"
+        },
+        {
+            "eventAction": "expiration",
+            "eventDate": "2027-01-15T00:00:00Z"
+        }
+    ],
+    "entities": [
+        {
+            "objectClassName": "entity",
+            "roles": [
+                "registrant"
+            ],
+            "vcardArray": [
+                "vcard",
+                [
+                    ["version", {}, "text", "4.0"],
+                    ["kind", {}, "text", "org"],
+                    ["fn", {}, "text", "Gemeente Voorbeeld"],
+                    ["adr", {"cc": "NL"}, "text", ["", "", "Marktplein 1", "Voorbeeld", "", "1234AB", "Netherlands"]]
+                ]
+            ]
+        },
+        {
+            "objectClassName": "entity",
+            "roles": [
+                "registrar"
+            ],
+            "vcardArray": [
+                "vcard",
+                [
+                    ["version", {}, "text", "4.0"],
+                    ["fn", {}, "text", "Big Registrar B.V."]
+                ]
+            ],
+            "entities": [
+                {
+                    "objectClassName": "entity",
+                    "roles": [
+                        "reseller"
+                    ],
+                    "vcardArray": [
+                        "vcard",
+                        [
+                            ["version", {}, "text", "4.0"],
+                            ["fn", {}, "text", "Local Hosting Reseller"]
+                        ]
+                    ]
+                }
+            ]
+        }
+    ]
+}

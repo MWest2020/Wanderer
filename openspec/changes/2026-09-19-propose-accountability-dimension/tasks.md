@@ -37,12 +37,12 @@ run checks off only the tasks of its own cluster.
   organisation (empty list → finding with empty list, not omitted).
 
 ## 4. RDAP — run 03
-- [ ] 4.1 whois: recursive entity parsing; registrant identity /
+- [x] 4.1 whois: recursive entity parsing; registrant identity /
   reseller / status / expiry findings; redacted-vcard fixture.
-- [ ] 4.2 Fixture from live `rijksoverheid.nl` RDAP (2026-09-19):
+- [x] 4.2 Fixture from live `rijksoverheid.nl` RDAP (2026-09-19):
   registrant redacted, registrar "Rijksoverheid", no reseller, no
   expiration event.
-- [ ] 4.3 scanner: NS registrable-domain RDAP lookups with per-scan
+- [x] 4.3 scanner: NS registrable-domain RDAP lookups with per-scan
   cache; no-RDAP-TLD fixture.
 
 ## 5. DNS + HTTP observations — run 04

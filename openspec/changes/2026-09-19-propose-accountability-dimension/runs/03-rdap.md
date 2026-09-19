@@ -6,7 +6,7 @@ requirements "whois probe emits identity, reseller, status, and expiry
 findings" and "Scanner looks up NS holder transparency").
 
 ## Scope — ONLY these tasks
-- [ ] 4.1 `internal/probe/whois`: parse the RDAP response it already
+- [x] 4.1 `internal/probe/whois`: parse the RDAP response it already
   fetches into four additional findings — `whois.registrant_identity`
   (name, kind, privacy-proxy flag), `whois.reseller`,
   `whois.status`, `whois.expiry` (the expiration event date, or an
@@ -16,13 +16,13 @@ findings" and "Scanner looks up NS holder transparency").
   explicit redacted/absent values, never silently omitted. An RFC 9537
   `redacted` array, when present, is recorded as evidence — it does not
   decide anything by itself (the TLD list in run 06 does).
-- [ ] 4.2 Fixtures: (a) the live capture at
+- [x] 4.2 Fixtures: (a) the live capture at
   `openspec/changes/2026-09-19-propose-accountability-dimension/fixtures/rdap-rijksoverheid.nl-20260919.json`
   — copy it into the probe's testdata: registrant "REDACTED FOR
   PRIVACY", registrar "Rijksoverheid", NO reseller at any nesting level,
   events registration/last changed only (so `whois.expiry` = absent);
   (b) a synthetic response with a reseller nested under the registrar.
-- [ ] 4.3 `internal/scanner`: for each unique registrable domain among
+- [x] 4.3 `internal/scanner`: for each unique registrable domain among
   the target's `dns.ns` hosts, one RDAP lookup → `whois.ns_holder`
   (registrant present / proxied / absent). Cache per scan: N nameservers
   under one provider cost ONE lookup. A failure emits
