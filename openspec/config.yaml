@@ -5,7 +5,9 @@ context: |
   organisation (DNS, MX, TLS, HTTP, IP/ASN) and scores it against the DICTU
   Toetsingsinstrument Soevereiniteit Clouddiensten.
 
-  Stack: Go 1.22, standard library first. net, crypto/tls, net/http, context.
+  Stack: Go 1.25 (see the go directive in go.mod), standard library first.
+  Stdlib packages in use: net, crypto/tls, net/http, context.
+  Dependencies are vendored (vendor/ in git); builds run with -mod=vendor.
   Persistence: SQLite via modernc.org/sqlite (pure Go, no CGo) for the MVP;
   PostgreSQL-compatible schema so we can swap later.
   HTTP: chi for routing, stdlib net/http everywhere else.
