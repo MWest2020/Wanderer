@@ -10,7 +10,7 @@ import (
 
 // TestPlaywrightCoverage_ADRsWithUISurface enforces the ADR-coverage
 // contract from the add-playwright-adr-smoke-tests OpenSpec change.
-// Every ADR file (`docs/decisions/NNNN-*.md`) that contains a
+// Every ADR file (`docs/explanation/adr/NNNN-*.md`) that contains a
 // `## UI surface` heading SHALL have a matching Playwright spec
 // at `tests/playwright/specs/<adr-slug>.spec.ts`. ADRs without UI
 // claims need no spec.
@@ -20,7 +20,7 @@ import (
 // up on `go test ./...` so a missing spec fails CI before merge.
 func TestPlaywrightCoverage_ADRsWithUISurface(t *testing.T) {
 	repoRoot := findRepoRoot(t)
-	adrDir := filepath.Join(repoRoot, "docs", "decisions")
+	adrDir := filepath.Join(repoRoot, "docs", "explanation", "adr")
 	specDir := filepath.Join(repoRoot, "tests", "playwright", "specs")
 
 	entries, err := os.ReadDir(adrDir)
