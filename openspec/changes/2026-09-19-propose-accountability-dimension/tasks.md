@@ -101,15 +101,21 @@ run checks off only the tasks of its own cluster.
   (`time.FixedZone`) proving the named date does not shift.
 
 ## 8. UI — run 07
-- [ ] 8.1 Answer-sheet section on the assessment report (Dutch copy
+- [x] 8.1 Answer-sheet section on the assessment report (Dutch copy
   from the table, verdicts, remediation lines, evidence expanders).
-- [ ] 8.2 Accountability pill on the Overview rows; "not assessed" and
+- [x] 8.2 Accountability pill on the Overview rows; "not assessed" and
   "n.v.t." states; overall score names the dimensions it covers.
-- [ ] 8.3 Review pass against Wordsworth's tone/interaction patterns;
+- [x] 8.3 Review pass against Wordsworth's tone/interaction patterns;
   scanner-subject reasons render as operator warnings, not answers;
   a `.nl` fleet must still read as a story (four non-n.v.t.
   questions carry it); verdict copy readable by a non-specialist or
   it goes back.
+- [ ] 8.5 De spec uit 8.4 draait niet: `tests/playwright/playwright.config.ts`
+  kent hem niet (elke project noemt zijn specs in `testMatch`), en de
+  `baseline`-fixture (`internal/fixtures`) bevat geen
+  accountability-findings. Zet de spec in het baseline-project en vul de
+  fixture aan met een scan die alle vier de antwoordtoestanden toont
+  (ja / nee / onbekend / n.v.t.), zodat de spec echt iets bewijst.
 - [ ] 8.4 Playwright smoke: expand evidence, onbekend vs n.v.t.
   rendering.
 
