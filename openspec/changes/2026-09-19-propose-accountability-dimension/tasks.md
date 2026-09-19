@@ -14,16 +14,16 @@ run checks off only the tasks of its own cluster.
   Needed before run 08.
 
 ## 2. Foundation — run 01
-- [ ] 2.1 `models.DimensionHint`: add `accountability`; `Valid()`
+- [x] 2.1 `models.DimensionHint`: add `accountability`; `Valid()`
   accepts it.
-- [ ] 2.2 Rename `DICTUDimensions` → `WandDimensions`, append
+- [x] 2.2 Rename `DICTUDimensions` → `WandDimensions`, append
   `accountability`; no consumer assumes a count (fix
   `report_test.go`).
-- [ ] 2.3 Reason codes: `Reason` on `RuleResult`, `reason`
+- [x] 2.3 Reason codes: `Reason` on `RuleResult`, `reason`
   (`omitempty`) on `models.Rationale`; one registry table mapping code
   → class (`structural`/`gap`) + subject (`target`/`scanner`) seeded with the four codes in
   design.md; unknown code fails a test.
-- [ ] 2.4 `scoreDimension`: structural rationales excluded from worst
+- [x] 2.4 `scoreDimension`: structural rationales excluded from worst
   score and completeness denominator; all-structural dimension →
   n.v.t.; table-driven tests incl. old assessment JSON without
   `reason` loading unchanged.

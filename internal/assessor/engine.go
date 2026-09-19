@@ -6,19 +6,23 @@ import (
 	"github.com/MWest2020/wanderer/pkg/models"
 )
 
-// DICTUDimensions is the canonical ordering of DICTU dimensions in
-// every Assessment. Stable order keeps reports diffable.
-var DICTUDimensions = []models.DimensionHint{
+// WandDimensions is the canonical ordering of dimensions in every
+// Assessment: the DICTU dimensions plus wand-native ones that extend
+// beyond them (accountability has no DICTU counterpart — see
+// ADR-0011). Stable order keeps reports diffable. Callers iterate
+// this list; none may assume its length.
+var WandDimensions = []models.DimensionHint{
 	models.DimensionJuridisch,
 	models.DimensionTechnologie,
 	models.DimensionDataAI,
 	models.DimensionOperationeel,
 	models.DimensionMens,
+	models.DimensionAccountability,
 }
 
 // Assess runs every rule against findings and aggregates the results
 // into per-dimension scores. The returned slice always has one entry
-// per DICTUDimensions entry, in that order, even for dimensions with
+// per WandDimensions entry, in that order, even for dimensions with
 // no rules (those are emitted as incomplete with score onbekend).
 func Assess(findings []models.Finding, rules []Rule) []models.DimensionScore {
 	byDim := map[models.DimensionHint][]Rule{}
@@ -33,8 +37,8 @@ func Assess(findings []models.Finding, rules []Rule) []models.DimensionScore {
 		})
 	}
 
-	out := make([]models.DimensionScore, 0, len(DICTUDimensions))
-	for _, dim := range DICTUDimensions {
+	out := make([]models.DimensionScore, 0, len(WandDimensions))
+	for _, dim := range WandDimensions {
 		out = append(out, scoreDimension(dim, byDim[dim], findings))
 	}
 	return out
@@ -51,6 +55,7 @@ func scoreDimension(dim models.DimensionHint, rules []Rule, findings []models.Fi
 	}
 
 	evidenced := 0
+	total := 0
 	worst := models.Score("")
 	for _, r := range rules {
 		res := safeMatch(r, findings)
@@ -60,7 +65,24 @@ func scoreDimension(dim models.DimensionHint, rules []Rule, findings []models.Fi
 			Verdict:     res.Verdict,
 			Score:       res.Score,
 			Evidence:    evidence,
+			Reason:      res.Reason,
 		}
+		if res.Reason != "" {
+			class, _ := ReasonInfo(res.Reason)
+			if class == ReasonStructural {
+				// Not applicable to this target: excluded from both the
+				// worst-score computation and the completeness
+				// denominator, not merely from the evidence count. A
+				// dimension whose every rule lands here is left with
+				// total == 0 below and reports as not applicable.
+				ds.Rationale = append(ds.Rationale, rat)
+				continue
+			}
+			// ReasonGap falls through to the evidence check below: it
+			// counts as a missing observation exactly like an
+			// evidence-less rule does today.
+		}
+		total++
 		if len(rat.Evidence) == 0 {
 			// Rule had no evidence. Force Score to onbekend for the
 			// rationale so downstream readers do not have to inspect
@@ -82,9 +104,14 @@ func scoreDimension(dim models.DimensionHint, rules []Rule, findings []models.Fi
 
 	switch {
 	case evidenced == 0:
+		// Either nothing was evidenced, or every rule was structural
+		// (total == 0) — both report as onbekend/incomplete, which
+		// reads as "not applicable" when paired with an all-structural
+		// Rationale, and is excluded from any overall score by callers
+		// that already skip onbekend dimensions.
 		ds.Completeness = models.CompletenessIncomplete
 		ds.Score = models.ScoreOnbekend
-	case evidenced == len(rules):
+	case evidenced == total:
 		ds.Completeness = models.CompletenessComplete
 		ds.Score = worst
 	default:

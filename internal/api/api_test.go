@@ -13,6 +13,7 @@ import (
 
 	"github.com/MWest2020/wanderer/internal/agent"
 	"github.com/MWest2020/wanderer/internal/api"
+	"github.com/MWest2020/wanderer/internal/assessor"
 	"github.com/MWest2020/wanderer/internal/probe"
 	"github.com/MWest2020/wanderer/internal/scanner"
 	"github.com/MWest2020/wanderer/internal/store"
@@ -172,8 +173,8 @@ func TestAssessmentLifecycle(t *testing.T) {
 	if a.ID == "" {
 		t.Fatal("empty assessment ID")
 	}
-	if len(a.Dimensions) != 5 {
-		t.Errorf("want 5 dimensions, got %d", len(a.Dimensions))
+	if len(a.Dimensions) != len(assessor.WandDimensions) {
+		t.Errorf("want %d dimensions, got %d", len(assessor.WandDimensions), len(a.Dimensions))
 	}
 	if a.Report == "" {
 		t.Error("markdown report missing")

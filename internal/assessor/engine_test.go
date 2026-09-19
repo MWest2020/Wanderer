@@ -16,12 +16,12 @@ func ruleAlways(id string, dim models.DimensionHint, res RuleResult) Rule {
 	}
 }
 
-func TestAssess_AllFiveDimensionsEmitted(t *testing.T) {
+func TestAssess_AllDimensionsEmitted(t *testing.T) {
 	got := Assess(nil, nil)
-	if len(got) != 5 {
-		t.Fatalf("want 5 dimensions, got %d", len(got))
+	if len(got) != len(WandDimensions) {
+		t.Fatalf("want %d dimensions, got %d", len(WandDimensions), len(got))
 	}
-	for i, want := range DICTUDimensions {
+	for i, want := range WandDimensions {
 		if got[i].Dimension != want {
 			t.Errorf("dim[%d] = %s, want %s", i, got[i].Dimension, want)
 		}
@@ -92,6 +92,86 @@ func TestAssess_IncompleteDimension(t *testing.T) {
 	if op.Score != models.ScoreOnbekend {
 		t.Errorf("want onbekend, got %s", op.Score)
 	}
+}
+
+func TestScoreDimension_StructuralReasonExcludedFromWorstAndCompleteness(t *testing.T) {
+	rules := []Rule{
+		ruleAlways("a.1", models.DimensionAccountability, RuleResult{
+			Score: models.ScoreOnbekend, Verdict: "registry redacts .nl", Reason: ReasonRegistryRedacted,
+		}),
+		ruleAlways("a.2", models.DimensionAccountability, RuleResult{
+			Score: models.ScoreSoeverein, Verdict: "ok", Evidence: []string{"f1"},
+		}),
+	}
+	got := Assess(nil, rules)
+	acc := findDim(t, got, models.DimensionAccountability)
+	if acc.Completeness != models.CompletenessComplete {
+		t.Errorf("want complete (structural rule excluded from denominator), got %s", acc.Completeness)
+	}
+	if acc.Score != models.ScoreSoeverein {
+		t.Errorf("want soeverein (structural rule excluded from worst-score), got %s", acc.Score)
+	}
+	if len(acc.Rationale) != 2 {
+		t.Fatalf("want both rationale entries retained, got %d", len(acc.Rationale))
+	}
+	if acc.Rationale[0].Reason != ReasonRegistryRedacted {
+		t.Errorf("want reason preserved on rationale, got %q", acc.Rationale[0].Reason)
+	}
+}
+
+func TestScoreDimension_AllStructuralIsNotApplicable(t *testing.T) {
+	rules := []Rule{
+		ruleAlways("a.1", models.DimensionAccountability, RuleResult{
+			Score: models.ScoreOnbekend, Verdict: "n.v.t. 1", Reason: ReasonRegistryRedacted,
+		}),
+		ruleAlways("a.2", models.DimensionAccountability, RuleResult{
+			Score: models.ScoreOnbekend, Verdict: "n.v.t. 2", Reason: ReasonNotPublishedByRegistry,
+		}),
+	}
+	got := Assess(nil, rules)
+	acc := findDim(t, got, models.DimensionAccountability)
+	if acc.Score != models.ScoreOnbekend {
+		t.Errorf("want onbekend, got %s", acc.Score)
+	}
+	if acc.Completeness != models.CompletenessIncomplete {
+		t.Errorf("want incomplete/n.v.t. when every rule is structural, got %s", acc.Completeness)
+	}
+	if len(acc.Rationale) != 2 {
+		t.Errorf("want structural rationale entries retained for display, got %d", len(acc.Rationale))
+	}
+}
+
+func TestScoreDimension_GapReasonCountsAsHole(t *testing.T) {
+	rules := []Rule{
+		ruleAlways("a.1", models.DimensionAccountability, RuleResult{
+			Score: models.ScoreOnbekend, Verdict: "RDAP unavailable", Reason: ReasonProbeUnavailable,
+		}),
+		ruleAlways("a.2", models.DimensionAccountability, RuleResult{
+			Score: models.ScoreVoldoende, Verdict: "ok", Evidence: []string{"f1"},
+		}),
+	}
+	got := Assess(nil, rules)
+	acc := findDim(t, got, models.DimensionAccountability)
+	if acc.Completeness != models.CompletenessPartial {
+		t.Errorf("want partial (gap reason still counts as a hole), got %s", acc.Completeness)
+	}
+	if acc.Score != models.ScoreVoldoende {
+		t.Errorf("want voldoende (only evidenced rule wins worst-score), got %s", acc.Score)
+	}
+}
+
+func TestScoreDimension_UnregisteredReasonCodePanics(t *testing.T) {
+	rules := []Rule{
+		ruleAlways("a.1", models.DimensionAccountability, RuleResult{
+			Score: models.ScoreOnbekend, Verdict: "bogus", Reason: "totally_made_up",
+		}),
+	}
+	defer func() {
+		if recover() == nil {
+			t.Fatal("want panic for an unregistered reason code")
+		}
+	}()
+	Assess(nil, rules)
 }
 
 func TestAssess_RulePanicIsContained(t *testing.T) {

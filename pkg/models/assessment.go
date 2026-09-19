@@ -88,6 +88,11 @@ type Rationale struct {
 	// entries feed the dimension's Completeness calculation rather than
 	// its score.
 	Evidence []string `json:"evidence"`
+	// Reason is an optional machine-readable code explaining an
+	// onbekend/n.v.t. verdict (e.g. "registry_redacted"). Additive:
+	// omitted from JSON when empty, so assessments persisted before
+	// this field existed still load unchanged.
+	Reason string `json:"reason,omitempty"`
 }
 
 // DimensionScore is the aggregate verdict for one DICTU dimension.

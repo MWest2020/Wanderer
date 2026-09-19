@@ -48,6 +48,10 @@ const (
 	DimensionDataAI       DimensionHint = "data_ai"
 	DimensionOperationeel DimensionHint = "operationeel"
 	DimensionMens         DimensionHint = "mens"
+	// DimensionAccountability is a wand-native dimension with no DICTU
+	// counterpart: who is answerable for the footprint, and can you
+	// reach them.
+	DimensionAccountability DimensionHint = "accountability"
 )
 
 // Valid reports whether d is one of the defined dimensions (the empty
@@ -59,7 +63,8 @@ func (d DimensionHint) Valid() bool {
 		DimensionTechnologie,
 		DimensionDataAI,
 		DimensionOperationeel,
-		DimensionMens:
+		DimensionMens,
+		DimensionAccountability:
 		return true
 	}
 	return false
