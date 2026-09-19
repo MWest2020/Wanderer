@@ -58,14 +58,14 @@ run checks off only the tasks of its own cluster.
 - [x] 6.3 `scanner_no_ipv6`: v6 paths `not_tested` when the scanner has
   no IPv6 route (structural, subject scanner).
 
-- [ ] 6.4 Live-smoke defect (agent-lxc, 2026-09-20): `detectIPv6` counts
+- [x] 6.4 Live-smoke defect (agent-lxc, 2026-09-20): `detectIPv6` counts
   ANY non-link-local IPv6 address, so a Tailscale ULA (`fd7a::/128`)
   reads as "the scanner has IPv6" while no public v6 route exists. The
   four v6 paths then came back `unreachable` and would be charged to the
   target. Capability detection must mean reachability, not "an address
   exists": ULA/CGNAT addresses do not count, and the check is a real
   short-timeout dial, made once per scan and injectable for tests.
-- [ ] 6.5 Live-smoke defect (same scan): the "stop on an already-verified
+- [x] 6.5 Live-smoke defect (same scan): the "stop on an already-verified
   origin" optimisation marked `www v6 https` as `reachable` although no
   v6 connection was ever made — the origin had been verified over v4.
   The shortcut SHALL NOT cross address families: a path may only be

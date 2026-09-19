@@ -10,14 +10,14 @@ IPv6 route. Verified out of band: `curl -6 https://www.rijksoverheid.nl/`
 fails there, yet the probe reported that path reachable.
 
 ## Scope — ONLY these tasks
-- [ ] 6.4 `internal/probe/variants/ipv6.go`: capability detection must
+- [x] 6.4 `internal/probe/variants/ipv6.go`: capability detection must
   mean "can reach the public internet over IPv6", not "an IPv6 address
   is configured". Unique-local (`fc00::/7`, so Tailscale's `fd7a::/16`)
   and CGNAT-style addresses do not count. Do one short-timeout dial to
   decide it, once per scan, injectable so tests can drive both cases.
   When the scanner has no IPv6, the four v6 paths are `not_tested` with
   reason `scanner_no_ipv6` — never `unreachable`.
-- [ ] 6.5 The "stop on an already-verified origin" optimisation SHALL
+- [x] 6.5 The "stop on an already-verified origin" optimisation SHALL
   NOT cross address families: a path may only be reported `reachable`
   over the family it was actually dialed on. Keep the optimisation
   within one family. Regression test: a stub where v4 succeeds and v6

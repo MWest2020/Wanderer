@@ -282,6 +282,93 @@ func TestRun_NoLocalIPv6(t *testing.T) {
 	}
 }
 
+// TestRun_ShortcutDoesNotCrossFamily covers 6.5: the "already verified
+// origin" shortcut must not let a v6 path report reachable on the
+// strength of a v4 dial. With a stub where every v4 dial reaches the
+// server and every v6 dial fails outright, the four v4 paths must
+// converge and report reachable while the four v6 paths — which share
+// the same host/origin strings as their v4 counterparts — must never
+// borrow that v4 verification.
+func TestRun_ShortcutDoesNotCrossFamily(t *testing.T) {
+	const canonical = "www.voorbeeld.nl"
+
+	plain := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, "https://"+canonical+"/", http.StatusMovedPermanently)
+	}))
+	defer plain.Close()
+
+	tlsSrv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Host == canonical {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+		http.Redirect(w, r, "https://"+canonical+"/", http.StatusMovedPermanently)
+	}))
+	defer tlsSrv.Close()
+
+	// dialByFamily routes by the resolved IP's family (not by port,
+	// unlike routeByPort above): v4-resolved addresses reach the local
+	// httptest servers, v6-resolved addresses always fail, simulating a
+	// scanner that only has a working v4 route to this target.
+	dialByFamily := func(ctx context.Context, network, addr string) (net.Conn, error) {
+		host, port, err := net.SplitHostPort(addr)
+		if err != nil {
+			return nil, err
+		}
+		ip := net.ParseIP(host)
+		if ip == nil || ip.To4() == nil {
+			return nil, errors.New("variants test: v6 unreachable")
+		}
+		target := plain.Listener.Addr().String()
+		if port == "443" {
+			target = tlsSrv.Listener.Addr().String()
+		}
+		var d net.Dialer
+		return d.DialContext(ctx, network, target)
+	}
+
+	p := &variants.Probe{
+		Resolver:        stubResolver{},
+		Dial:            dialByFamily,
+		HasIPv6:         func() bool { return true },
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: true}, //nolint:gosec // test-only, self-signed httptest cert
+	}
+
+	findings, err := p.Run(context.Background(), models.Target{Domain: "voorbeeld.nl"}, wprobe.Config{})
+	if err != nil {
+		t.Fatalf("run: %v", err)
+	}
+	f := findingByProbeID(findings, "http.variants")
+	if f == nil {
+		t.Fatalf("no http.variants finding, got %+v", findings)
+	}
+
+	paths := pathsOf(t, f)
+	var v4Reachable, v6NotReachable int
+	for _, pr := range paths {
+		switch pr.Family {
+		case "v4":
+			if pr.Status == variants.StatusReachable {
+				v4Reachable++
+			} else {
+				t.Errorf("v4 path %+v: status = %q, want reachable", pr, pr.Status)
+			}
+		case "v6":
+			if pr.Status == variants.StatusReachable {
+				t.Errorf("v6 path %+v: status = reachable, but no v6 dial ever succeeded — shortcut crossed families", pr)
+			} else {
+				v6NotReachable++
+			}
+		}
+	}
+	if v4Reachable != 4 {
+		t.Errorf("got %d reachable v4 paths, want 4", v4Reachable)
+	}
+	if v6NotReachable != 4 {
+		t.Errorf("got %d non-reachable v6 paths, want 4", v6NotReachable)
+	}
+}
+
 // TestRun_TotalFailure covers the http.variants.unavailable case: the
 // scan's own budget was already exhausted before this probe's turn.
 func TestRun_TotalFailure(t *testing.T) {

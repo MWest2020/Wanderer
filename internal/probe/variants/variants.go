@@ -156,7 +156,7 @@ func (p *Probe) Run(ctx context.Context, target models.Target, cfg wprobe.Config
 		timeout:      timeout,
 		tlsConfig:    p.TLSClientConfig,
 		budget:       connectionBudget,
-		verified:     map[string]string{},
+		verified:     map[string]map[string]string{},
 	}
 
 	results := make([]PathResult, 0, len(paths))
@@ -195,7 +195,10 @@ func (p *Probe) Run(ctx context.Context, target models.Target, cfg wprobe.Config
 // walker carries the state shared across all 8 paths of one Run: the
 // remaining connection budget and the set of origins already verified
 // reachable, so a later path's chain can stop as soon as it lands on
-// one of them.
+// one of them. verified is keyed per address family first: a path
+// dialed over v6 must never shortcut on an origin that was only ever
+// reached over v4, and vice versa — the two families are verified
+// independently even when they resolve to the same origin string.
 type walker struct {
 	resolver     Resolver
 	dial         func(ctx context.Context, network, addr string) (net.Conn, error)
@@ -204,7 +207,7 @@ type walker struct {
 	timeout      time.Duration
 	tlsConfig    *tls.Config
 	budget       int
-	verified     map[string]string // origin -> origin
+	verified     map[string]map[string]string // family -> origin -> origin
 }
 
 func origin(u *url.URL) string {
@@ -223,9 +226,15 @@ func (w *walker) follow(ctx context.Context, ps pathSpec, start string) PathResu
 		return res
 	}
 
+	famVerified := w.verified[ps.family]
+	if famVerified == nil {
+		famVerified = map[string]string{}
+		w.verified[ps.family] = famVerified
+	}
+
 	redirects := 0
 	for {
-		if o, ok := w.verified[origin(cur)]; ok {
+		if o, ok := famVerified[origin(cur)]; ok {
 			res.Chain = append(res.Chain, cur.String())
 			res.FinalOrigin = o
 			res.Status = StatusReachable
@@ -272,7 +281,7 @@ func (w *walker) follow(ctx context.Context, ps pathSpec, start string) PathResu
 
 		res.FinalOrigin = origin(cur)
 		res.Status = StatusReachable
-		w.verified[res.FinalOrigin] = res.FinalOrigin
+		famVerified[res.FinalOrigin] = res.FinalOrigin
 		return res
 	}
 }
