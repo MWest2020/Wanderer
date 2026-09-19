@@ -46,9 +46,9 @@ run checks off only the tasks of its own cluster.
   cache; no-RDAP-TLD fixture.
 
 ## 5. DNS + HTTP observations — run 04
-- [ ] 5.1 soa probe: SOA + RNAME resolution findings; lame-delegation
+- [x] 5.1 soa probe: SOA + RNAME resolution findings; lame-delegation
   fixture; no SMTP.
-- [ ] 5.2 http: security.txt fetch + RFC 9116 parse; 404-is-data and
+- [x] 5.2 http: security.txt fetch + RFC 9116 parse; 404-is-data and
   HTML-at-path fixtures.
 
 ## 6. Variants probe — run 05

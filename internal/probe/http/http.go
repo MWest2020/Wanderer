@@ -1,12 +1,13 @@
 // Package http is the HTTP probe. It fetches the apex URL of the
 // target over HTTPS (falling back to HTTP), parses the HTML body, and
-// extracts third-party resources. Robots.txt is honoured. Redirects
-// are capped at 5 and the response body is capped at 2 MiB.
+// extracts third-party resources. It also fetches
+// /.well-known/security.txt over HTTPS (RFC 9116). Robots.txt is
+// honoured for the apex fetch. Redirects are capped at 5 and response
+// bodies are capped at 2 MiB (64 KiB for security.txt).
 package http
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -21,9 +22,10 @@ import (
 )
 
 const (
-	maxRedirects = 5
-	maxBodyBytes = 2 << 20
-	robotsMax    = 64 << 10
+	maxRedirects       = 5
+	maxBodyBytes       = 2 << 20
+	robotsMax          = 64 << 10
+	securityTxtMaxSize = 64 << 10
 )
 
 // Probe is the HTTP probe.
@@ -75,6 +77,7 @@ func (p *Probe) Run(ctx context.Context, target models.Target, cfg wprobe.Config
 			Evidence:   rob,
 		}}, nil
 	}
+	findings = append(findings, fetchSecurityTxt(ctx, client, ua, target.Domain))
 	resp, body, err := fetch(ctx, client, ua, base)
 	if err != nil {
 		// Fall back to http://
@@ -89,12 +92,12 @@ func (p *Probe) Run(ctx context.Context, target models.Target, cfg wprobe.Config
 				Attributes:    map[string]any{"reason": err.Error()},
 			})
 		} else {
-			return []models.Finding{{
+			return append(findings, models.Finding{
 				ProbeID:    "http.fetch_failed",
 				Subject:    target.Domain,
 				Severity:   models.SeverityConcern,
 				Attributes: map[string]any{"error": err.Error()},
-			}}, nil
+			}), nil
 		}
 	}
 	defer resp.Body.Close()
@@ -368,5 +371,125 @@ func diff(all, have []string) []string {
 	return out
 }
 
-// Ensure we import errors for future use without triggering unused.
-var _ = errors.New
+// fetchSecurityTxt fetches /.well-known/security.txt over HTTPS and
+// reports its presence, parseability, and RFC 9116 Contact/Expires
+// fields. A 404 (or any non-200 status) is a valid observation —
+// present=false, not an error — since RFC 9116 does not require the
+// file to exist. Only a transport-level failure (DNS, TLS, connect,
+// timeout) is unavailable.
+func fetchSecurityTxt(ctx context.Context, client *http.Client, ua, domain string) models.Finding {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://"+domain+"/.well-known/security.txt", nil)
+	if err != nil {
+		return securityTxtUnavailable(domain, err.Error())
+	}
+	req.Header.Set("User-Agent", ua)
+	resp, err := client.Do(req)
+	if err != nil {
+		return securityTxtUnavailable(domain, err.Error())
+	}
+	defer resp.Body.Close()
+	body, err := io.ReadAll(io.LimitReader(resp.Body, securityTxtMaxSize+1))
+	if err != nil {
+		return securityTxtUnavailable(domain, err.Error())
+	}
+	truncated := len(body) > securityTxtMaxSize
+	if truncated {
+		body = body[:securityTxtMaxSize]
+	}
+
+	attrs := map[string]any{"status": resp.StatusCode}
+	if resp.StatusCode != http.StatusOK {
+		attrs["present"] = false
+		attrs["parseable"] = false
+		return models.Finding{
+			ProbeID:       "http.securitytxt",
+			DimensionHint: models.DimensionAccountability,
+			Subject:       domain,
+			Severity:      models.SeverityObservation,
+			Attributes:    attrs,
+		}
+	}
+	attrs["present"] = true
+	if truncated {
+		attrs["truncated"] = true
+	}
+
+	if looksLikeHTML(resp.Header.Get("Content-Type"), body) {
+		attrs["parseable"] = false
+		return models.Finding{
+			ProbeID:       "http.securitytxt",
+			DimensionHint: models.DimensionAccountability,
+			Subject:       domain,
+			Severity:      models.SeverityObservation,
+			Attributes:    attrs,
+			Evidence:      body,
+		}
+	}
+
+	fields, parseable := parseSecurityTxt(body)
+	attrs["parseable"] = parseable
+	if contacts := fields["contact"]; len(contacts) > 0 {
+		attrs["contact"] = contacts
+	}
+	if expires := fields["expires"]; len(expires) > 0 {
+		attrs["expires"] = expires[0]
+	}
+	return models.Finding{
+		ProbeID:       "http.securitytxt",
+		DimensionHint: models.DimensionAccountability,
+		Subject:       domain,
+		Severity:      models.SeverityObservation,
+		Attributes:    attrs,
+		Evidence:      body,
+	}
+}
+
+// looksLikeHTML reports whether the response looks like an HTML error
+// page served at the well-known path rather than a text/plain
+// security.txt file.
+func looksLikeHTML(contentType string, body []byte) bool {
+	if strings.Contains(strings.ToLower(contentType), "text/html") {
+		return true
+	}
+	trimmed := strings.ToLower(strings.TrimSpace(string(body)))
+	return strings.HasPrefix(trimmed, "<!doctype") || strings.HasPrefix(trimmed, "<html")
+}
+
+// parseSecurityTxt is a minimal RFC 9116 line parser: "Field: value"
+// pairs, "#" comments, blank lines ignored. It returns the fields
+// (lower-cased keys, values in declaration order) and whether at
+// least one field was recognised at all — an unparseable body (empty,
+// binary, or otherwise not field-shaped) reports false.
+func parseSecurityTxt(body []byte) (map[string][]string, bool) {
+	fields := map[string][]string{}
+	any := false
+	for _, line := range strings.Split(string(body), "\n") {
+		line = strings.TrimSpace(strings.TrimRight(line, "\r"))
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		key, val, ok := strings.Cut(line, ":")
+		if !ok {
+			continue
+		}
+		key = strings.ToLower(strings.TrimSpace(key))
+		val = strings.TrimSpace(val)
+		if key == "" || val == "" {
+			continue
+		}
+		fields[key] = append(fields[key], val)
+		any = true
+	}
+	return fields, any
+}
+
+func securityTxtUnavailable(domain, reason string) models.Finding {
+	return models.Finding{
+		ProbeID:  "http.securitytxt.unavailable",
+		Subject:  domain,
+		Severity: models.SeverityInfo,
+		Attributes: map[string]any{
+			"reason": reason,
+		},
+	}
+}
