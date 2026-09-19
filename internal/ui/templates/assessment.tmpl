@@ -62,8 +62,9 @@
   <h2>{{.Framework}}</h2>
   <p class="meta">Generated {{.CreatedAt}}</p>
   {{if .Accountability}}
+  {{$fw := .Framework}}
   {{with .Accountability}}
-  <article class="dimension-card answer-sheet" id="accountability">
+  <article class="dimension-card answer-sheet" id="{{$fw}}-accountability">
     <header class="dimension-header">
       <h3>accountability</h3>
       <span class="badge score-{{.Score}}">{{.Score}}</span>

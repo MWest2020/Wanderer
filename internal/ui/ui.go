@@ -147,7 +147,7 @@ type dashboardTargetRow struct {
 	ReportURL         string // /ui/scans/{id}/assessment
 	AccountabilityLabel string
 	AccountabilityClass string
-	AccountabilityLink  string // ReportURL + "#accountability"; "" when there is no report yet
+	AccountabilityLink  string // ReportURL + "#wand-accountability"; "" when there is no report yet
 }
 
 // verdictRenderView is the per-framework verdict pill on the
@@ -379,7 +379,7 @@ func renderDashboard(w http.ResponseWriter, r *http.Request, st *store.Store, tm
 		row.AccountabilityLabel = pill.Label
 		row.AccountabilityClass = pill.Class
 		if row.ReportURL != "" && pill.Class != "unassessed" {
-			row.AccountabilityLink = row.ReportURL + "#accountability"
+			row.AccountabilityLink = row.ReportURL + "#wand-accountability"
 		}
 		view.Targets = append(view.Targets, row)
 	}

@@ -119,7 +119,7 @@ run checks off only the tasks of its own cluster.
 - [ ] 8.4 Playwright smoke: expand evidence, onbekend vs n.v.t.
   rendering.
 
-- [ ] 8.6 UI-defect, gevonden toen de spec eindelijk draaide: de
+- [x] 8.6 UI-defect, gevonden toen de spec eindelijk draaide: de
   rapportpagina rendert per framework een dimensiekaart met
   `id="<dimensie>"`, dus met twee frameworks staan er twee elementen met
   `id="accountability"` op één pagina. Dubbele id's zijn ongeldige HTML

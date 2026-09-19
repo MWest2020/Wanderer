@@ -43,7 +43,7 @@ test.describe("Accountability answer sheet", () => {
     const url = await conductionAssessmentURL(page);
     await page.goto(url);
 
-    const section = page.locator("#accountability");
+    const section = page.locator("#wand-accountability");
     await expect(section).toBeVisible();
 
     // Rule IDs and RDAP jargon stay out of the headline.
@@ -67,7 +67,7 @@ test.describe("Accountability answer sheet", () => {
     const url = await conductionAssessmentURL(page);
     await page.goto(url);
 
-    const section = page.locator("#accountability");
+    const section = page.locator("#wand-accountability");
 
     // The fixture's registrant_identifiable rule scores n.v.t.
     // (registry_redacted, conduction.nl's ".nl" TLD); soa_rname and
