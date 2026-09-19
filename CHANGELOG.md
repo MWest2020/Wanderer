@@ -9,6 +9,11 @@ once a first release is cut. Until then every entry lives under
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-09-19
+
+Eerste release sinds v0.1.0: alles hieronder, plus vendored dependencies
+(`vendor/`) voor offline builds.
+
 ### Added
 
 - **TLS-chain geography** (`propose-tls-chain-geography`, closes Wave 2 of
@@ -857,4 +862,5 @@ ExApp) can pin a reproducible version instead of `@main`.
   deferred (see `docs/observability.md`).
   (`openspec/changes/archive/2026-04-24-init-mvp-scanners`)
 
-[Unreleased]: https://github.com/MWest2020/wanderer/commits/main
+[Unreleased]: https://github.com/MWest2020/wanderer/compare/v0.2.0...main
+[0.2.0]: https://github.com/MWest2020/wanderer/compare/v0.1.0...v0.2.0
