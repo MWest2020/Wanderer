@@ -523,6 +523,50 @@ func TestDomainExpiry(t *testing.T) {
 	})
 }
 
+// TestDomainExpiryThresholdsMatchComparison derives its boundary days
+// from r.Thresholds rather than from literal 90/30 in the test, so
+// that if Match's comparison and the rule's declared Thresholds ever
+// diverge (e.g. someone edits one without the other), this test fails
+// instead of silently passing against a stale hand-copied number.
+func TestDomainExpiryThresholdsMatchComparison(t *testing.T) {
+	r := ruleByID(t, "wand.operationeel.domain_expiry")
+
+	byName := map[string]assessor.Threshold{}
+	for _, th := range r.Thresholds {
+		byName[th.Name] = th
+	}
+	safe, ok := byName["domain_expiry_safe_days"]
+	if !ok {
+		t.Fatal("no domain_expiry_safe_days threshold declared")
+	}
+	urgent, ok := byName["domain_expiry_urgent_days"]
+	if !ok {
+		t.Fatal("no domain_expiry_urgent_days threshold declared")
+	}
+
+	future := func(days int) string {
+		return time.Now().Add(time.Duration(days) * 24 * time.Hour).UTC().Format(time.RFC3339)
+	}
+	matchDays := func(days int) models.Score {
+		return r.Match([]models.Finding{expiryFinding("f1", "example.nl", map[string]any{
+			"present": true, "date": future(days),
+		})}).Score
+	}
+
+	// +2, not +1: daysLeft is computed from time.Until at Match-time,
+	// a moment after future() stamped the date, so a +1 margin can
+	// truncate back down to the threshold itself and flip the verdict.
+	if got := matchDays(int(safe.Value) + 2); got != models.ScoreSoeverein {
+		t.Errorf("two days beyond the declared safe threshold (%d): score = %s, want soeverein", int(safe.Value)+2, got)
+	}
+	if got := matchDays(int(urgent.Value) + 2); got != models.ScoreVoldoende {
+		t.Errorf("two days beyond the declared urgent threshold (%d): score = %s, want voldoende", int(urgent.Value)+2, got)
+	}
+	if got := matchDays(int(urgent.Value)); got != models.ScoreAfhankelijk {
+		t.Errorf("at the declared urgent threshold (%d): score = %s, want afhankelijk", int(urgent.Value), got)
+	}
+}
+
 // ---------- variant_convergence ----------
 
 func variantPath(hostPart, family, scheme, status, finalOrigin, reason string) map[string]any {

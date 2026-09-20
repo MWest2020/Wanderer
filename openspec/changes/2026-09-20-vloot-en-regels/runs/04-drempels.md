@@ -10,11 +10,11 @@ niemand hem zien, navertellen of weerleggen — en een lezer weet niet
 waarom zijn domein omslaat.
 
 ## Scope — ONLY these tasks
-- [ ] 4.1 `assessor.Rule` krijgt een veld voor zijn beslisgrenzen: per
+- [x] 4.1 `assessor.Rule` krijgt een veld voor zijn beslisgrenzen: per
   grens een naam, een waarde en een eenheid, plus één zin in mensentaal
   ("verloopt binnen 30 dagen"). Regels zonder grens (aanwezig-of-niet)
   houden een lege lijst. Geen gedrag verandert in deze run.
-- [ ] 4.2 De bestaande regels van de wand- en eucsf-pakketten vullen hun
+- [x] 4.2 De bestaande regels van de wand- en eucsf-pakketten vullen hun
   grenzen in, en een test vangt het uiteenlopen: als een regel een grens
   meedraagt, moet zijn vergelijking diezelfde waarde gebruiken. Doe dat
   waar het kan met een gedeelde constante per regel, zodat de test niet

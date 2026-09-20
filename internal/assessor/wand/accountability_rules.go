@@ -369,6 +369,18 @@ func nsHolderTransparent() assessor.Rule {
 	}
 }
 
+// domainExpirySafeDays and domainExpiryUrgentDays are domainExpiry's
+// two decision boundaries, shared between the Match comparison below
+// and the rule's Thresholds so the two cannot drift apart.
+const (
+	// domainExpirySafeDays is the day count beyond which a domain
+	// registration's expiry carries no near-term lapse risk.
+	domainExpirySafeDays = 90
+	// domainExpiryUrgentDays is the day count at or below which
+	// renewal has become urgent (or is already past).
+	domainExpiryUrgentDays = 30
+)
+
 // domainExpiry scores the registration expiry event under the
 // operationeel dimension. It never guesses: when RDAP answered but
 // the registry publishes no expiration event (as SIDN does not for
@@ -382,11 +394,34 @@ func domainExpiry() assessor.Rule {
 		ID:          "wand.operationeel.domain_expiry",
 		Dimension:   models.DimensionOperationeel,
 		Description: "The domain registration will not lapse unexpectedly.",
-		Rationale: "A domain that lapses because nobody renewed it in time is an " +
-			"outage an attacker can turn into a takeover: a lapsed domain can be " +
-			"re-registered by anyone, including someone impersonating the " +
-			"organisation. A 90-day horizon gives an operator real lead time; " +
-			"inside 30 days — or already past — the renewal has become urgent.",
+		Rationale: fmt.Sprintf(
+			"A domain that lapses because nobody renewed it in time is an "+
+				"outage an attacker can turn into a takeover: a lapsed domain can be "+
+				"re-registered by anyone, including someone impersonating the "+
+				"organisation. A %d-day horizon gives an operator real lead time; "+
+				"inside %d days — or already past — the renewal has become urgent.",
+			domainExpirySafeDays, domainExpiryUrgentDays,
+		),
+		Thresholds: []assessor.Threshold{
+			{
+				Name:  "domain_expiry_safe_days",
+				Value: domainExpirySafeDays,
+				Unit:  "dagen",
+				Explanation: fmt.Sprintf(
+					"boven %d dagen is er geen kortetermijnrisico op verlies van de domeinregistratie",
+					domainExpirySafeDays,
+				),
+			},
+			{
+				Name:  "domain_expiry_urgent_days",
+				Value: domainExpiryUrgentDays,
+				Unit:  "dagen",
+				Explanation: fmt.Sprintf(
+					"verloopt binnen %d dagen — of is al verlopen — waardoor verlenging urgent wordt",
+					domainExpiryUrgentDays,
+				),
+			},
+		},
 		Match: func(findings []models.Finding) assessor.RuleResult {
 			var expiry models.Finding
 			haveExpiry := false
@@ -435,7 +470,7 @@ func domainExpiry() assessor.Rule {
 
 			daysLeft := int(time.Until(expiresAt).Hours() / 24)
 			switch {
-			case daysLeft > 90:
+			case daysLeft > domainExpirySafeDays:
 				return assessor.RuleResult{
 					Score: models.ScoreSoeverein,
 					Verdict: fmt.Sprintf(
@@ -444,7 +479,7 @@ func domainExpiry() assessor.Rule {
 					),
 					Evidence: []string{expiry.ID},
 				}
-			case daysLeft > 30:
+			case daysLeft > domainExpiryUrgentDays:
 				return assessor.RuleResult{
 					Score: models.ScoreVoldoende,
 					Verdict: fmt.Sprintf(

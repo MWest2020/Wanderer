@@ -35,6 +35,31 @@ type Rule struct {
 	// handle missing or mistyped attributes by returning
 	// ScoreOnbekend with an empty Evidence list, not by panicking.
 	Match func(findings []models.Finding) RuleResult
+	// Thresholds lists the rule's decision boundaries as data — name,
+	// value, unit, and a plain-language sentence of what crossing it
+	// means — so the UI can show them and a test can check them
+	// against the value Match actually compares against. A rule that
+	// decides on a fixed number (a duration, a count) SHOULD carry
+	// that number here, ideally via the same named constant Match
+	// uses, so the two cannot silently drift apart. A rule that only
+	// checks presence/absence of a Finding (an aanwezig-of-niet
+	// controle, with no number to cross) has no Threshold and leaves
+	// this nil.
+	Thresholds []Threshold
+}
+
+// Threshold is a single decision boundary a Rule scores against.
+type Threshold struct {
+	// Name is a short, stable identifier for the boundary, e.g.
+	// "domain_expiry_safe_days".
+	Name string
+	// Value is the boundary's numeric value, e.g. 90.
+	Value float64
+	// Unit is Value's unit in plain language, e.g. "dagen".
+	Unit string
+	// Explanation is one sentence in plain language describing what
+	// crossing this boundary means, e.g. "verloopt binnen 30 dagen".
+	Explanation string
 }
 
 // RuleResult is the outcome of running a single Rule. A result with a

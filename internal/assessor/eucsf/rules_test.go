@@ -159,3 +159,23 @@ func TestEveryRuleHasRationale(t *testing.T) {
 		}
 	}
 }
+
+// TestEveryThresholdIsWellFormed checks that any Threshold a rule
+// declares carries a name, unit, and plain-language explanation — a
+// Threshold with a bare number and no meaning is as useless to a
+// reader as no Threshold at all.
+func TestEveryThresholdIsWellFormed(t *testing.T) {
+	for _, r := range DefaultRules() {
+		for _, th := range r.Thresholds {
+			if th.Name == "" {
+				t.Errorf("rule %s: Threshold has no Name", r.ID)
+			}
+			if th.Unit == "" {
+				t.Errorf("rule %s: Threshold %q has no Unit", r.ID, th.Name)
+			}
+			if th.Explanation == "" {
+				t.Errorf("rule %s: Threshold %q has no Explanation", r.ID, th.Name)
+			}
+		}
+	}
+}

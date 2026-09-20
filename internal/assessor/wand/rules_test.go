@@ -1,6 +1,7 @@
 package wand
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -276,6 +277,42 @@ func TestDNSRedundancy(t *testing.T) {
 	}
 }
 
+// TestDNSRedundancyThresholdMatchesComparison derives the number of
+// nameservers it constructs from r.Thresholds rather than a literal
+// in the test, so a divergence between Match's comparison and the
+// declared threshold fails this test instead of passing silently.
+func TestDNSRedundancyThresholdMatchesComparison(t *testing.T) {
+	r := ruleByID(t, "wand.operationeel.dns_redundancy")
+
+	var min assessor.Threshold
+	found := false
+	for _, th := range r.Thresholds {
+		if th.Name == "dns_redundancy_min_nameservers" {
+			min, found = th, true
+		}
+	}
+	if !found {
+		t.Fatal("no dns_redundancy_min_nameservers threshold declared")
+	}
+
+	nsFindings := func(n int) []models.Finding {
+		var out []models.Finding
+		for i := 0; i < n; i++ {
+			out = append(out, f(fmt.Sprintf("n%d", i), "dns.ns", map[string]any{
+				"_subject": "example.nl", "host": fmt.Sprintf("ns%d.example.nl", i),
+			}))
+		}
+		return out
+	}
+
+	if got := r.Match(nsFindings(int(min.Value) - 1)).Score; got != models.ScoreAfhankelijk {
+		t.Errorf("one below the declared minimum (%d): score = %s, want afhankelijk", int(min.Value)-1, got)
+	}
+	if got := r.Match(nsFindings(int(min.Value))).Score; got != models.ScoreVoldoende {
+		t.Errorf("at the declared minimum (%d): score = %s, want voldoende", int(min.Value), got)
+	}
+}
+
 func TestNSVendorJurisdiction(t *testing.T) {
 	r := ruleByID(t, "wand.juridisch.ns_vendor_jurisdiction")
 
@@ -496,6 +533,26 @@ func TestEveryRuleHasRationale(t *testing.T) {
 		}
 		if r.Rationale == r.Description {
 			t.Errorf("rule %s: Rationale equals Description (must add why-this-matters context, not duplicate the summary)", r.ID)
+		}
+	}
+}
+
+// TestEveryThresholdIsWellFormed checks that any Threshold a rule
+// declares carries a name, unit, and plain-language explanation — a
+// Threshold with a bare number and no meaning is as useless to a
+// reader as no Threshold at all.
+func TestEveryThresholdIsWellFormed(t *testing.T) {
+	for _, r := range DefaultRules() {
+		for _, th := range r.Thresholds {
+			if th.Name == "" {
+				t.Errorf("rule %s: Threshold has no Name", r.ID)
+			}
+			if th.Unit == "" {
+				t.Errorf("rule %s: Threshold %q has no Unit", r.ID, th.Name)
+			}
+			if th.Explanation == "" {
+				t.Errorf("rule %s: Threshold %q has no Explanation", r.ID, th.Name)
+			}
 		}
 	}
 }

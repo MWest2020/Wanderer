@@ -21,9 +21,9 @@
 - [x] 3.3 Sorteren op score, op verandering, op laatste scan.
 
 ## 4. Drempels uit de code — run 04
-- [ ] 4.1 `Rule` draagt zijn grenzen als gegeven (naam, waarde,
+- [x] 4.1 `Rule` draagt zijn grenzen als gegeven (naam, waarde,
   eenheid); regels zonder grens hebben een lege lijst.
-- [ ] 4.2 De bestaande regels vullen hun grenzen in; een test vangt het
+- [x] 4.2 De bestaande regels vullen hun grenzen in; een test vangt het
   uiteenlopen van grens en vergelijking.
 
 ## 5. De regelpagina — run 05

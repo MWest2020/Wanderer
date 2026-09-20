@@ -558,6 +558,11 @@ func certValidity() assessor.Rule {
 	}
 }
 
+// dnsRedundancyMinNameservers is dnsRedundancy's decision boundary,
+// shared between the Match comparison below and the rule's
+// Thresholds so the two cannot drift apart.
+const dnsRedundancyMinNameservers = 2
+
 func dnsRedundancy() assessor.Rule {
 	return assessor.Rule{
 		ID:          "wand.operationeel.dns_redundancy",
@@ -568,6 +573,17 @@ func dnsRedundancy() assessor.Rule {
 			"unreachable when that one server is down. RFC 2182 recommends at " +
 			"least two; sovereign-grade operators typically run nameservers in " +
 			"two distinct ASs and two distinct geographic regions.",
+		Thresholds: []assessor.Threshold{
+			{
+				Name:  "dns_redundancy_min_nameservers",
+				Value: dnsRedundancyMinNameservers,
+				Unit:  "nameservers",
+				Explanation: fmt.Sprintf(
+					"minder dan %d nameservers geldt als een single point of failure",
+					dnsRedundancyMinNameservers,
+				),
+			},
+		},
 		Match: func(findings []models.Finding) assessor.RuleResult {
 			hosts := map[string]bool{}
 			var evidence []string
@@ -585,7 +601,7 @@ func dnsRedundancy() assessor.Rule {
 			if len(hosts) == 0 {
 				return assessor.RuleResult{Score: models.ScoreOnbekend, Verdict: "no dns.ns finding — DNS probe did not return NS records"}
 			}
-			if len(hosts) < 2 {
+			if len(hosts) < dnsRedundancyMinNameservers {
 				return assessor.RuleResult{
 					Score:    models.ScoreAfhankelijk,
 					Verdict:  "only one nameserver delegated; no redundancy",
