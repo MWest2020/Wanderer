@@ -15,10 +15,10 @@
 - [x] 2.3 Alleen voor ingelogde gebruikers, net als scannen.
 
 ## 3. Het vlootscherm — run 03
-- [ ] 3.1 Alle domeinen met `x/n`, onbeantwoorde vragen apart, en de
+- [x] 3.1 Alle domeinen met `x/n`, onbeantwoorde vragen apart, en de
   zwaarste openstaande bevinding.
-- [ ] 3.2 Verschil sinds de vorige scan per domein.
-- [ ] 3.3 Sorteren op score, op verandering, op laatste scan.
+- [x] 3.2 Verschil sinds de vorige scan per domein.
+- [x] 3.3 Sorteren op score, op verandering, op laatste scan.
 
 ## 4. Drempels uit de code — run 04
 - [ ] 4.1 `Rule` draagt zijn grenzen als gegeven (naam, waarde,

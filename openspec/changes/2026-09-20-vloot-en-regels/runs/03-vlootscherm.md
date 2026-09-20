@@ -5,16 +5,16 @@ Contract: `openspec/changes/2026-09-20-vloot-en-regels/`
 niet ja of nee").
 
 ## Scope — ONLY these tasks
-- [ ] 3.1 De vlootpagina (`/ui/orgs/{slug}/fleet`, run 02) toont per
+- [x] 3.1 De vlootpagina (`/ui/orgs/{slug}/fleet`, run 02) toont per
   domein `x/n` uit `BuildFleetScore` (run 01, internal/ui/fleet_score.go),
   met het aantal onbeantwoorde vragen ernaast ("5/7 · 2 onbekend") en
   de zwaarste openstaande bevinding uit dezelfde functie. Bouw geen
   tweede telling.
-- [ ] 3.2 Het verschil sinds de vorige scan per domein: hoeveel vragen
+- [x] 3.2 Het verschil sinds de vorige scan per domein: hoeveel vragen
   erbij of eraf, en welke stroom omsloeg. `internal/drift` doet al iets
   vergelijkbaars per target — kijk daar eerst of je het kunt hergebruiken
   in plaats van naast te zetten; zeg in je run-rapport wat je koos.
-- [ ] 3.3 Sorteren op score, op verandering en op laatste scan, via
+- [x] 3.3 Sorteren op score, op verandering en op laatste scan, via
   links met een query-parameter (geen JavaScript nodig — deze UI werkt
   zonder). De gekozen sortering blijft zichtbaar.
 

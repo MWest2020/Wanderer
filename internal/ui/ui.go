@@ -530,38 +530,93 @@ func resolveOrgQueryParam(ctx context.Context, st *store.Store, w http.ResponseW
 	return o.ID, o, true
 }
 
-// fleetView is the shape fleet.tmpl renders: every domain currently
-// in one organisation's fleet, with enough context to add or remove
-// one (spec.md "Domeinen zijn bij te houden als vloot"). The x/n
-// score, the diff since the previous scan, and sorting are run 03's
-// job (proposal.md "Het vlootscherm zelf met x/n en sortering") —
-// this view only carries what run 02 promises: the domain list
-// itself, its last scan, and its schedule.
+// fleetView is the shape fleet.tmpl renders: every domain currently in
+// one organisation's fleet (spec.md "Domeinen zijn bij te houden als
+// vloot"), each with its x/n score, its change since the previous
+// scan, and its schedule. Domains is pre-sorted by SortKey; a domain
+// that has never been scanned always sorts after every scanned one,
+// regardless of SortKey — run 03's task-ref: a domain without a scan
+// "verdwijnt niet naar onderen [per ongeluk] bij sorteren op score;
+// zet die apart onderaan".
 type fleetView struct {
 	GeneratedAt        string
 	HasReporting       bool
 	OrgSlug            string
 	ScopedOrganisation *organisationLinkView
 	AllowEdit          bool // signed-in user: render the add/remove forms
+	SortKey            string
+	SortLinks          []fleetSortLinkView
 	Domains            []fleetDomainView
 }
 
-// fleetDomainView is one row: LastScanAt is "" when the domain has
-// never been scanned (fleet.tmpl renders "nog niet gescand" for
-// that case, per spec.md's scenario). ScheduleName is "" when no
+// fleetSortLinkView is one of the "sort by" links fleet.tmpl renders —
+// run 03's task-ref: "Sorteren ... via links met een query-parameter
+// (geen JavaScript nodig)". Active marks the currently-applied sort so
+// the choice stays visible on the page.
+type fleetSortLinkView struct {
+	Key    string
+	Label  string
+	URL    string
+	Active bool
+}
+
+// fleetDomainView is one row. LastScanAt is "" when the domain has
+// never been scanned (fleet.tmpl renders "nog niet gescand" for that
+// case, per spec.md's scenario) — HasScore is false in that case too,
+// since there is nothing yet to score. ScheduleName is "" when no
 // schedule in the schedules file targets this domain.
 type fleetDomainView struct {
 	Domain       string
 	LastScanAt   string
 	ScheduleName string
 	ScheduleCron string
+
+	// HasScore is true once the domain has at least one scan; the x/n
+	// score can still read 0/0 if that scan has not been assessed yet.
+	HasScore     bool
+	X, N         int
+	Unanswered   int
+	WorstFlow    string
+	WorstVerdict string
+
+	// HasPrevious is true once there is a scan before the latest one
+	// to diff against (spec.md run 03 task 3.2).
+	HasPrevious  bool
+	XDelta       int
+	NDelta       int
+	FlippedFlows []string
 }
 
-// fleetHandler renders /ui/orgs/{slug}/fleet: the organisation's
-// fleet of domains, independent of whether any of them have been
-// scanned. Read-only — allowEdit only controls whether the template
-// renders the add/remove forms; the mutating routes themselves are
-// gated separately in Handler.
+// fleetRow is fleetHandler's working shape before it is split into the
+// scored/unscanned buckets and formatted for the template — it keeps
+// LastScanAt as a time.Time so sorting by "last scan" doesn't need to
+// re-parse the RFC3339 string fleet.tmpl gets.
+type fleetRow struct {
+	target       models.Target
+	scheduleName string
+	scheduleCron string
+	hasScan      bool
+	lastScanAt   time.Time
+	score        FleetScore
+	delta        FleetDelta
+}
+
+// fleetSortKeys enumerates the sortable columns (run 03's task-ref:
+// "Sorteren op score, op verandering en op laatste scan") plus the
+// default alphabetical order, in the order their links render.
+var fleetSortKeys = []struct{ key, label string }{
+	{"domain", "Domein"},
+	{"score", "Score"},
+	{"change", "Verandering"},
+	{"last_scan", "Laatste scan"},
+}
+
+// fleetHandler renders /ui/orgs/{slug}/fleet: the organisation's fleet
+// of domains, each scored with BuildFleetScore against its latest scan
+// and diffed against the scan before that with BuildFleetDelta.
+// Read-only — allowEdit only controls whether the template renders the
+// add/remove forms; the mutating routes themselves are gated
+// separately in Handler.
 func fleetHandler(st *store.Store, tmpl *template.Template, allowEdit bool, schedules ScheduleSource) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
@@ -581,37 +636,169 @@ func fleetHandler(st *store.Store, tmpl *template.Template, allowEdit bool, sche
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		lastScanByTarget := map[string]time.Time{}
+		lastScanByTarget := map[string]store.ScanRow{}
 		for _, sc := range scans {
-			if cur, ok := lastScanByTarget[sc.TargetID]; !ok || sc.StartedAt.After(cur) {
-				lastScanByTarget[sc.TargetID] = sc.StartedAt
+			if cur, ok := lastScanByTarget[sc.TargetID]; !ok || sc.StartedAt.After(cur.StartedAt) {
+				lastScanByTarget[sc.TargetID] = sc
 			}
 		}
 		var scheds []scheduler.Schedule
 		if schedules != nil {
 			scheds = schedules.Schedules()
 		}
+
+		var scored, unscanned []fleetRow
+		for _, t := range domains {
+			row := fleetRow{target: t}
+			row.scheduleName, row.scheduleCron = matchSchedule(scheds, t.Domain, org.Slug)
+			last, ok := lastScanByTarget[t.ID]
+			if !ok {
+				unscanned = append(unscanned, row)
+				continue
+			}
+			row.hasScan = true
+			row.lastScanAt = last.StartedAt
+			assessments, err := st.ListAssessmentsForScan(ctx, last.ID)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			row.score = BuildFleetScore(assessments)
+			switch prevScan, perr := st.PreviousScanForTarget(ctx, t.ID, last.StartedAt); {
+			case perr == nil:
+				prevAssessments, aerr := st.ListAssessmentsForScan(ctx, prevScan.ID)
+				if aerr != nil {
+					http.Error(w, aerr.Error(), http.StatusInternalServerError)
+					return
+				}
+				row.delta = BuildFleetDelta(true, prevAssessments, assessments)
+			case errors.Is(perr, store.ErrNotFound):
+				row.delta = BuildFleetDelta(false, nil, assessments)
+			default:
+				http.Error(w, perr.Error(), http.StatusInternalServerError)
+				return
+			}
+			scored = append(scored, row)
+		}
+
+		sortKey := normaliseFleetSort(r.URL.Query().Get("sort"))
+		sortFleetRows(scored, sortKey)
+		sort.Slice(unscanned, func(i, j int) bool { return unscanned[i].target.Domain < unscanned[j].target.Domain })
+
 		view := fleetView{
 			GeneratedAt:  time.Now().UTC().Format(time.RFC3339),
 			HasReporting: true,
 			OrgSlug:      org.Slug,
 			AllowEdit:    allowEdit,
+			SortKey:      sortKey,
 			ScopedOrganisation: &organisationLinkView{
 				Slug: org.Slug,
 				Name: org.Name,
 				URL:  "/ui/orgs/" + org.Slug,
 			},
 		}
-		for _, t := range domains {
-			row := fleetDomainView{Domain: t.Domain}
-			if when, ok := lastScanByTarget[t.ID]; ok {
-				row.LastScanAt = when.UTC().Format(time.RFC3339)
-			}
-			row.ScheduleName, row.ScheduleCron = matchSchedule(scheds, t.Domain, org.Slug)
-			view.Domains = append(view.Domains, row)
+		for _, sk := range fleetSortKeys {
+			view.SortLinks = append(view.SortLinks, fleetSortLinkView{
+				Key:    sk.key,
+				Label:  sk.label,
+				URL:    "/ui/orgs/" + org.Slug + "/fleet?sort=" + sk.key,
+				Active: sk.key == sortKey,
+			})
+		}
+		for _, row := range append(scored, unscanned...) {
+			view.Domains = append(view.Domains, row.toView())
 		}
 		render(w, tmpl, "fleet.tmpl", view)
 	}
+}
+
+// normaliseFleetSort maps an arbitrary `?sort=` value to a known
+// fleetSortKeys entry, defaulting to "domain" for anything else —
+// including an empty value, so a bare /fleet request reads as the same
+// alphabetical order run 02 shipped.
+func normaliseFleetSort(key string) string {
+	for _, sk := range fleetSortKeys {
+		if sk.key == key {
+			return key
+		}
+	}
+	return "domain"
+}
+
+// sortFleetRows orders rows in place; every row has hasScan=true — the
+// never-scanned bucket is sorted and appended separately in
+// fleetHandler so it never re-enters the ranking.
+func sortFleetRows(rows []fleetRow, key string) {
+	switch key {
+	case "score":
+		// Ascending: the worst, most-actionable domains surface first.
+		// The percentage is sort-only (proposal.md "Een percentage MAY
+		// getoond worden om op te sorteren") — x/n stays the displayed
+		// value.
+		sort.SliceStable(rows, func(i, j int) bool {
+			return fleetScorePercent(rows[i].score) < fleetScorePercent(rows[j].score)
+		})
+	case "change":
+		// Ascending: domains that regressed the most surface first.
+		sort.SliceStable(rows, func(i, j int) bool {
+			return fleetChangeRank(rows[i].delta) < fleetChangeRank(rows[j].delta)
+		})
+	case "last_scan":
+		// Descending: most recently scanned first.
+		sort.SliceStable(rows, func(i, j int) bool {
+			return rows[i].lastScanAt.After(rows[j].lastScanAt)
+		})
+	default:
+		sort.SliceStable(rows, func(i, j int) bool {
+			return rows[i].target.Domain < rows[j].target.Domain
+		})
+	}
+}
+
+// fleetScorePercent is the sort-only percentage the proposal sanctions.
+// A domain with n=0 (nothing could be answered yet) sorts as the worst
+// case rather than dividing by zero.
+func fleetScorePercent(s FleetScore) float64 {
+	if s.N == 0 {
+		return 0
+	}
+	return float64(s.X) / float64(s.N)
+}
+
+// fleetChangeRank ranks a delta from "got worse" to "got better",
+// ascending. A domain with no previous scan ranks as unchanged (0),
+// alongside domains that scanned twice with no change — there is
+// nothing to contrast it against either way.
+func fleetChangeRank(d FleetDelta) int {
+	if !d.HasPrevious {
+		return 0
+	}
+	return d.XDelta
+}
+
+// toView formats a fleetRow for fleet.tmpl. A row with no scan yet
+// carries only its domain and schedule — the zero-value score/delta
+// fields would otherwise read as a genuine (and misleading) 0/0.
+func (row fleetRow) toView() fleetDomainView {
+	v := fleetDomainView{
+		Domain:       row.target.Domain,
+		ScheduleName: row.scheduleName,
+		ScheduleCron: row.scheduleCron,
+	}
+	if row.hasScan {
+		v.LastScanAt = row.lastScanAt.UTC().Format(time.RFC3339)
+		v.HasScore = true
+		v.X = row.score.X
+		v.N = row.score.N
+		v.Unanswered = row.score.Unanswered
+		v.WorstFlow = row.score.WorstFlow
+		v.WorstVerdict = row.score.WorstVerdict
+		v.HasPrevious = row.delta.HasPrevious
+		v.XDelta = row.delta.XDelta
+		v.NDelta = row.delta.NDelta
+		v.FlippedFlows = row.delta.FlippedFlows
+	}
+	return v
 }
 
 // matchSchedule finds the cron schedule that governs domain under

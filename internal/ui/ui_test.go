@@ -1177,6 +1177,202 @@ func TestFleetPage_ShowsSchedule(t *testing.T) {
 	}
 }
 
+// seedFleetScan creates one scan + wand assessment for targetID with
+// the given rationales, so fleet-screen tests can drive
+// BuildFleetScore/BuildFleetDelta through the real HTTP handler
+// instead of re-testing those functions' logic (already covered by
+// fleet_score_test.go / fleet_delta_test.go).
+func seedFleetScan(t *testing.T, st *store.Store, targetID string, rs ...models.Rationale) (scanID string, startedAt time.Time) {
+	t.Helper()
+	sc, err := st.CreateScan(context.Background(), targetID)
+	if err != nil {
+		t.Fatalf("create scan: %v", err)
+	}
+	a := &models.Assessment{
+		ScanID:    sc.ID,
+		Framework: "wand",
+		Dimensions: []models.DimensionScore{{
+			Dimension:    models.DimensionJuridisch,
+			Score:        models.ScoreSoeverein,
+			Completeness: models.CompletenessComplete,
+			Rationale:    rs,
+		}},
+	}
+	if err := st.CreateAssessment(context.Background(), a); err != nil {
+		t.Fatalf("create assessment: %v", err)
+	}
+	return sc.ID, sc.StartedAt
+}
+
+func TestFleetPage_ShowsScoreAndWorstFinding(t *testing.T) {
+	// spec.md "Het vlootscherm scoort x van n, niet ja of nee": the row
+	// shows x/n plus the heaviest open finding (BuildFleetScore).
+	srv, st := newServer(t, "")
+	tgt, err := st.AddFleetDomain(context.Background(), models.DefaultOrganisationID, "voorbeeld.nl")
+	if err != nil {
+		t.Fatalf("AddFleetDomain: %v", err)
+	}
+	seedFleetScan(t, st, tgt.ID,
+		models.Rationale{CriteriumID: "wand.juridisch.apex_ip_eea", Verdict: "apex in NL", Score: models.ScoreSoeverein},
+		models.Rationale{CriteriumID: "wand.juridisch.mx_vendor_jurisdiction", Verdict: "mx hosts in US (outside EEA)", Score: models.ScoreAfhankelijk},
+	)
+	resp, err := http.Get(srv.URL + "/ui/orgs/default/fleet")
+	if err != nil {
+		t.Fatalf("get: %v", err)
+	}
+	defer resp.Body.Close()
+	body, _ := io.ReadAll(resp.Body)
+	bodyStr := string(body)
+	for _, want := range []string{"1/2", "Mail", "mx hosts in US (outside EEA)"} {
+		if !strings.Contains(bodyStr, want) {
+			t.Errorf("fleet page missing %q; body:\n%s", want, bodyStr)
+		}
+	}
+}
+
+func TestFleetPage_ShowsUnansweredCount(t *testing.T) {
+	// spec.md scenario "Twee domeinen naast elkaar": an onbekend
+	// question is reported separately, never folded into n.
+	srv, st := newServer(t, "")
+	tgt, err := st.AddFleetDomain(context.Background(), models.DefaultOrganisationID, "voorbeeld.nl")
+	if err != nil {
+		t.Fatalf("AddFleetDomain: %v", err)
+	}
+	seedFleetScan(t, st, tgt.ID,
+		models.Rationale{CriteriumID: "wand.juridisch.apex_ip_eea", Verdict: "apex in NL", Score: models.ScoreSoeverein},
+		models.Rationale{CriteriumID: "wand.juridisch.mx_vendor_jurisdiction", Verdict: "probe failed", Score: models.ScoreOnbekend},
+	)
+	resp, err := http.Get(srv.URL + "/ui/orgs/default/fleet")
+	if err != nil {
+		t.Fatalf("get: %v", err)
+	}
+	defer resp.Body.Close()
+	body, _ := io.ReadAll(resp.Body)
+	bodyStr := string(body)
+	if !strings.Contains(bodyStr, "1/1") || !strings.Contains(bodyStr, "1 onbekend") {
+		t.Errorf("fleet page missing \"1/1 · 1 onbekend\"; body:\n%s", bodyStr)
+	}
+}
+
+func TestFleetPage_ShowsDeltaAndFlippedFlow(t *testing.T) {
+	// run 03 task 3.2: the change since the previous scan, and which
+	// flow flipped.
+	srv, st := newServer(t, "")
+	tgt, err := st.AddFleetDomain(context.Background(), models.DefaultOrganisationID, "voorbeeld.nl")
+	if err != nil {
+		t.Fatalf("AddFleetDomain: %v", err)
+	}
+	seedFleetScan(t, st, tgt.ID,
+		models.Rationale{CriteriumID: "wand.juridisch.mx_vendor_jurisdiction", Verdict: "mx in NL", Score: models.ScoreSoeverein},
+	)
+	time.Sleep(5 * time.Millisecond)
+	seedFleetScan(t, st, tgt.ID,
+		models.Rationale{CriteriumID: "wand.juridisch.mx_vendor_jurisdiction", Verdict: "mx hosts in US (outside EEA)", Score: models.ScoreAfhankelijk},
+	)
+	resp, err := http.Get(srv.URL + "/ui/orgs/default/fleet")
+	if err != nil {
+		t.Fatalf("get: %v", err)
+	}
+	defer resp.Body.Close()
+	body, _ := io.ReadAll(resp.Body)
+	bodyStr := string(body)
+	for _, want := range []string{"x -1", "omgeslagen: Mail"} {
+		if !strings.Contains(bodyStr, want) {
+			t.Errorf("fleet page missing %q; body:\n%s", want, bodyStr)
+		}
+	}
+}
+
+func TestFleetPage_FirstScanHasNoDelta(t *testing.T) {
+	srv, st := newServer(t, "")
+	tgt, err := st.AddFleetDomain(context.Background(), models.DefaultOrganisationID, "voorbeeld.nl")
+	if err != nil {
+		t.Fatalf("AddFleetDomain: %v", err)
+	}
+	seedFleetScan(t, st, tgt.ID,
+		models.Rationale{CriteriumID: "wand.juridisch.apex_ip_eea", Verdict: "apex in NL", Score: models.ScoreSoeverein},
+	)
+	resp, err := http.Get(srv.URL + "/ui/orgs/default/fleet")
+	if err != nil {
+		t.Fatalf("get: %v", err)
+	}
+	defer resp.Body.Close()
+	body, _ := io.ReadAll(resp.Body)
+	if !strings.Contains(string(body), "eerste scan") {
+		t.Errorf("fleet page missing \"eerste scan\" for a domain with only one scan; body:\n%s", string(body))
+	}
+}
+
+func TestFleetPage_SortByScorePutsWorstFirst(t *testing.T) {
+	srv, st := newServer(t, "")
+	good, err := st.AddFleetDomain(context.Background(), models.DefaultOrganisationID, "goed.nl")
+	if err != nil {
+		t.Fatalf("AddFleetDomain: %v", err)
+	}
+	bad, err := st.AddFleetDomain(context.Background(), models.DefaultOrganisationID, "slecht.nl")
+	if err != nil {
+		t.Fatalf("AddFleetDomain: %v", err)
+	}
+	seedFleetScan(t, st, good.ID,
+		models.Rationale{CriteriumID: "wand.juridisch.apex_ip_eea", Verdict: "apex in NL", Score: models.ScoreSoeverein},
+	)
+	seedFleetScan(t, st, bad.ID,
+		models.Rationale{CriteriumID: "wand.juridisch.apex_ip_eea", Verdict: "apex in US", Score: models.ScoreAfhankelijk},
+	)
+	resp, err := http.Get(srv.URL + "/ui/orgs/default/fleet?sort=score")
+	if err != nil {
+		t.Fatalf("get: %v", err)
+	}
+	defer resp.Body.Close()
+	body, _ := io.ReadAll(resp.Body)
+	bodyStr := string(body)
+	iBad := strings.Index(bodyStr, "slecht.nl")
+	iGood := strings.Index(bodyStr, "goed.nl")
+	if iBad == -1 || iGood == -1 {
+		t.Fatalf("both domains must render; body:\n%s", bodyStr)
+	}
+	if iBad > iGood {
+		t.Errorf("sort=score must put the worst-scoring domain first: slecht.nl at %d, goed.nl at %d", iBad, iGood)
+	}
+	if !strings.Contains(bodyStr, "<strong>Score</strong>") {
+		t.Errorf("active sort link must stay visible; body:\n%s", bodyStr)
+	}
+}
+
+func TestFleetPage_UnscannedDomainStaysLastRegardlessOfSort(t *testing.T) {
+	srv, st := newServer(t, "")
+	scanned, err := st.AddFleetDomain(context.Background(), models.DefaultOrganisationID, "gescand.nl")
+	if err != nil {
+		t.Fatalf("AddFleetDomain: %v", err)
+	}
+	if _, err := st.AddFleetDomain(context.Background(), models.DefaultOrganisationID, "nooit.nl"); err != nil {
+		t.Fatalf("AddFleetDomain: %v", err)
+	}
+	// A poor score for the scanned domain: sorting naively by a 0-valued
+	// score for "nooit.nl" could otherwise put it ahead of a genuinely
+	// bad, but scanned, domain.
+	seedFleetScan(t, st, scanned.ID,
+		models.Rationale{CriteriumID: "wand.juridisch.apex_ip_eea", Verdict: "apex in US", Score: models.ScoreAfhankelijk},
+	)
+	for _, sortKey := range []string{"", "score", "change", "last_scan"} {
+		resp, err := http.Get(srv.URL + "/ui/orgs/default/fleet?sort=" + sortKey)
+		if err != nil {
+			t.Fatalf("get: %v", err)
+		}
+		body, _ := io.ReadAll(resp.Body)
+		resp.Body.Close()
+		bodyStr := string(body)
+		iScanned := strings.Index(bodyStr, "gescand.nl")
+		iUnscanned := strings.Index(bodyStr, "nooit.nl")
+		if iScanned == -1 || iUnscanned == -1 {
+			t.Fatalf("sort=%q: both domains must render; body:\n%s", sortKey, bodyStr)
+		}
+		if iUnscanned < iScanned {
+			t.Errorf("sort=%q: unscanned domain must stay last, got nooit.nl before gescand.nl", sortKey)
+		}
+	}
+}
+
 // stubSchedules is a fixed schedule list for tests that need
 // ui.Options.Schedules without spinning up a real *scheduler.Scheduler
 // (which requires a store + scanner).

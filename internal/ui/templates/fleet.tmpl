@@ -27,10 +27,16 @@
 {{end}}
 
 {{if .Domains}}
+<p class="fleet-sort meta">
+  Sorteer op:
+  {{range $i, $sl := .SortLinks}}{{if $i}} · {{end}}{{if $sl.Active}}<strong>{{$sl.Label}}</strong>{{else}}<a href="{{$sl.URL}}">{{$sl.Label}}</a>{{end}}{{end}}
+</p>
 <table>
   <thead>
     <tr>
       <th>Domein</th>
+      <th>Score</th>
+      <th>Verschil sinds vorige scan</th>
       <th>Laatste scan</th>
       <th>Schema</th>
       {{if .AllowEdit}}<th></th>{{end}}
@@ -40,6 +46,34 @@
     {{range .Domains}}
     <tr>
       <td>{{.Domain}}</td>
+      <td>
+        {{if .HasScore}}
+        {{if or .N .Unanswered}}
+        <span class="fleet-score">{{.X}}/{{.N}}{{if .Unanswered}} · {{.Unanswered}} onbekend{{end}}</span>
+        {{if .WorstFlow}}<div class="muted small">zwaarste: {{.WorstFlow}} — {{.WorstVerdict}}</div>{{end}}
+        {{else}}
+        <span class="muted">nog geen oordeel</span>
+        {{end}}
+        {{else}}
+        <span class="muted">—</span>
+        {{end}}
+      </td>
+      <td>
+        {{if .HasScore}}
+          {{if .HasPrevious}}
+            {{if or .XDelta .NDelta}}
+            <span class="fleet-delta">x {{if gt .XDelta 0}}+{{end}}{{.XDelta}} · n {{if gt .NDelta 0}}+{{end}}{{.NDelta}}</span>
+            {{else}}
+            <span class="muted">geen verandering</span>
+            {{end}}
+            {{if .FlippedFlows}}<div class="muted small">omgeslagen: {{range $i, $f := .FlippedFlows}}{{if $i}}, {{end}}{{$f}}{{end}}</div>{{end}}
+          {{else}}
+          <span class="muted">eerste scan</span>
+          {{end}}
+        {{else}}
+        <span class="muted">—</span>
+        {{end}}
+      </td>
       <td>{{if .LastScanAt}}<code>{{.LastScanAt}}</code>{{else}}<span class="muted">nog niet gescand</span>{{end}}</td>
       <td>{{if .ScheduleName}}{{.ScheduleName}} <span class="muted">(<code>{{.ScheduleCron}}</code>)</span>{{else}}<span class="muted">geen schema</span>{{end}}</td>
       {{if $.AllowEdit}}
