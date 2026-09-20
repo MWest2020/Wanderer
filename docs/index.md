@@ -55,6 +55,9 @@ merits.
   fit together, key design decisions, how to add a probe.
 - [**Agent**](explanation/agent.md) — `wanderer agent` host-side
   inspectors, config, least-privilege user setup, HMAC remote transport.
+- [**Accountability: the passive ceiling**](explanation/accountability-boundaries.md)
+  — RDAP fields we wish existed, and why the `.nl` registrant/expiry
+  questions are structurally n.v.t. rather than a scanner gap.
 - [**Maintainability**](explanation/maintainability.md) — single entry
   point for contributors: CHANGELOG, ADRs, API stability, testing
   baseline, dependency policy, commit style.

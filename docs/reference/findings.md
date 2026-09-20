@@ -1,6 +1,6 @@
 ---
 status: draft
-last_reviewed: 2026-07-12
+last_reviewed: 2026-09-20
 ---
 
 # Findings Reference
@@ -61,6 +61,7 @@ packs.
 | `data_ai`         | Data & AI       |
 | `operationeel`    | Operationeel    |
 | `mens`            | Mens            |
+| `accountability`  | Accountability (wand-native, no DICTU counterpart — see [assessor.md](assessor.md#the-accountability-dimension)) |
 | (empty)           | no hint — raw observation |
 
 ## Scanner-level meta findings
@@ -174,26 +175,131 @@ corrupt. It does not degrade silently.
 | `http.robots_blocked`   | info        | —              | `robots_txt_fetched: true`; Evidence: robots.txt body                      |
 | `http.fetch_failed`     | concern     | —              | `error` — neither HTTPS nor HTTP worked                                    |
 | `http.parse_failed`     | info        | —              | `error` — response fetched but HTML parsing failed                         |
+| `http.securitytxt`      | observation | `accountability` | `status`, `present`, `parseable`, `contact` (list), `expires` (RFC 3339), `truncated?`; Evidence: raw body |
+| `http.securitytxt.unavailable` | info | —              | `reason` — transport-level failure only (DNS, TLS, connect, timeout)       |
 
 `http.third_party` has one Finding **per external host**. The `Subject`
 is the external host, not the scanned domain. Use `source_domain` in
 Attributes to link it back.
 
+`http.securitytxt` fetches `https://<domain>/.well-known/security.txt`
+(RFC 9116 — published precisely to be fetched, so this stays inside
+the passive boundary). A non-200 response (a 404 included) is a
+**valid observation**, not an error: `present: false`, `parseable:
+false`. An HTML error page served at that path (detected via
+`Content-Type` or a `<!doctype`/`<html` sniff) is recorded as present
+but `parseable: false` rather than parsed as if it were text. Only a
+transport-level failure emits `http.securitytxt.unavailable`. The body
+is capped at 64 KiB (`truncated: true` beyond that).
+
 ## WHOIS / RDAP probe — `internal/probe/whois`
 
 Issues `GET https://rdap.org/domain/<domain>` with a 5-second
 timeout and walks the returned vCard array per RFC 7483. Stdlib
-`net/http` only — no WHOIS-43 socket, no third-party SDK.
+`net/http` only — no WHOIS-43 socket, no third-party SDK. Entities are
+parsed **recursively** (`entities[].entities[]`) because a reseller
+commonly sits nested under the registrar entity.
 
-| ProbeID            | Severity | Dimension   | Attributes                                  |
-| ------------------ | -------- | ----------- | ------------------------------------------- |
-| `whois.registrant` | finding  | `juridisch` | `country` (ISO 3166-1 alpha-2, uppercase)   |
-| `whois.registrar`  | info     | —           | `name` (registrar organisation)             |
-| `whois.unavailable`| info     | —           | `reason` — emitted on any network error, non-2xx, parse error, or response with no registrant/registrar entities, so the rest of the scan continues |
+| ProbeID                     | Severity    | Dimension        | Attributes                                  |
+| ---------------------------- | ----------- | ---------------- | -------------------------------------------- |
+| `whois.registrant`          | finding     | `juridisch`      | `country` (ISO 3166-1 alpha-2, uppercase)   |
+| `whois.registrar`           | info        | —                | `name` (registrar organisation)             |
+| `whois.registrant_identity` | observation | `accountability` | `name` (or `"absent"`), `kind` (vCard KIND, e.g. `individual`/`org`, or `"absent"`), `privacy_proxy` (bool — a generic redaction placeholder, not a specific commercial service), `rfc9537_redacted?` (true when the RDAP response carried a `redacted` array) |
+| `whois.reseller`            | observation | `accountability` | `present` (bool), `name` (or `"absent"`)    |
+| `whois.status`              | observation | `accountability` | `codes` (RDAP domain status codes, `[]` when the registry publishes none) |
+| `whois.expiry`              | observation | `accountability` | `present` (bool), `date` (RFC 3339, or `"absent"` when the registry publishes no expiration event — e.g. SIDN for `.nl`) |
+| `whois.unavailable`         | info        | —                | `reason` — emitted on any network error, non-2xx, parse error, or response with no registrant/registrar entities, so the rest of the scan continues |
 
 Consumed by `wand.juridisch.registrar_jurisdiction`, which maps
 EEA registrant countries to soeverein, anything outside the EEA to
 afhankelijk, and absence (`whois.unavailable`) to onbekend.
+`whois.registrant_identity`, `whois.reseller`, `whois.status`, and
+`whois.expiry` feed the `accountability`-dimension rules and
+`wand.operationeel.domain_expiry` — see
+[assessor.md](assessor.md#the-accountability-dimension).
+
+## SOA probe — `internal/probe/soa`
+
+Queries the zone's SOA record (a hand-rolled SOA query, since
+`net.Resolver` exposes no SOA lookup — the same gap the DNS probe
+works around for CAA) and reports the RNAME (the zone's own
+designated contact mailbox) as a contactability signal.
+
+| ProbeID               | Severity    | Dimension        | Attributes |
+| ----------------------- | ----------- | ---------------- | ---------- |
+| `dns.soa`              | observation | `accountability` | `mname`, `rname`; on successful RNAME parse also `mailbox`, `mailbox_domain`, `mailbox_domain_resolves` (bool), `mailbox_domain_has_mx` (bool); on parse failure `rname_parse_error` instead |
+| `dns.soa.unavailable`  | info        | —                | `reason` — NXDOMAIN, timeout, lame delegation |
+
+**No SMTP probing.** The probe checks whether the RNAME mailbox
+domain resolves and publishes MX only — it never opens an SMTP
+connection to verify delivery. Confirming delivery would cross the
+passive/abuse boundary; existence plus MX presence is the honest
+ceiling, stated as such in the rule's verdict text.
+
+## Variants probe — `internal/probe/variants`
+
+Attempts all 8 apex/www × IPv4/IPv6 × http/https path combinations
+and reports whether they converge on one canonical HTTPS origin.
+Sequential, one hop at a time, redirect depth capped at 5 per path, a
+hard budget of 24 connections per target across all 8 paths — less
+traffic than one browser page load. Every hop passes the existing
+SSRF guard (`internal/probe/ssrf.go`); a refused hop is recorded as
+`refused`, never followed.
+
+| ProbeID                      | Severity    | Dimension      | Attributes |
+| ------------------------------ | ----------- | -------------- | ---------- |
+| `http.variants`               | observation | `operationeel` | `paths` (list of per-path results, see below), `connections_used`, `connection_budget` |
+| `http.variants.unavailable`   | info        | —              | `reason` — emitted once when the scan's own context budget was already exhausted before this probe ran |
+
+Each entry in `paths` carries: `host_part` (`apex`/`www`), `family`
+(`v4`/`v6`), `scheme` (`http`/`https`), `status`
+(`reachable`/`unreachable`/`refused`/`not_followed_budget`/`not_tested`),
+`chain` (the URLs visited), `final_origin` (when reachable), and
+`reason` (when `not_tested`, always `scanner_no_ipv6` — see
+[assessor.md](assessor.md#reason-codes)).
+
+If the scanner host has no working IPv6 route, v6 paths are recorded
+as `not_tested` rather than attempted and reported unreachable — a
+scanner-side limitation must never be charged to the target. An
+allowed optimisation: once a path lands on an origin already verified
+reachable *in the same address family* during this run, later paths
+that land on the same origin stop immediately rather than re-walking
+the chain; the shortcut never crosses address families, so a v6 path
+is never marked reachable off the strength of a v4 verification.
+
+## NS holder Findings — `internal/scanner/nsholder.go`
+
+Produced by the scanner, not a probe: one RDAP lookup per unique
+registrable domain among the target's `dns.ns` hosts (cached per scan,
+so N nameservers on one provider cost one lookup), classifying whether
+that nameserver-operating domain's own RDAP registrant is
+identifiable. `Subject` is the nameserver's registrable domain, not
+the scanned target.
+
+| ProbeID                        | Severity    | Dimension        | Attributes |
+| --------------------------------- | ----------- | ---------------- | ---------- |
+| `whois.ns_holder`                | observation | `accountability` | `registrant` (`"present"` \| `"proxied"` \| `"absent"`) |
+| `whois.ns_holder.unavailable`    | info        | —                | `reason` — RDAP lookup failed, including a TLD with no RDAP service |
+
+Consumed by `wand.accountability.ns_holder_transparent`.
+
+## Organisation config Findings — `internal/scanner/expectedregistrant.go`
+
+`config.expected_registrant` records, at scan time, the organisation's
+declared registrant names (`organisations.expected_registrant`, set
+via `wanderer org add --expected-registrant`). It is always emitted,
+even with an empty list, so its absence is never mistaken for "not
+scanned yet". Recording it as a Finding rather than having the
+assessor read the organisations table directly keeps the assessor a
+pure function of Findings: a later re-assessment of a stored scan sees
+the names as they stood when the scan ran, not what the organisation
+says today.
+
+| ProbeID                        | Severity | Dimension        | Attributes |
+| ---------------------------------- | -------- | ---------------- | ---------- |
+| `config.expected_registrant`      | info     | `accountability` | `expected_registrant` (list of names, possibly empty) |
+
+Consumed by `wand.accountability.registrant_identifiable`.
 
 ## Drift Findings
 

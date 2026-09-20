@@ -9,6 +9,57 @@ once a first release is cut. Until then every entry lives under
 
 ## [Unreleased]
 
+### Added
+
+- **Accountability dimension** (`propose-accountability-dimension`). wand
+  gains a sixth, wand-native dimension — `accountability` — answering the
+  sovereignty question DICTU's instrument does not ask: who is answerable
+  for a piece of infrastructure, and can you actually reach them? Five new
+  rules score it: `wand.accountability.registrant_identifiable`,
+  `no_reseller`, `soa_rname`, `securitytxt`, and `ns_holder_transparent`;
+  two continuity-flavoured rules land under the existing `operationeel`
+  dimension instead — `domain_expiry` and `variant_convergence`. New
+  Findings back them: the whois probe now parses RDAP entities
+  recursively and emits `whois.registrant_identity`, `whois.reseller`,
+  `whois.status`, and `whois.expiry`; a new SOA probe emits `dns.soa`
+  (RNAME mailbox contactability — existence and MX presence only, no
+  SMTP); the HTTP probe fetches `/.well-known/security.txt` and emits
+  `http.securitytxt` (RFC 9116); a new variants probe walks all eight
+  apex/www × IPv4/IPv6 × http/https paths under a 24-connection budget
+  and emits `http.variants`; the scanner performs one RDAP lookup per
+  unique nameserver-holder domain (`whois.ns_holder`) and records the
+  organisation's declared registrant names at scan time
+  (`config.expected_registrant`, set via `wanderer org add
+  --expected-registrant NAME`, repeatable). All answer-sheet copy for the
+  seven rules lives in one Dutch string table,
+  `internal/assessor/wand/accountability_nl.yaml`; the report page
+  renders it as five/seven plain-language questions with evidence
+  collapsed underneath, not a rule dump. For `.nl` targets, SIDN's
+  registry-wide redaction means two of the five accountability questions
+  render "n.v.t." rather than a false negative — see
+  [`docs/explanation/accountability-boundaries.md`](docs/explanation/accountability-boundaries.md).
+- **Reason codes** (generic mechanism, first used by the accountability
+  dimension). A `RuleResult`/`models.Rationale` may now carry a
+  machine-readable `Reason`, classified in a single registry
+  (`internal/assessor/reason.go`) as `structural` ("n.v.t.", excluded
+  from worst-score and completeness) or `gap` ("onbekend", counts as a
+  measurement hole), and as subject `target` or `scanner` — a
+  scanner-subject reason (e.g. `scanner_no_ipv6`, when the scanning host
+  has no working IPv6 route) renders as an operator environment warning,
+  never as a property of the target. A dimension whose every rule carries
+  a `structural` reason is marked not applicable and excluded from the
+  target's overall score. Additive: assessments persisted before this
+  change load unchanged.
+
+### Changed
+
+- `assessor.DICTUDimensions` is renamed to `assessor.WandDimensions` and
+  now lists six dimensions (the DICTU five plus `accountability`).
+  Consumers iterate the list; none may assume a fixed length.
+  `models.DimensionHint` gains the `accountability` value.
+- `organisations` gains an `expected_registrant` column (JSON array,
+  default `[]`); `wanderer org add`/`org show` read and write it.
+
 ## [0.2.0] - 2026-09-19
 
 Eerste release sinds v0.1.0: alles hieronder, plus vendored dependencies

@@ -129,9 +129,9 @@ run checks off only the tasks of its own cluster.
   spec aan. Alleen de ankers; de kaartinhoud blijft.
 
 ## 9. Wrap-up — run 08
-- [ ] 9.1 docs/reference/assessor.md + findings.md updates (reason
+- [x] 9.1 docs/reference/assessor.md + findings.md updates (reason
   codes, new findings, new dimension); CHANGELOG.
-- [ ] 9.2 docs/explanation note: RDAP fields we wish existed
+- [x] 9.2 docs/explanation note: RDAP fields we wish existed
   (actor/escalation), the `.nl` passive ceiling, why both are out of
   scope.
 - [ ] 9.3 Attribution text from 1.2.
