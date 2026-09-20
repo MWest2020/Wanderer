@@ -7,6 +7,9 @@
 //	wanderer diff <scan-a> <scan-b> — print drift between two scans (no persistence)
 //	wanderer serve                  — start the HTTP API (with optional cron schedules)
 //	wanderer agent                  — run the host-side inventory/egress inspectors
+//	wanderer agent intrekken <host> — revoke an enrolled agent
+//	wanderer agent list             — list enrolled agents
+//	wanderer agent-token nieuw      — issue a short-lived agent enrolment token
 //	wanderer mcp                    — speak the Model Context Protocol over stdio
 //	wanderer version                — print the build version
 package main
@@ -39,6 +42,8 @@ func main() {
 		os.Exit(runDiff(args))
 	case "agent":
 		os.Exit(runAgent(args))
+	case "agent-token":
+		os.Exit(runAgentToken(args))
 	case "org":
 		os.Exit(runOrg(args))
 	case "mcp":
@@ -55,14 +60,15 @@ func main() {
 }
 
 func usage(w *os.File) {
-	fmt.Fprintln(w, "usage: wanderer <scan|assess|export|diff|serve|agent|org|mcp|version> [args...]")
+	fmt.Fprintln(w, "usage: wanderer <scan|assess|export|diff|serve|agent|agent-token|org|mcp|version> [args...]")
 	fmt.Fprintln(w, "")
 	fmt.Fprintln(w, "  scan <domain>      Run a scan and print the findings")
 	fmt.Fprintln(w, "  assess <scan-id>   Score a scan against the DICTU rule set")
 	fmt.Fprintln(w, "  export <resource>  Export findings/scans/assessments as CSV or JSONL")
 	fmt.Fprintln(w, "  diff <a> <b>       Print drift between two stored scans (read-only)")
 	fmt.Fprintln(w, "  serve              Start the HTTP API (with optional cron schedules)")
-	fmt.Fprintln(w, "  agent              Run the host-side inventory/egress inspectors")
+	fmt.Fprintln(w, "  agent              Run the host-side inventory/egress inspectors (or intrekken|list)")
+	fmt.Fprintln(w, "  agent-token        Issue a short-lived agent enrolment token (nieuw)")
 	fmt.Fprintln(w, "  org                Manage organisations (add|list|show|rename)")
 	fmt.Fprintln(w, "  mcp                Speak the Model Context Protocol over stdio")
 	fmt.Fprintln(w, "  version            Print the build version")

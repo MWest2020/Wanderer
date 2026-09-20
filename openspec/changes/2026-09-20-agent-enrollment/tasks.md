@@ -1,12 +1,12 @@
 # Tasks: agent-enrollment
 
 ## 1. Aanmelden en intrekken — run 01
-- [ ] 1.1 Migratie + model: `agents` (hostnaam, geheim-hash, aangemeld
+- [x] 1.1 Migratie + model: `agents` (hostnaam, geheim-hash, aangemeld
   op, ingetrokken op), en aanmeldtokens (hash, geldig tot, gebruikt op).
-- [ ] 1.2 `POST /agents/enrol`: token inwisselen voor een eigen geheim;
+- [x] 1.2 `POST /agents/enrol`: token inwisselen voor een eigen geheim;
   één keer bruikbaar, verloopt, en het geheim is niet terug te lezen.
-- [ ] 1.3 CLI: een token aanmaken, agents tonen, een agent intrekken.
-- [ ] 1.4 Tests incl. token twee keer, verlopen token, ingetrokken agent.
+- [x] 1.3 CLI: een token aanmaken, agents tonen, een agent intrekken.
+- [x] 1.4 Tests incl. token twee keer, verlopen token, ingetrokken agent.
 
 ## 2. De kern luistert — run 02
 - [ ] 2.1 `serve` bouwt de router met de agent-geheimen uit de store

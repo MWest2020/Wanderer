@@ -1,6 +1,7 @@
 // Package api exposes Wanderer's HTTP surface: POST /scans,
-// GET /scans/{id}, GET /healthz, GET /metrics. The MVP is single-
-// tenant and trusted-network; authentication is a separate change.
+// GET /scans/{id}, GET /healthz, GET /metrics, POST /agents/enrol.
+// The MVP is single-tenant and trusted-network; authentication is a
+// separate change.
 package api
 
 import (
@@ -132,6 +133,8 @@ func RouterWithSecrets(st *store.Store, sc *scanner.Scanner, logger *slog.Logger
 	})
 
 	r.Method(http.MethodPost, "/scans/{id}/findings", FindingsIngestHandler(st, secrets))
+
+	r.Method(http.MethodPost, "/agents/enrol", EnrolHandler(st))
 
 	r.Get("/targets/{id}/drift", func(w http.ResponseWriter, r *http.Request) {
 		id := chi.URLParam(r, "id")

@@ -26,11 +26,20 @@ import (
 	"github.com/MWest2020/wanderer/pkg/models"
 )
 
-// runAgent executes `wanderer agent --config <file>`. It runs the
-// inventory inspectors and the egress probe on a loop and ships
-// findings either to a local SQLite store or to a remote core over
-// HMAC-signed HTTPS.
+// runAgent dispatches `wanderer agent <verb>` for the enrolment-admin
+// verbs (intrekken, list) before falling back to its default form,
+// `wanderer agent --config <file>`, which runs the inventory
+// inspectors and the egress probe on a loop and ships findings either
+// to a local SQLite store or to a remote core over HMAC-signed HTTPS.
 func runAgent(args []string) int {
+	if len(args) > 0 {
+		switch args[0] {
+		case "intrekken":
+			return runAgentIntrekken(args[1:])
+		case "list":
+			return runAgentList(args[1:])
+		}
+	}
 	fs := flag.NewFlagSet("agent", flag.ContinueOnError)
 	cfgPath := fs.String("config", envOr("WANDERER_AGENT_CONFIG", "wanderer-agent.yaml"), "Path to wanderer-agent.yaml")
 	once := fs.Bool("once", false, "Run inspectors once and exit")

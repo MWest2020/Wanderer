@@ -193,6 +193,31 @@ CREATE INDEX idx_ui_sessions_expires_at ON ui_sessions(expires_at);
 ALTER TABLE organisations ADD COLUMN expected_registrant TEXT NOT NULL DEFAULT '[]';
 `,
 	},
+	{
+		Version: 8,
+		Name:    "add_agent_enrollment",
+		Up: `-- agent-enrollment: an agent proves itself once (POST
+-- /agents/enrol) rather than sharing a hand-placed HMAC secret.
+-- Neither table stores a usable credential in the clear: agents
+-- keeps only secret_hash, enrolment_tokens only token_hash. Both
+-- are the hex SHA-256 digest of the plain value, which is shown to
+-- the operator/agent exactly once and never persisted.
+CREATE TABLE agents (
+  id          TEXT PRIMARY KEY,
+  hostname    TEXT NOT NULL UNIQUE,
+  secret_hash TEXT NOT NULL,
+  enrolled_at DATETIME NOT NULL,
+  revoked_at  DATETIME
+);
+
+CREATE TABLE enrolment_tokens (
+  id         TEXT PRIMARY KEY,
+  token_hash TEXT NOT NULL UNIQUE,
+  expires_at DATETIME NOT NULL,
+  used_at    DATETIME
+);
+`,
+	},
 }
 
 // runMigrations applies every migration whose Version is not already
