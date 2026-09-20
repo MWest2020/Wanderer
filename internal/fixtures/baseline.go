@@ -3,24 +3,33 @@ package fixtures
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/MWest2020/wanderer/internal/store"
 	"github.com/MWest2020/wanderer/pkg/models"
 )
 
 // BuildBaseline writes the minimal happy-path scenario: two
-// organisations (conduction + acme), one perimeter domain per
-// org, one scored scan each. Every existing perimeter rule that
-// the demo Playwright suite exercises has at least one
-// non-onbekend row after the seed runs.
+// organisations (conduction + acme), conduction carrying two
+// perimeter domains and acme one, one scored scan each. Every
+// existing perimeter rule that the demo Playwright suite exercises
+// has at least one non-onbekend row after the seed runs.
 //
 // Score shape on purpose:
 //
 //   - conduction.nl is fully soeverein (NL-issued TLS, NL-hosted
 //     IP, NL-hosted mail) so the dashboard pill is green
+//   - tweede.nl is conduction's second fleet domain: afhankelijk on
+//     the certificate dimension, scanned two days before
+//     conduction.nl, so the vloot-en-regels Playwright spec (run 06)
+//     can prove "sort by score" and "sort by last scan" produce
+//     different orders within one organisation's fleet
 //   - acme.example.com is afhankelijk on the certificate dimension
 //     (US issuer) so the reporting catalogue's Current-state
-//     column shows mixed verdicts
+//     column shows mixed verdicts, and its domain registration
+//     expires inside the 30-day urgent window so
+//     wand.operationeel.domain_expiry has a target on the
+//     "afhankelijk" side of its threshold for the regelpagina spec
 func BuildBaseline(ctx context.Context, st *store.Store) error {
 	cond, err := upsertOrg(ctx, st, "conduction", "Conduction B.V.")
 	if err != nil {
@@ -35,6 +44,10 @@ func BuildBaseline(ctx context.Context, st *store.Store) error {
 	if err != nil {
 		return err
 	}
+	condSecondTarget, err := upsertTarget(ctx, st, "tweede.nl", models.TargetKindDomain, cond.ID)
+	if err != nil {
+		return err
+	}
 	acmeTarget, err := upsertTarget(ctx, st, "acme.example.com", models.TargetKindDomain, acme.ID)
 	if err != nil {
 		return err
@@ -43,7 +56,10 @@ func BuildBaseline(ctx context.Context, st *store.Store) error {
 	if _, err := addCompletedScan(ctx, st, condTarget, baseTime, baselineSovereignFindings("conduction.nl")); err != nil {
 		return fmt.Errorf("baseline: conduction scan: %w", err)
 	}
-	if _, err := addCompletedScan(ctx, st, acmeTarget, baseTime, baselineDependentFindings("acme.example.com")); err != nil {
+	if _, err := addCompletedScan(ctx, st, condSecondTarget, baseTime.Add(-48*time.Hour), baselineDependentFindings("tweede.nl")); err != nil {
+		return fmt.Errorf("baseline: conduction second-domain scan: %w", err)
+	}
+	if _, err := addCompletedScan(ctx, st, acmeTarget, baseTime, baselineExpiringDependentFindings("acme.example.com")); err != nil {
 		return fmt.Errorf("baseline: acme scan: %w", err)
 	}
 	return nil
@@ -138,5 +154,24 @@ func baselineDependentFindings(domain string) []models.Finding {
 			out[i].Attributes["issuer_org"] = "DigiCert Inc"
 		}
 	}
+	return out
+}
+
+// baselineExpiringDependentFindings adds a whois.expiry finding
+// inside wand.operationeel.domain_expiry's 30-day urgent window on
+// top of baselineDependentFindings, so the rule scores afhankelijk
+// instead of its default onbekend (no registry publishes an expiry
+// event for conduction.nl's ".nl" TLD, so that domain stays onbekend
+// on purpose — see accountability_rules.go's domainExpiry doc
+// comment). The vloot-en-regels regelpagina spec (run 06) needs one
+// target on the "afhankelijk" side of a rule that carries an
+// explicit Threshold, and domain_expiry is the only such rule with a
+// fixture-reachable failing row.
+func baselineExpiringDependentFindings(domain string) []models.Finding {
+	out := baselineDependentFindings(domain)
+	out = append(out, mkFinding("whois.expiry", domain, models.DimensionAccountability, map[string]any{
+		"present": true,
+		"date":    baseTime.AddDate(0, 0, 20).Format(time.RFC3339),
+	}))
 	return out
 }

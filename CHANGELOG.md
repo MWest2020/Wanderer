@@ -9,6 +9,26 @@ once a first release is cut. Until then every entry lives under
 
 ## [Unreleased]
 
+### Added
+
+- **Vloot en regels** (`2026-09-20-vloot-en-regels`). Domains are now
+  tracked as a fleet, independent of scanning: `/ui/orgs/{slug}/fleet`
+  lets a signed-in user add and remove domains, shows each one's last
+  scan and schedule, and sorts on domain, score, change, and last
+  scan (a never-scanned domain always sorts last). Score reads **x
+  van n**, never ja/nee: the number of sovereign answers out of the
+  number that could be answered, with unanswered questions shown
+  separately and never counted as a pass or towards `n`, plus the
+  heaviest open finding alongside the score. Every rule's page
+  (`/ui/reporting/{framework}/{ruleID}`) now states its threshold as
+  an explicit, human-readable value instead of leaving it implicit in
+  the code, and shows one concrete **handeling** — naming the domain —
+  for every target that scores `afhankelijk`; a rule without one fails
+  the tests, same as a missing `Rationale`.
+  `tests/playwright/specs/vloot-en-regels.spec.ts` (in the `scan-dev`
+  project) covers adding a domain, sorting the fleet screen, and the
+  regelpagina's threshold + handeling.
+
 ## [0.4.0] - 2026-09-20
 
 ### Added

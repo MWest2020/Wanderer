@@ -96,7 +96,7 @@ export default defineConfig({
     },
     {
       name: "scan-dev",
-      testMatch: ["ui-dev-scan.spec.ts", "answer-first-flow.spec.ts"],
+      testMatch: ["ui-dev-scan.spec.ts", "answer-first-flow.spec.ts", "vloot-en-regels.spec.ts"],
       use: {
         ...devices["Desktop Chrome"],
         baseURL: `http://127.0.0.1:${scanDevPort}`,

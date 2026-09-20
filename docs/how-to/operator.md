@@ -227,6 +227,48 @@ Reporting) but filtered to that organisation. The Reporting page
 takes an optional `?org=<slug>` query parameter to filter the
 cross-target view.
 
+#### The vloot screen
+
+`/ui/orgs/{slug}/fleet` is where an organisation's domains are kept,
+independent of scanning them. A signed-in user (htpasswd or OIDC —
+the same gate that unlocks `/ui/`'s scan form) can add a domain
+without triggering a scan (it shows "nog niet gescand" until the
+first scan lands) and remove one; removing only stops the domain
+from appearing here — its scans and assessments stay reachable by
+anyone who already has the link.
+
+Each row scores **x van n**, not a plain yes/no: the number of
+questions answered sovereign, out of the number that *could* be
+answered. An unanswered question (`onbekend` — the probe did not
+run, or the registry does not publish the data) never counts as a
+pass and never counts in `n` either, so it cannot round a partial
+picture up to a clean score; it is shown separately ("5/7 · 2
+onbekend"). Next to the score sits the heaviest open finding, so a
+high score never hides one easy-to-dismiss gap. The screen sorts on
+domain, score, change since the previous scan, and last-scan date;
+a domain with no scan yet always sorts to the bottom regardless of
+which column is active.
+
+#### The regelpagina
+
+`/ui/reporting/{framework}/{ruleID}` is a rule's own page — the
+bottom of the drilldown Trends' rule catalogue links to. It states
+what the rule checks, why it matters, which observation it reads,
+and — when the rule has one — its **threshold** as an explicit
+value in plain language ("verloopt binnen 30 dagen", not just a
+number buried in a comparison), plus which targets currently sit on
+which side of it. A rule that only checks presence (no numeric
+threshold) says so instead of showing an empty box.
+
+For every target that scores `afhankelijk`, the page also shows the
+**handeling**: one concrete action naming the domain and what to do
+("Verleng de domeinregistratie van acme.example.com direct en zet
+automatische verlenging aan bij de registrar"), not a repeated goal.
+The same line appears on the scan's onderbouwing (assessment) page.
+Every rule carries one in the Dutch copy table
+(`internal/assessor/wand/accountability_nl.yaml`'s `handelingen`
+map); a rule added without one fails the tests.
+
 ### Nextcloud login (OIDC)
 
 By default `/ui/` is protected by HTTP Basic against the `htpasswd`

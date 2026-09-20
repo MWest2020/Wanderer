@@ -43,5 +43,8 @@
 
 ## 6. Bewijs en documentatie — run 06
 - [ ] 6.1 Playwright: domein toevoegen, vloot sorteren, regelpagina met
-  grens en handeling. In de juiste `testMatch`.
-- [ ] 6.2 docs + CHANGELOG.
+  grens en handeling. In de juiste `testMatch`. (spec geschreven en
+  gewijsde via een Go-httptest-harnas op de fixture; niet uitgevoerd
+  onder Playwright/Chromium — geen egress in de kooi. Niet afvinken
+  tot buiten de kooi nagemeten.)
+- [x] 6.2 docs + CHANGELOG.
