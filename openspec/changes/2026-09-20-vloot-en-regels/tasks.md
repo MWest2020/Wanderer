@@ -1,11 +1,11 @@
 # Tasks: vloot-en-regels
 
 ## 1. x van n — run 01
-- [ ] 1.1 Eén functie die een assessment omzet in `x/n` plus het aantal
+- [x] 1.1 Eén functie die een assessment omzet in `x/n` plus het aantal
   onbeantwoorde vragen; onbekend telt nooit als geslaagd en nooit in n.
-- [ ] 1.2 De zwaarste openstaande bevinding erbij (hergebruik wat de
+- [x] 1.2 De zwaarste openstaande bevinding erbij (hergebruik wat de
   antwoordkop al bepaalt).
-- [ ] 1.3 Table-driven tests incl. alles onbekend, alles soeverein, en
+- [x] 1.3 Table-driven tests incl. alles onbekend, alles soeverein, en
   een gelijke score met verschillend aantal onbekenden.
 
 ## 2. De vloot bijhouden — run 02

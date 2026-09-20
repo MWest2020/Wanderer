@@ -82,6 +82,26 @@ func SovereigntyFlows(assessments []models.Assessment) []Flow {
 	return flows
 }
 
+// classifyFlows buckets a scan's sovereignty flows the same way
+// BuildAnswerVerdict and BuildFleetScore both need to: which flows
+// scored afhankelijk (in SovereigntyFlows' fixed order, so the first
+// entry is always the same "heaviest" one), how many fired but scored
+// onbekend, and how many landed soeverein/voldoende. Shared here so
+// the two callers can't drift into counting "answered" differently.
+func classifyFlows(flows []Flow) (afhankelijk []Flow, unanswered, answered int) {
+	for _, f := range flows {
+		switch models.Score(f.Score) {
+		case models.ScoreAfhankelijk:
+			afhankelijk = append(afhankelijk, f)
+		case models.ScoreOnbekend:
+			unanswered++
+		default: // soeverein, voldoende
+			answered++
+		}
+	}
+	return afhankelijk, unanswered, answered
+}
+
 // FlowState is one flow's progress on the progressive answer page
 // (spec.md "The answer fills in while the scan runs"): a flow whose
 // rule has evidence reads as "beantwoord"; one without evidence reads

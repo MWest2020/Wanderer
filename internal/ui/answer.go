@@ -33,25 +33,12 @@ type AnswerVerdict struct {
 // or as unanswered.
 func BuildAnswerVerdict(assessments []models.Assessment) AnswerVerdict {
 	flows := SovereigntyFlows(assessments)
-
-	var deciding *Flow
-	unanswered := 0
-	haveAnswered := false
-	for i, f := range flows {
-		switch models.Score(f.Score) {
-		case models.ScoreAfhankelijk:
-			if deciding == nil {
-				deciding = &flows[i]
-			}
-		case models.ScoreOnbekend:
-			unanswered++
-		default: // soeverein, voldoende
-			haveAnswered = true
-		}
-	}
+	afhankelijk, unanswered, answered := classifyFlows(flows)
+	haveAnswered := answered > 0
 
 	switch {
-	case deciding != nil:
+	case len(afhankelijk) > 0:
+		deciding := afhankelijk[0]
 		return AnswerVerdict{
 			Verdict:  "nee",
 			Headline: renderAnswerCopy("nee", map[string]string{"flow": deciding.Label, "verdict": deciding.Verdict}),
