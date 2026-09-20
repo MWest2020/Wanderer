@@ -9,17 +9,17 @@ de traceroute. Wachten op alles betekent een lege pagina terwijl DNS en
 TLS al binnen een seconde klaar zijn.
 
 ## Scope — ONLY these tasks
-- [ ] 3.1 De antwoordpagina rendert uit de findings die er op dat
+- [x] 3.1 De antwoordpagina rendert uit de findings die er op dat
   moment zijn: per stroom `nog bezig`, een antwoord, of `niet gemeten`.
   De kop komt uit run 01's functie en zegt ja / nee / onbekend plus het
   aantal onbeantwoorde vragen. De scanner schrijft findings per probe
   weg (`AppendFindings`), dus dit is lezen wat er al staat — geen nieuw
   opslagmechanisme.
-- [ ] 3.2 De pagina ververst zichzelf tot de scan klaar is en stopt
+- [x] 3.2 De pagina ververst zichzelf tot de scan klaar is en stopt
   daarna. Zonder JavaScript doet een `meta refresh` hetzelfde werk; de
   pagina blijft dus werken zonder scripts (dat is de bestaande lijn van
   deze UI — inline SVG, geen bouwstap).
-- [ ] 3.3 Tests: een halve scan rendert (DNS klaar, transit nog bezig),
+- [x] 3.3 Tests: een halve scan rendert (DNS klaar, transit nog bezig),
   een afgeronde scan ververst niet meer, en een scan zonder enige
   finding zegt dat hij net begonnen is in plaats van "nee".
 

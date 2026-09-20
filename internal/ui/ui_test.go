@@ -811,9 +811,10 @@ func TestUIScan_SignedInUser_TriggersAndRedirects(t *testing.T) {
 	if loc != "/ui/scan-status?domain=example.nl" {
 		t.Fatalf("Location = %q, want /ui/scan-status?domain=example.nl", loc)
 	}
-	// Poll the status page; once the background scan + assessment
-	// complete it redirects to the assessment for that scan.
-	var assessLoc string
+	// Poll the status page; once the background scan has a row it
+	// redirects to that scan's answer page — it does not wait for the
+	// (also background) assessment to land.
+	var answerLoc string
 	for i := 0; i < 50; i++ {
 		sr, serr := client.Get(srv.URL + loc)
 		if serr != nil {
@@ -821,14 +822,14 @@ func TestUIScan_SignedInUser_TriggersAndRedirects(t *testing.T) {
 		}
 		l := sr.Header.Get("Location")
 		sr.Body.Close()
-		if sr.StatusCode == http.StatusSeeOther && strings.HasPrefix(l, "/ui/scans/") && strings.HasSuffix(l, "/assessment") {
-			assessLoc = l
+		if sr.StatusCode == http.StatusSeeOther && strings.HasPrefix(l, "/ui/scans/") && strings.HasSuffix(l, "/answer") {
+			answerLoc = l
 			break
 		}
 		time.Sleep(20 * time.Millisecond)
 	}
-	if assessLoc == "" {
-		t.Errorf("status page never redirected to an assessment")
+	if answerLoc == "" {
+		t.Errorf("status page never redirected to an answer page")
 	}
 }
 
@@ -883,7 +884,7 @@ func TestDoor_ShowsRecentAnswerAndAgentHost(t *testing.T) {
 	for _, want := range []string{
 		"Ja — dit domein staat onder Nederlands of Europees recht.",
 		"webapp-01", // the agent host, selectable from the datalist
-		scanID + "/assessment",
+		scanID + "/answer",
 	} {
 		if !strings.Contains(bodyStr, want) {
 			t.Errorf("door missing %q; body:\n%s", want, bodyStr)

@@ -7,6 +7,11 @@
 # verb agreement ("kon" vs "konden") needs the count itself, so that
 # clause is built in Go rather than templated here.
 #
+# net_begonnen is a fifth, distinct outcome (run 03 "the answer fills
+# in while the scan runs"): a scan with zero findings yet has answered
+# nothing, but reads confusingly close to a permanent "onbekend" if
+# rendered through that copy — it hasn't failed, it just started.
+#
 # This is the single Dutch string table for the headline (design
 # intent mirrors internal/assessor/wand/accountability_nl.yaml); no
 # answer copy lives in templates or Go code.
@@ -16,3 +21,4 @@ outcomes:
   ja_unanswered: "Ja — dit domein staat onder Nederlands of Europees recht, al {clause}."
   nee: "Nee — {flow}: {verdict}"
   onbekend: "Dat weten we niet — {clause}."
+  net_begonnen: "De scan is net begonnen — nog geen antwoord."

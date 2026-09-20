@@ -100,6 +100,7 @@ func Handler(st *store.Store, opts Options) (http.Handler, error) {
 	r.Get("/orgs/{slug}", dashboardOrgHandler(st, tmpl, allowScan))
 	r.Get("/targets", targetsHandler(st, tmpl))
 	r.Get("/scans/{id}", scanHandler(st, tmpl))
+	r.Get("/scans/{id}/answer", answerHandler(st, tmpl))
 	r.Get("/scans/{id}/assessment", assessmentHandler(st, tmpl))
 	r.Get("/targets/{id}/drift", driftHandler(st, tmpl))
 	r.Get("/trends", trendsHandler(st, tmpl))
@@ -262,21 +263,22 @@ func scanTriggerHandler(st *store.Store, sc ScanTrigger) http.HandlerFunc {
 	}
 }
 
-// scanStatusView is the shape consumed by scan-status.tmpl.
+// scanStatusView is the shape consumed by scan-status.tmpl — the brief
+// bridge page shown only until the background scan's row exists (see
+// scanStatusHandler); once it does, the answer page takes over.
 type scanStatusView struct {
 	Domain       string
-	Status       string
-	FindingCount int
-	Failed       bool
-	Error        string
 	HasReporting bool
 }
 
 // scanStatusHandler renders a self-refreshing page for a background
 // scan keyed by domain. It finds the most recent scan for the domain
-// and, once that scan has an assessment, redirects to it — so the page
-// polls (via an HTML meta-refresh, no JS) until the result is ready.
-// Mounted alongside the scan form (dev mode only).
+// and, once that scan row exists, redirects to its answer page — so
+// the page polls (via an HTML meta-refresh, no JS) only for the brief
+// window before the background goroutine has even created the scan.
+// The answer page itself (answerHandler) takes over rendering progress
+// from there; it does not wait for a persisted Assessment. Mounted
+// alongside the scan form (dev mode only).
 func scanStatusHandler(st *store.Store, tmpl *template.Template) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		domain := strings.TrimSpace(r.URL.Query().Get("domain"))
@@ -299,21 +301,10 @@ func scanStatusHandler(st *store.Store, tmpl *template.Template) http.HandlerFun
 			}
 		}
 		if latest != nil {
-			if as, aerr := st.ListAssessmentsForScan(r.Context(), latest.ID); aerr == nil && len(as) > 0 {
-				http.Redirect(w, r, "/ui/scans/"+latest.ID+"/assessment", http.StatusSeeOther)
-				return
-			}
+			http.Redirect(w, r, "/ui/scans/"+latest.ID+"/answer", http.StatusSeeOther)
+			return
 		}
-		view := scanStatusView{Domain: domain, HasReporting: true}
-		if latest != nil {
-			view.Status = latest.Status
-			view.FindingCount = latest.FindingCount
-			if latest.Status == string(models.ScanStatusFailed) {
-				view.Failed = true
-				view.Error = latest.Error
-			}
-		}
-		render(w, tmpl, "scan-status.tmpl", view)
+		render(w, tmpl, "scan-status.tmpl", scanStatusView{Domain: domain, HasReporting: true})
 	}
 }
 
@@ -411,9 +402,7 @@ func renderDoor(w http.ResponseWriter, r *http.Request, st *store.Store, tmpl *t
 			row.LastScanAt = s.LastScanAt.UTC().Format(time.RFC3339)
 		}
 		if s.LastScanID != "" {
-			// The dedicated answer page is run 03's job — land on the
-			// existing report page until it exists.
-			row.ReportURL = "/ui/scans/" + s.LastScanID + "/assessment"
+			row.ReportURL = "/ui/scans/" + s.LastScanID + "/answer"
 		}
 		view.Recent = append(view.Recent, row)
 		if len(view.Recent) >= recentAnsweredLimit {
@@ -723,6 +712,79 @@ func scanHandler(st *store.Store, tmpl *template.Template) http.HandlerFunc {
 			view.Probes = append(view.Probes, probeGroupView{Prefix: k, Findings: groups[k]})
 		}
 		render(w, tmpl, "scan.tmpl", view)
+	}
+}
+
+// answerView is the shape consumed by answer.tmpl — the progressive
+// answer page (spec.md "The answer fills in while the scan runs").
+// Refreshing gates the meta-refresh tag: true while the scan can still
+// produce more findings, false once it is done, so the page stops
+// polling on its own.
+type answerView struct {
+	ScanID        string
+	Domain        string
+	OrgSlug       string
+	HasReporting  bool
+	Refreshing    bool
+	JustStarted   bool
+	Headline      string
+	Verdict       string // ja | nee | onbekend; empty when JustStarted
+	Unanswered    int
+	Flows         []FlowState
+	AssessmentURL string // one link to the reasoning (run 04's page does not exist yet)
+}
+
+// answerHandler renders /ui/scans/{id}/answer from the findings
+// persisted so far — not from a persisted Assessment, which may not
+// exist yet while the scan is still running (spec.md "the answer page
+// renders from the findings that exist at that moment"). It assesses
+// scan.Findings in memory with the same wand rule pack the background
+// scan uses; this is a read, not a new storage mechanism.
+func answerHandler(st *store.Store, tmpl *template.Template) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		id := chi.URLParam(r, "id")
+		scan, err := st.GetScan(r.Context(), id)
+		if err != nil {
+			if errors.Is(err, store.ErrNotFound) {
+				http.Error(w, "scan not found", http.StatusNotFound)
+				return
+			}
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		subject := scan.ID
+		if t, terr := st.GetTarget(r.Context(), scan.TargetID); terr == nil && t != nil && t.Domain != "" {
+			subject = t.Domain
+		}
+		done := scan.Status != models.ScanStatusRunning
+		view := answerView{
+			ScanID:        scan.ID,
+			Domain:        subject,
+			OrgSlug:       scopeSlugForScan(r.Context(), st, scan.TargetID),
+			HasReporting:  true,
+			Refreshing:    !done,
+			AssessmentURL: "/ui/scans/" + scan.ID + "/assessment",
+		}
+		if len(scan.Findings) == 0 && !done {
+			// A scan that has not produced a single finding yet has not
+			// failed to answer anything — it just started. Rendering it
+			// through BuildAnswerVerdict would read as a flat "onbekend"
+			// for every flow, indistinguishable from a scan that ran to
+			// completion and genuinely measured nothing.
+			view.JustStarted = true
+			view.Headline = renderAnswerCopy("net_begonnen", nil)
+		} else {
+			assessments := []models.Assessment{{
+				Framework:  "wand",
+				Dimensions: assessor.Assess(scan.Findings, wand.DefaultRules()),
+			}}
+			v := BuildAnswerVerdict(assessments)
+			view.Verdict = v.Verdict
+			view.Headline = v.Headline
+			view.Unanswered = v.Unanswered
+			view.Flows = BuildFlowStates(assessments, done)
+		}
+		render(w, tmpl, "answer.tmpl", view)
 	}
 }
 

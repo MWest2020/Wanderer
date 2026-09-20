@@ -21,11 +21,11 @@
   input.
 
 ## 3. Het antwoord dat invult — run 03
-- [ ] 3.1 The answer page renders from the findings so far, per flow:
+- [x] 3.1 The answer page renders from the findings so far, per flow:
   nog bezig / answered / niet gemeten.
-- [ ] 3.2 It refreshes until the scan completes; without JavaScript a
+- [x] 3.2 It refreshes until the scan completes; without JavaScript a
   meta-refresh does the same job.
-- [ ] 3.3 Tests: partial scan renders, completion stops the refresh.
+- [x] 3.3 Tests: partial scan renders, completion stops the refresh.
 
 ## 4. De onderbouwing — run 04
 - [ ] 4.1 The reasoning page: seven flows + accountability as questions

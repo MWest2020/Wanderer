@@ -50,6 +50,48 @@ func snapWithFlows(id string, rs ...models.Rationale) TargetSnapshot {
 	}
 }
 
+func TestBuildFlowStates_RunningScanShowsBezigForMissingFlows(t *testing.T) {
+	a := models.Assessment{Framework: "wand", Dimensions: []models.DimensionScore{{
+		Dimension: models.DimensionJuridisch,
+		Rationale: []models.Rationale{
+			{CriteriumID: "wand.juridisch.apex_ip_eea", Verdict: "apex in NL", Score: models.ScoreSoeverein, Evidence: []string{"f1"}},
+			{CriteriumID: "wand.juridisch.mx_vendor_jurisdiction", Verdict: "no dns.mx finding — no mail routing to assess", Score: models.ScoreOnbekend},
+		},
+	}}}
+	byLabel := map[string]FlowState{}
+	for _, s := range BuildFlowStates([]models.Assessment{a}, false) {
+		byLabel[s.Label] = s
+	}
+	if got := byLabel["Hosting"]; got.State != "beantwoord" || got.Score != "soeverein" {
+		t.Errorf("Hosting = %+v, want beantwoord/soeverein", got)
+	}
+	if got := byLabel["Mail"]; got.State != "bezig" {
+		t.Errorf("Mail = %+v, want bezig — its rule ran but found no evidence, and the scan can still produce it", got)
+	}
+	if got := byLabel["DNS"]; got.State != "bezig" {
+		t.Errorf("DNS = %+v, want bezig — its rule has not even fired yet", got)
+	}
+}
+
+func TestBuildFlowStates_DoneScanShowsNietGemetenForMissingFlows(t *testing.T) {
+	a := models.Assessment{Framework: "wand", Dimensions: []models.DimensionScore{{
+		Dimension: models.DimensionJuridisch,
+		Rationale: []models.Rationale{
+			{CriteriumID: "wand.juridisch.apex_ip_eea", Verdict: "apex in NL", Score: models.ScoreSoeverein, Evidence: []string{"f1"}},
+		},
+	}}}
+	byLabel := map[string]FlowState{}
+	for _, s := range BuildFlowStates([]models.Assessment{a}, true) {
+		byLabel[s.Label] = s
+	}
+	if got := byLabel["Mail"]; got.State != "niet_gemeten" {
+		t.Errorf("Mail = %+v, want niet_gemeten — the scan is done and this flow never fired", got)
+	}
+	if got := byLabel["Hosting"]; got.State != "beantwoord" {
+		t.Errorf("Hosting = %+v, want beantwoord regardless of done", got)
+	}
+}
+
 func TestSovereigntyFlowRollup_CountsAndWorst(t *testing.T) {
 	snaps := []TargetSnapshot{
 		snapWithFlows(

@@ -12,7 +12,7 @@ func TestAnswerNL_Completeness(t *testing.T) {
 	if err != nil {
 		t.Fatalf("load answer_nl.yaml: %v", err)
 	}
-	for _, key := range []string{"ja", "ja_unanswered", "nee", "onbekend"} {
+	for _, key := range []string{"ja", "ja_unanswered", "nee", "onbekend", "net_begonnen"} {
 		if m[key] == "" {
 			t.Errorf("answer_nl.yaml: missing or empty outcome %q", key)
 		}

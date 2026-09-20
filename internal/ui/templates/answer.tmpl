@@ -1,0 +1,58 @@
+{{define "answer.tmpl"}}<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Wanderer — {{.Domain}}</title>
+<link rel="stylesheet" href="/ui/static/main.css">
+{{if .Refreshing}}<meta http-equiv="refresh" content="3">{{end}}
+</head>
+<body>
+{{template "nav.tmpl" dict "Active" "" "HasReporting" .HasReporting "OrgSlug" .OrgSlug}}
+<header>
+  <h1>{{.Domain}}</h1>
+</header>
+<main>
+
+{{if .JustStarted}}
+<div class="scan-progress">
+  <span class="spinner" aria-hidden="true"></span>
+  <p class="answer-verdict">{{.Headline}}</p>
+</div>
+{{else}}
+<p class="answer-verdict">
+  <span class="badge answer-badge-{{.Verdict}}">{{.Verdict}}</span>
+  {{.Headline}}
+</p>
+{{end}}
+
+{{if .Flows}}
+<table class="flows">
+  <tbody>
+  {{range .Flows}}
+    <tr>
+      <th scope="row">{{.Label}}</th>
+      {{if eq .State "beantwoord"}}
+      <td><span class="badge score-{{.Score}}">{{.Score}}</span></td>
+      <td>{{.Verdict}}</td>
+      {{else if eq .State "bezig"}}
+      <td><span class="badge flow-state-bezig">nog bezig</span></td>
+      <td class="meta">de scan loopt nog</td>
+      {{else}}
+      <td><span class="badge flow-state-niet_gemeten">niet gemeten</span></td>
+      <td class="meta">deze scan heeft hier geen gegevens over</td>
+      {{end}}
+    </tr>
+  {{end}}
+  </tbody>
+</table>
+{{end}}
+
+<p class="meta">
+  {{if .Refreshing}}Deze pagina ververst automatisch tot de scan klaar is.{{end}}
+  <a href="{{.AssessmentURL}}">onderbouwing →</a> · <a href="/ui/">dashboard</a>
+</p>
+
+</main>
+</body>
+</html>{{end}}

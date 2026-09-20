@@ -63,6 +63,58 @@ func SovereigntyFlows(assessments []models.Assessment) []Flow {
 	return flows
 }
 
+// FlowState is one flow's progress on the progressive answer page
+// (spec.md "The answer fills in while the scan runs"): a flow whose
+// rule has evidence reads as "beantwoord"; one without evidence reads
+// as "bezig" while the scan can still produce it, or "niet_gemeten"
+// once the scan is done and it plainly never fired.
+type FlowState struct {
+	Label   string
+	State   string // "bezig" | "beantwoord" | "niet_gemeten"
+	Verdict string
+	Score   string
+}
+
+// BuildFlowStates renders per-flow progress from a scan's assessments
+// (typically computed on the fly from the findings persisted so far —
+// see answerHandler). done is the scan's completion state: false while
+// it is still running, true once no more findings will land.
+//
+// A rule that has already run against the current findings always
+// produces a Rationale entry, evidenced or not (assessor.Assess emits
+// one per registered rule). So "the rule fired but had nothing to go
+// on" and "the rule has not been reached yet" look identical in the
+// Rationale — the only way to tell them apart is whether the scan
+// could still produce more findings.
+func BuildFlowStates(assessments []models.Assessment, done bool) []FlowState {
+	type rv struct {
+		verdict   string
+		score     models.Score
+		evidenced bool
+	}
+	byRule := map[string]rv{}
+	for _, a := range assessments {
+		for _, d := range a.Dimensions {
+			for _, r := range d.Rationale {
+				byRule[r.CriteriumID] = rv{verdict: r.Verdict, score: r.Score, evidenced: len(r.Evidence) > 0}
+			}
+		}
+	}
+	out := make([]FlowState, 0, len(flowRules))
+	for _, fr := range flowRules {
+		r, ok := byRule[fr.id]
+		switch {
+		case ok && r.evidenced:
+			out = append(out, FlowState{Label: fr.label, State: "beantwoord", Verdict: r.verdict, Score: string(r.score)})
+		case done:
+			out = append(out, FlowState{Label: fr.label, State: "niet_gemeten"})
+		default:
+			out = append(out, FlowState{Label: fr.label, State: "bezig"})
+		}
+	}
+	return out
+}
+
 // FlowRollup is one flow category aggregated across an organisation's
 // targets: how many were assessed for it and how many landed
 // afhankelijk (the actionable count), with the worst score reached for

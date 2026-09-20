@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Wanderer — scanning {{.Domain}}</title>
 <link rel="stylesheet" href="/ui/static/main.css">
-{{if not .Failed}}<meta http-equiv="refresh" content="3">{{end}}
+<meta http-equiv="refresh" content="3">
 </head>
 <body>
 {{template "nav.tmpl" dict "Active" "" "HasReporting" .HasReporting "OrgSlug" ""}}
@@ -13,19 +13,13 @@
   <h1>{{.Domain}}</h1>
 </header>
 <main>
-{{if .Failed}}
-  <p class="status-failed">De scan van {{.Domain}} is mislukt{{if .Error}}: {{.Error}}{{end}}.</p>
-  <p><a href="/ui/">← terug naar dashboard</a></p>
-{{else}}
   <div class="scan-progress">
     <span class="spinner" aria-hidden="true"></span>
     <div>
-      <p><strong>Bezig met scannen…</strong> de probes lopen (transit kan tot ~30s wachten op traceroute-antwoorden).</p>
-      <p class="meta">Status: {{if .Status}}{{.Status}}{{else}}gestart{{end}} · {{.FindingCount}} findings binnengekomen</p>
+      <p><strong>Bezig met starten…</strong> de scan is nog niet begonnen.</p>
     </div>
   </div>
-  <p class="meta">Deze pagina ververst automatisch en opent het resultaat zodra het klaar is. <a href="/ui/scan-status?domain={{.Domain}}">nu verversen</a> · <a href="/ui/">dashboard</a></p>
-{{end}}
+  <p class="meta">Deze pagina ververst automatisch en opent het antwoord zodra de scan begint. <a href="/ui/scan-status?domain={{.Domain}}">nu verversen</a> · <a href="/ui/">dashboard</a></p>
 </main>
 </body>
 </html>{{end}}
