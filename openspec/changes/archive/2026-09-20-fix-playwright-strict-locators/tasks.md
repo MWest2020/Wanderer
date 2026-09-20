@@ -11,10 +11,10 @@
 - [x] 1.3 Geen wijziging aan de UI-templates of -code.
 
 ## 2. Bewijs
-- [ ] 2.1 `make playwright` groen (37/37) — in de kooi niet te draaien;
-  Mark's sessie meet het na en vinkt af.
-- [ ] 2.2 `openspec validate 2026-09-20-fix-playwright-strict-locators
+- [x] 2.1 `make playwright` groen: **37 van 37** (Chromium 147, 2026-09-20, buiten de kooi — de kooi kan de browser niet downloaden).
+
+- [x] 2.2 `openspec validate 2026-09-20-fix-playwright-strict-locators
   --strict` groen.
 
 ## 3. Afronding
-- [ ] 3.1 Delta toepassen en de change archiveren.
+- [x] 3.1 Delta toepassen en de change archiveren.
