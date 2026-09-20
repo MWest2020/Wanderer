@@ -9,6 +9,19 @@ once a first release is cut. Until then every entry lives under
 
 ## [Unreleased]
 
+### Added
+
+- **Geplande scans leveren ook een oordeel** (`assess-scheduled-scans`).
+  After every successful scheduled scan, the scheduler now judges it with
+  both rule packs (wand and EUCSF) — the same assessor pipeline `wanderer
+  assess --framework both` and `POST /scans/{id}/assessments` use — and
+  persists the resulting Assessments, so the report page shows a
+  judgement without an operator having to run `wanderer assess` by hand.
+  A failed assessment logs `scan.assess_failed` and leaves the scan in
+  place; the next tick is unaffected. Schedules can opt out per entry
+  with `assess: false` in the schedules YAML; the field is optional and
+  defaults to on.
+
 ## [0.3.0] - 2026-09-20
 
 ### Added

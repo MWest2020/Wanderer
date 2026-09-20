@@ -33,6 +33,18 @@ type Schedule struct {
 	// operator can never silently lose track of which organisation
 	// a recurring scan belongs to.
 	Organisation string `yaml:"organisation,omitempty"`
+	// Assess controls whether a successful scan is judged with both
+	// rule packs afterwards, same as `wanderer assess --framework
+	// both`. Optional: a nil (absent) field means assessing is on;
+	// only an explicit `assess: false` turns it off.
+	Assess *bool `yaml:"assess,omitempty"`
+}
+
+// AssessEnabled reports whether this schedule should judge a
+// successful scan. Defaults to true when the `assess` field is
+// absent from the schedules file.
+func (s Schedule) AssessEnabled() bool {
+	return s.Assess == nil || *s.Assess
 }
 
 // Target is a thin YAML-friendly mirror of models.Target.

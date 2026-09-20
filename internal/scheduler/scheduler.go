@@ -156,6 +156,13 @@ func (s *Scheduler) makeJob(sched Schedule) func() {
 			s.logger.Error("scheduler.scan_error", "name", sched.Name, "err", err)
 			return
 		}
+		if sched.AssessEnabled() {
+			// A failed assessment must not lose the scan: log it and
+			// keep going, same as the drift and findings errors below.
+			if err := assessScan(ctx, s.store, scan, target.Domain); err != nil {
+				s.logger.Error("scan.assess_failed", "name", sched.Name, "scan_id", scan.ID, "err", err)
+			}
+		}
 		findings, err := drift.Compute(ctx, s.store, scan)
 		if err != nil {
 			s.logger.Error("scheduler.drift_error", "name", sched.Name, "err", err)

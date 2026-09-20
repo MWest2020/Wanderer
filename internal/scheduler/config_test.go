@@ -75,3 +75,53 @@ schedules:
 		t.Errorf("want name-required error, got %v", err)
 	}
 }
+
+func TestSchedule_AssessEnabled_DefaultsTrue(t *testing.T) {
+	yaml := `
+schedules:
+  - name: daily
+    target: {domain: example.nl}
+    cron: "0 6 * * *"
+`
+	c, err := ParseConfig([]byte(yaml))
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	if !c.Schedules[0].AssessEnabled() {
+		t.Error("want AssessEnabled() true when assess field is absent")
+	}
+}
+
+func TestSchedule_AssessEnabled_ExplicitFalse(t *testing.T) {
+	yaml := `
+schedules:
+  - name: daily
+    target: {domain: example.nl}
+    cron: "0 6 * * *"
+    assess: false
+`
+	c, err := ParseConfig([]byte(yaml))
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	if c.Schedules[0].AssessEnabled() {
+		t.Error("want AssessEnabled() false when assess: false is set")
+	}
+}
+
+func TestSchedule_AssessEnabled_ExplicitTrue(t *testing.T) {
+	yaml := `
+schedules:
+  - name: daily
+    target: {domain: example.nl}
+    cron: "0 6 * * *"
+    assess: true
+`
+	c, err := ParseConfig([]byte(yaml))
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	if !c.Schedules[0].AssessEnabled() {
+		t.Error("want AssessEnabled() true when assess: true is set")
+	}
+}

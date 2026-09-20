@@ -30,12 +30,16 @@ schedules:
       related: [customer.example.com]
     cron: "30 4 * * 1"     # 04:30 every Monday
     timeout: 10m
+    assess: false           # scan only, no judged report for this one
 ```
 
 Cron syntax follows POSIX `cron(5)` — five fields, no seconds field.
 Cron expressions are validated at startup. An invalid expression
 fails the process; the operator sees which entry is bad before any
 schedule silently never fires.
+
+`assess` is optional and defaults to `true`: a successful scan is
+judged with both rule packs unless the schedule sets `assess: false`.
 
 ## Lifecycle
 
@@ -55,14 +59,18 @@ schedule silently never fires.
 
 Each cron tick runs `scanner.Scan` against the configured target
 using the same pipeline `wanderer scan` and the HTTP `POST /scans`
-endpoint use. After the scan finishes, the scheduler invokes the
+endpoint use. Once the scan succeeds, the scheduler judges it with
+both rule packs (wand and EUCSF) — the same assessor pipeline
+`wanderer assess --framework both` and `POST /scans/{id}/assessments`
+use — and persists the resulting Assessments, unless the schedule
+sets `assess: false`. After that, the scheduler invokes the
 [drift engine](../reference/drift.md) which compares the new scan against the
 previous one for the same target and persists drift Findings to the
 store.
 
-That is the whole loop: scan, diff, persist. Drift Findings flow
-through the same exporters, MCP resources, and assessor pipeline as
-probe-produced Findings — they are not a parallel data path.
+That is the whole loop: scan, assess, diff, persist. Drift Findings
+flow through the same exporters, MCP resources, and assessor pipeline
+as probe-produced Findings — they are not a parallel data path.
 
 ## Failure modes
 
@@ -76,6 +84,10 @@ probe-produced Findings — they are not a parallel data path.
 - **Drift compute fails**: the scan still persists; the drift
   Findings simply are not produced this round. The next tick
   computes drift against whatever scans exist at that point.
+- **Assessing fails**: the scan still persists; the scheduler logs
+  `scan.assess_failed` and moves on to drift compute and the next
+  schedule. The report page shows no judgement for that scan until a
+  later run (or a manual `wanderer assess`) succeeds.
 
 ## Operating tips
 
