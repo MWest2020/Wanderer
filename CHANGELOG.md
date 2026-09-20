@@ -9,6 +9,8 @@ once a first release is cut. Until then every entry lives under
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-09-20
+
 ### Added
 
 - **Answer-first UI** (`answer-first-ui`). `/ui/` leads with one
@@ -945,7 +947,8 @@ ExApp) can pin a reproducible version instead of `@main`.
   deferred (see `docs/observability.md`).
   (`openspec/changes/archive/2026-04-24-init-mvp-scanners`)
 
-[Unreleased]: https://github.com/MWest2020/wanderer/compare/v0.3.1...main
+[Unreleased]: https://github.com/MWest2020/wanderer/compare/v0.4.0...main
+[0.4.0]: https://github.com/MWest2020/wanderer/compare/v0.3.1...v0.4.0
 [0.3.1]: https://github.com/MWest2020/wanderer/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/MWest2020/wanderer/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/MWest2020/wanderer/compare/v0.1.0...v0.2.0
