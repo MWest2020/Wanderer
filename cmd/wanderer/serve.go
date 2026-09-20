@@ -165,6 +165,13 @@ func runServe(args []string) int {
 			uiOpts.RevalidateInterval = cfg.OIDC.RevalidateInterval
 			uiOpts.CookieSecure = cfg.OIDC.CookieSecure == nil || *cfg.OIDC.CookieSecure
 		}
+		// sched is a typed nil (*scheduler.Scheduler) when --schedules
+		// is unset; only assign it into the ScheduleSource interface
+		// when it is genuinely non-nil, or ui.Options.Schedules would
+		// come out as a non-nil interface wrapping a nil pointer.
+		if sched != nil {
+			uiOpts.Schedules = sched
+		}
 		uiHandler, err := ui.Handler(st, uiOpts)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "wanderer: ui: %v\n", err)

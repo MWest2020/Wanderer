@@ -13,6 +13,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/MWest2020/wanderer/internal/scheduler"
 	"github.com/MWest2020/wanderer/internal/store"
 	"github.com/MWest2020/wanderer/internal/ui"
 	"github.com/MWest2020/wanderer/pkg/models"
@@ -497,19 +498,31 @@ func TestNoMutatingHandlersInPackage(t *testing.T) {
 			t.Fatalf("read ui.go: %v", err)
 		}
 	}
-	// PUT/PATCH/DELETE are never allowed. POST is allowed for exactly
-	// ONE sanctioned, opt-in route — the dev-mode scan trigger
-	// r.Post("/scan", ...), mounted only when serve --ui-allow-scan is
-	// set. Any other POST (or any of the others) is a regression.
+	// PUT/PATCH/DELETE are never allowed. POST is allowed only for the
+	// sanctioned, signed-in-only routes below. Any other POST (or any
+	// of the others) is a regression.
 	for _, banned := range []string{"r.Put(", "r.Patch(", "r.Delete("} {
 		if strings.Contains(string(src), banned) {
 			t.Errorf("ui package contains mutating handler registration: %s", banned)
 		}
 	}
+	// Sanctioned mutating routes, each mounted only for a signed-in
+	// user (never a dev-mode flag alone):
+	//   /scan                                   — dev-mode scan trigger
+	//   /orgs/{slug}/fleet/domains               — add a domain to the
+	//     org's fleet without scanning (vloot-en-regels run 02)
+	//   /orgs/{slug}/fleet/domains/{domain}/remove — take a domain out
+	//     of the fleet; scans/oordelen stay queryable, only the
+	//     overview listing changes (same run)
+	sanctioned := map[string]bool{
+		"/scan": true,
+		"/orgs/{slug}/fleet/domains":                  true,
+		"/orgs/{slug}/fleet/domains/{domain}/remove":  true,
+	}
 	posts := regexp.MustCompile(`r\.Post\("([^"]*)"`).FindAllStringSubmatch(string(src), -1)
 	for _, m := range posts {
-		if m[1] != "/scan" {
-			t.Errorf("unexpected mutating POST route %q — only the opt-in /scan is sanctioned", m[1])
+		if !sanctioned[m[1]] {
+			t.Errorf("unexpected mutating POST route %q — not in the sanctioned set", m[1])
 		}
 	}
 }
@@ -986,3 +999,187 @@ func TestUIScan_RefusedWithoutAuth_EvenWithScanner(t *testing.T) {
 		t.Errorf("scan route must be refused with no authentication configured (got 303)")
 	}
 }
+
+func TestFleetPage_ShowsUnscannedDomainAsNotScanned(t *testing.T) {
+	// spec.md scenario "Domein toevoegen zonder te scannen": a fleet
+	// domain with no scan yet renders "nog niet gescand", not a blank
+	// or an error.
+	srv, st := newServer(t, "")
+	if _, err := st.AddFleetDomain(context.Background(), models.DefaultOrganisationID, "voorbeeld.nl"); err != nil {
+		t.Fatalf("AddFleetDomain: %v", err)
+	}
+	resp, err := http.Get(srv.URL + "/ui/orgs/default/fleet")
+	if err != nil {
+		t.Fatalf("get: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != 200 {
+		t.Fatalf("status = %d", resp.StatusCode)
+	}
+	body, _ := io.ReadAll(resp.Body)
+	bodyStr := string(body)
+	if !strings.Contains(bodyStr, "voorbeeld.nl") {
+		t.Errorf("fleet page missing the domain; body:\n%s", bodyStr)
+	}
+	if !strings.Contains(bodyStr, "nog niet gescand") {
+		t.Errorf("fleet page missing \"nog niet gescand\" for an unscanned domain; body:\n%s", bodyStr)
+	}
+}
+
+func TestFleetPage_UnknownOrgReturns404(t *testing.T) {
+	srv, _ := newServer(t, "")
+	resp, err := http.Get(srv.URL + "/ui/orgs/nope/fleet")
+	if err != nil {
+		t.Fatalf("get: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != 404 {
+		t.Errorf("status = %d, want 404", resp.StatusCode)
+	}
+}
+
+func TestFleetAdd_SignedInUser_AddsDomainAndRedirects(t *testing.T) {
+	dir := t.TempDir()
+	htpasswd := filepath.Join(dir, "passwd")
+	hash, _ := bcrypt.GenerateFromPassword([]byte("correct horse battery staple"), bcrypt.MinCost)
+	if err := os.WriteFile(htpasswd, []byte("op:"+string(hash)+"\n"), 0o600); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+	st := newTestStore(t)
+	h, err := ui.Handler(st, ui.Options{HtpasswdPath: htpasswd})
+	if err != nil {
+		t.Fatalf("handler: %v", err)
+	}
+	mux := http.NewServeMux()
+	mux.Handle("/ui/", http.StripPrefix("/ui", h))
+	srv := httptest.NewServer(mux)
+	t.Cleanup(srv.Close)
+
+	client := basicAuthClient("op", "correct horse battery staple")
+	resp, err := client.PostForm(srv.URL+"/ui/orgs/default/fleet/domains", url.Values{"domain": {"voorbeeld.nl"}})
+	if err != nil {
+		t.Fatalf("post: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusSeeOther {
+		t.Fatalf("status = %d, want 303", resp.StatusCode)
+	}
+	if loc := resp.Header.Get("Location"); loc != "/ui/orgs/default/fleet" {
+		t.Errorf("Location = %q, want /ui/orgs/default/fleet", loc)
+	}
+	list, err := st.ListFleetDomains(context.Background(), models.DefaultOrganisationID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(list) != 1 || list[0].Domain != "voorbeeld.nl" {
+		t.Errorf("ListFleetDomains = %v, want [voorbeeld.nl]", list)
+	}
+}
+
+func TestFleetAdd_RefusedWithoutAuth(t *testing.T) {
+	// Without htpasswd/OIDC configured, the mutating fleet routes must
+	// not mount — same gate as /ui/scan.
+	srv, st := newServer(t, "")
+	resp, err := http.PostForm(srv.URL+"/ui/orgs/default/fleet/domains", url.Values{"domain": {"voorbeeld.nl"}})
+	if err != nil {
+		t.Fatalf("post: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode == http.StatusSeeOther {
+		t.Errorf("read-only UI must not accept fleet mutations (got 303)")
+	}
+	list, err := st.ListFleetDomains(context.Background(), models.DefaultOrganisationID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(list) != 0 {
+		t.Errorf("domain must not have been added without auth: %v", list)
+	}
+}
+
+func TestFleetRemove_SignedInUser_RemovesDomainButKeepsHistory(t *testing.T) {
+	// spec.md scenario "Verwijderen laat de geschiedenis staan": the
+	// domain disappears from the fleet listing but its scan is still
+	// reachable.
+	dir := t.TempDir()
+	htpasswd := filepath.Join(dir, "passwd")
+	hash, _ := bcrypt.GenerateFromPassword([]byte("correct horse battery staple"), bcrypt.MinCost)
+	if err := os.WriteFile(htpasswd, []byte("op:"+string(hash)+"\n"), 0o600); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+	st := newTestStore(t)
+	_, scanID := seed(t, st) // creates the "example.nl" target + one scan, default org
+	h, err := ui.Handler(st, ui.Options{HtpasswdPath: htpasswd})
+	if err != nil {
+		t.Fatalf("handler: %v", err)
+	}
+	mux := http.NewServeMux()
+	mux.Handle("/ui/", http.StripPrefix("/ui", h))
+	srv := httptest.NewServer(mux)
+	t.Cleanup(srv.Close)
+
+	client := basicAuthClient("op", "correct horse battery staple")
+	resp, err := client.PostForm(srv.URL+"/ui/orgs/default/fleet/domains/example.nl/remove", nil)
+	if err != nil {
+		t.Fatalf("post: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusSeeOther {
+		t.Fatalf("status = %d, want 303", resp.StatusCode)
+	}
+
+	list, err := st.ListFleetDomains(context.Background(), models.DefaultOrganisationID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, tg := range list {
+		if tg.Domain == "example.nl" {
+			t.Errorf("removed domain still in fleet listing")
+		}
+	}
+
+	scanResp, err := client.Get(srv.URL + "/ui/scans/" + scanID)
+	if err != nil {
+		t.Fatalf("get scan: %v", err)
+	}
+	defer scanResp.Body.Close()
+	if scanResp.StatusCode != 200 {
+		t.Errorf("scan history no longer reachable after removal: status = %d", scanResp.StatusCode)
+	}
+}
+
+func TestFleetPage_ShowsSchedule(t *testing.T) {
+	st := newTestStore(t)
+	if _, err := st.AddFleetDomain(context.Background(), models.DefaultOrganisationID, "voorbeeld.nl"); err != nil {
+		t.Fatalf("AddFleetDomain: %v", err)
+	}
+	h, err := ui.Handler(st, ui.Options{Schedules: stubSchedules{{
+		Name:   "nightly",
+		Cron:   "0 3 * * *",
+		Target: scheduler.Target{Domain: "voorbeeld.nl"},
+	}}})
+	if err != nil {
+		t.Fatalf("handler: %v", err)
+	}
+	mux := http.NewServeMux()
+	mux.Handle("/ui/", http.StripPrefix("/ui", h))
+	srv := httptest.NewServer(mux)
+	t.Cleanup(srv.Close)
+
+	resp, err := http.Get(srv.URL + "/ui/orgs/default/fleet")
+	if err != nil {
+		t.Fatalf("get: %v", err)
+	}
+	defer resp.Body.Close()
+	body, _ := io.ReadAll(resp.Body)
+	if !strings.Contains(string(body), "nightly") {
+		t.Errorf("fleet page missing schedule name; body:\n%s", string(body))
+	}
+}
+
+// stubSchedules is a fixed schedule list for tests that need
+// ui.Options.Schedules without spinning up a real *scheduler.Scheduler
+// (which requires a store + scanner).
+type stubSchedules []scheduler.Schedule
+
+func (s stubSchedules) Schedules() []scheduler.Schedule { return s }

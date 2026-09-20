@@ -5,15 +5,15 @@ Contract: `openspec/changes/2026-09-20-vloot-en-regels/`
 vloot").
 
 ## Scope — ONLY these tasks
-- [ ] 2.1 Een ingelogde gebruiker kan een domein aan de vloot van een
+- [x] 2.1 Een ingelogde gebruiker kan een domein aan de vloot van een
   organisatie toevoegen en er weer uit halen, zónder te scannen.
   Verwijderen haalt het domein uit het overzicht en laat de scans en
   oordelen staan — gooi geen geschiedenis weg.
-- [ ] 2.2 Per domein tonen: laatste scan (of "nog niet gescand") en
+- [x] 2.2 Per domein tonen: laatste scan (of "nog niet gescand") en
   onder welk schema het valt. Het schema komt nu uit het
   schedules-bestand (`internal/scheduler`); toon wat daar staat. Het
   schema vanuit de UI kunnen zetten is expliciet NIET deze run.
-- [ ] 2.3 Dezelfde poort als scannen: alleen voor ingelogde gebruikers.
+- [x] 2.3 Dezelfde poort als scannen: alleen voor ingelogde gebruikers.
   De statische controle die nieuwe muterende routes weigert, blijft —
   voeg de nieuwe routes toe aan de uitzondering zoals de scanroute dat
   is, en licht toe waarom.

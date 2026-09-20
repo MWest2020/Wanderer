@@ -23,6 +23,7 @@ import (
 
 	"github.com/MWest2020/wanderer/internal/assessor"
 	"github.com/MWest2020/wanderer/internal/assessor/wand"
+	"github.com/MWest2020/wanderer/internal/scheduler"
 	"github.com/MWest2020/wanderer/internal/store"
 	"github.com/MWest2020/wanderer/pkg/models"
 
@@ -104,6 +105,21 @@ func Handler(st *store.Store, opts Options) (http.Handler, error) {
 	r.Get("/scans/{id}/assessment", assessmentHandler(st, tmpl))
 	r.Get("/targets/{id}/drift", driftHandler(st, tmpl))
 	r.Get("/trends", trendsHandler(st, tmpl))
+	// The fleet page (spec.md "Domeinen zijn bij te houden als vloot")
+	// is read-only for everyone, same as the rest of the UI. Adding
+	// and removing a domain is gated the same way as scanning: a
+	// signed-in user, not a dev-mode flag — gate != nil is exactly the
+	// "authentication is configured" half of allowScan's condition
+	// above (there is no Scanner-equivalent dependency here).
+	allowFleetEdit := gate != nil
+	r.Get("/orgs/{slug}/fleet", fleetHandler(st, tmpl, allowFleetEdit, opts.Schedules))
+	if allowFleetEdit {
+		// Two more sanctioned mutating routes, alongside /scan. Both
+		// require {slug} to resolve to a real organisation before they
+		// touch the store — see fleetAddHandler / fleetRemoveHandler.
+		r.Post("/orgs/{slug}/fleet/domains", fleetAddHandler(st))
+		r.Post("/orgs/{slug}/fleet/domains/{domain}/remove", fleetRemoveHandler(st))
+	}
 	// Retired layers: the Analysis matrix + Reporting catalogue
 	// consolidated into Trends. Redirect so deep links survive.
 	r.Get("/analysis", redirectToTrends())
@@ -512,6 +528,168 @@ func resolveOrgQueryParam(ctx context.Context, st *store.Store, w http.ResponseW
 		return "", nil, false
 	}
 	return o.ID, o, true
+}
+
+// fleetView is the shape fleet.tmpl renders: every domain currently
+// in one organisation's fleet, with enough context to add or remove
+// one (spec.md "Domeinen zijn bij te houden als vloot"). The x/n
+// score, the diff since the previous scan, and sorting are run 03's
+// job (proposal.md "Het vlootscherm zelf met x/n en sortering") —
+// this view only carries what run 02 promises: the domain list
+// itself, its last scan, and its schedule.
+type fleetView struct {
+	GeneratedAt        string
+	HasReporting       bool
+	OrgSlug            string
+	ScopedOrganisation *organisationLinkView
+	AllowEdit          bool // signed-in user: render the add/remove forms
+	Domains            []fleetDomainView
+}
+
+// fleetDomainView is one row: LastScanAt is "" when the domain has
+// never been scanned (fleet.tmpl renders "nog niet gescand" for
+// that case, per spec.md's scenario). ScheduleName is "" when no
+// schedule in the schedules file targets this domain.
+type fleetDomainView struct {
+	Domain       string
+	LastScanAt   string
+	ScheduleName string
+	ScheduleCron string
+}
+
+// fleetHandler renders /ui/orgs/{slug}/fleet: the organisation's
+// fleet of domains, independent of whether any of them have been
+// scanned. Read-only — allowEdit only controls whether the template
+// renders the add/remove forms; the mutating routes themselves are
+// gated separately in Handler.
+func fleetHandler(st *store.Store, tmpl *template.Template, allowEdit bool, schedules ScheduleSource) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		ctx := r.Context()
+		slug := chi.URLParam(r, "slug")
+		org, err := st.GetOrganisationBySlug(ctx, slug)
+		if err != nil {
+			http.NotFound(w, r)
+			return
+		}
+		domains, err := st.ListFleetDomains(ctx, org.ID)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		scans, err := st.ListScans(ctx, store.Selectors{OrganisationID: org.ID})
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		lastScanByTarget := map[string]time.Time{}
+		for _, sc := range scans {
+			if cur, ok := lastScanByTarget[sc.TargetID]; !ok || sc.StartedAt.After(cur) {
+				lastScanByTarget[sc.TargetID] = sc.StartedAt
+			}
+		}
+		var scheds []scheduler.Schedule
+		if schedules != nil {
+			scheds = schedules.Schedules()
+		}
+		view := fleetView{
+			GeneratedAt:  time.Now().UTC().Format(time.RFC3339),
+			HasReporting: true,
+			OrgSlug:      org.Slug,
+			AllowEdit:    allowEdit,
+			ScopedOrganisation: &organisationLinkView{
+				Slug: org.Slug,
+				Name: org.Name,
+				URL:  "/ui/orgs/" + org.Slug,
+			},
+		}
+		for _, t := range domains {
+			row := fleetDomainView{Domain: t.Domain}
+			if when, ok := lastScanByTarget[t.ID]; ok {
+				row.LastScanAt = when.UTC().Format(time.RFC3339)
+			}
+			row.ScheduleName, row.ScheduleCron = matchSchedule(scheds, t.Domain, org.Slug)
+			view.Domains = append(view.Domains, row)
+		}
+		render(w, tmpl, "fleet.tmpl", view)
+	}
+}
+
+// matchSchedule finds the cron schedule that governs domain under
+// orgSlug, straight from the scheduler's loaded config (spec.md "Het
+// schema komt nu uit het schedules-bestand"). A Schedule with no
+// Organisation field falls back, at run time (scheduler.go's
+// makeJob), to the serve-config default org or the seeded "default"
+// org — the UI has no access to that resolved default, so it
+// approximates with models.DefaultOrganisationSlug; an operator
+// running a custom `--organisation` default alongside org-less
+// schedule entries is the one case this can mismatch.
+func matchSchedule(scheds []scheduler.Schedule, domain, orgSlug string) (name, cron string) {
+	for _, s := range scheds {
+		if s.Target.Domain != domain {
+			continue
+		}
+		owner := s.Organisation
+		if owner == "" {
+			owner = models.DefaultOrganisationSlug
+		}
+		if owner == orgSlug {
+			return s.Name, s.Cron
+		}
+	}
+	return "", ""
+}
+
+// fleetAddHandler is a sanctioned mutating route (POST
+// /ui/orgs/{slug}/fleet/domains): adds a domain to the org's fleet
+// without scanning it. Mounted only for a signed-in user (see
+// Handler's allowFleetEdit).
+func fleetAddHandler(st *store.Store) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		ctx := r.Context()
+		slug := chi.URLParam(r, "slug")
+		org, err := st.GetOrganisationBySlug(ctx, slug)
+		if err != nil {
+			http.NotFound(w, r)
+			return
+		}
+		domain := strings.TrimSpace(r.FormValue("domain"))
+		if domain == "" {
+			http.Error(w, "domain is required", http.StatusBadRequest)
+			return
+		}
+		if _, err := st.AddFleetDomain(ctx, org.ID, domain); err != nil {
+			http.Error(w, "invalid domain: "+err.Error(), http.StatusBadRequest)
+			return
+		}
+		http.Redirect(w, r, "/ui/orgs/"+org.Slug+"/fleet", http.StatusSeeOther)
+	}
+}
+
+// fleetRemoveHandler is a sanctioned mutating route (POST
+// /ui/orgs/{slug}/fleet/domains/{domain}/remove): takes a domain out
+// of the org's fleet. The domain's scans and assessments are
+// untouched (store.RemoveFleetDomain only stamps removed_at).
+// Mounted only for a signed-in user (see Handler's allowFleetEdit).
+func fleetRemoveHandler(st *store.Store) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		ctx := r.Context()
+		slug := chi.URLParam(r, "slug")
+		org, err := st.GetOrganisationBySlug(ctx, slug)
+		if err != nil {
+			http.NotFound(w, r)
+			return
+		}
+		domain := chi.URLParam(r, "domain")
+		if err := st.RemoveFleetDomain(ctx, org.ID, domain); err != nil {
+			if errors.Is(err, store.ErrNotFound) {
+				http.NotFound(w, r)
+				return
+			}
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		http.Redirect(w, r, "/ui/orgs/"+org.Slug+"/fleet", http.StatusSeeOther)
+	}
 }
 
 // targetsRowsView is the shape index.tmpl iterates over.

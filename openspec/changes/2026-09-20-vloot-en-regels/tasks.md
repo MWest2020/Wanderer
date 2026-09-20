@@ -9,10 +9,10 @@
   een gelijke score met verschillend aantal onbekenden.
 
 ## 2. De vloot bijhouden — run 02
-- [ ] 2.1 Domeinen toevoegen en verwijderen vanuit de UI, per
+- [x] 2.1 Domeinen toevoegen en verwijderen vanuit de UI, per
   organisatie; verwijderen raakt de scangeschiedenis niet.
-- [ ] 2.2 Per domein: laatste scan en het schema waaronder het valt.
-- [ ] 2.3 Alleen voor ingelogde gebruikers, net als scannen.
+- [x] 2.2 Per domein: laatste scan en het schema waaronder het valt.
+- [x] 2.3 Alleen voor ingelogde gebruikers, net als scannen.
 
 ## 3. Het vlootscherm — run 03
 - [ ] 3.1 Alle domeinen met `x/n`, onbeantwoorde vragen apart, en de

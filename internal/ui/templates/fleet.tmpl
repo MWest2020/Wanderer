@@ -1,0 +1,63 @@
+{{define "fleet.tmpl"}}<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Wanderer — vloot</title>
+<link rel="stylesheet" href="/ui/static/main.css">
+</head>
+<body>
+{{template "nav.tmpl" dict "Active" "fleet" "HasReporting" .HasReporting "OrgSlug" .OrgSlug}}
+<header>
+  <h1>{{.ScopedOrganisation.Name}} · vloot</h1>
+  <p class="meta">
+    Generated {{.GeneratedAt}}
+    · <a href="{{.ScopedOrganisation.URL}}">← overzicht</a>
+  </p>
+</header>
+<main>
+
+{{if .AllowEdit}}
+<form class="fleet-add-form" method="post" action="/ui/orgs/{{.OrgSlug}}/fleet/domains">
+  <label for="fleet-domain">Domein toevoegen aan de vloot</label>
+  <input id="fleet-domain" name="domain" type="text" placeholder="voorbeeld.nl" required>
+  <button type="submit">Toevoegen</button>
+  <span class="meta">voegt het domein toe zonder te scannen</span>
+</form>
+{{end}}
+
+{{if .Domains}}
+<table>
+  <thead>
+    <tr>
+      <th>Domein</th>
+      <th>Laatste scan</th>
+      <th>Schema</th>
+      {{if .AllowEdit}}<th></th>{{end}}
+    </tr>
+  </thead>
+  <tbody>
+    {{range .Domains}}
+    <tr>
+      <td>{{.Domain}}</td>
+      <td>{{if .LastScanAt}}<code>{{.LastScanAt}}</code>{{else}}<span class="muted">nog niet gescand</span>{{end}}</td>
+      <td>{{if .ScheduleName}}{{.ScheduleName}} <span class="muted">(<code>{{.ScheduleCron}}</code>)</span>{{else}}<span class="muted">geen schema</span>{{end}}</td>
+      {{if $.AllowEdit}}
+      <td>
+        <form method="post" action="/ui/orgs/{{$.OrgSlug}}/fleet/domains/{{.Domain}}/remove">
+          <button type="submit" class="danger">Verwijderen</button>
+        </form>
+      </td>
+      {{end}}
+    </tr>
+    {{end}}
+  </tbody>
+</table>
+{{else}}
+<p class="empty-state">Nog geen domeinen in deze vloot.{{if .AllowEdit}} Voeg er hierboven een toe.{{end}}</p>
+{{end}}
+
+</main>
+</body>
+</html>
+{{end}}

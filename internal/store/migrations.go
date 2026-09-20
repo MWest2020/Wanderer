@@ -218,6 +218,18 @@ CREATE TABLE enrolment_tokens (
 );
 `,
 	},
+	{
+		Version: 9,
+		Name:    "add_target_removed_at",
+		Up: `-- vloot-en-regels run 02: a domain can leave the fleet without
+-- losing its scan history. scans.target_id references targets(id),
+-- so the row itself must stay — removed_at is a soft delete: NULL
+-- means "in the fleet", a timestamp means "taken out of the fleet
+-- on this date". Existing rows backfill to NULL via the column
+-- default, i.e. every pre-existing target stays in its fleet.
+ALTER TABLE targets ADD COLUMN removed_at DATETIME;
+`,
+	},
 }
 
 // runMigrations applies every migration whose Version is not already

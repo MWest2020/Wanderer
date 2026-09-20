@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/MWest2020/wanderer/internal/auth/oidc"
+	"github.com/MWest2020/wanderer/internal/scheduler"
 	"github.com/MWest2020/wanderer/internal/store"
 	"github.com/MWest2020/wanderer/pkg/models"
 )
@@ -52,6 +53,12 @@ type Options struct {
 	// signed-in user is what gates scanning, not this field alone. Nil
 	// keeps the UI fully read-only (the default).
 	Scanner ScanTrigger
+
+	// Schedules, when set, lets the fleet page show which cron
+	// schedule governs a domain (spec.md "Het schema komt nu uit het
+	// schedules-bestand"). Nil means no --schedules file was
+	// configured, so every domain shows as having no schedule.
+	Schedules ScheduleSource
 }
 
 // ScanTrigger runs a scan for the dev-mode UI scan form. It is
@@ -59,6 +66,14 @@ type Options struct {
 // narrow interface, not the scanner package.
 type ScanTrigger interface {
 	Scan(ctx context.Context, target models.Target) (*models.Scan, error)
+}
+
+// ScheduleSource exposes the currently loaded cron schedules. It is
+// satisfied by *scheduler.Scheduler; the ui package depends only on
+// this narrow interface, not the scheduler package's cron/store
+// wiring.
+type ScheduleSource interface {
+	Schedules() []scheduler.Schedule
 }
 
 const (
