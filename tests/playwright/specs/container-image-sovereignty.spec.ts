@@ -13,14 +13,15 @@ test.describe("Container image sovereignty — rule catalogue", () => {
     page,
   }) => {
     await page.goto("/ui/reporting");
+    const catalogue = page.locator("table.rule-catalogue");
     await expect(
-      page.locator("text=wand.docker.images_us_registry"),
+      catalogue.locator("text=wand.docker.images_us_registry"),
     ).toBeVisible();
     await expect(
-      page.locator("text=wand.docker.containers_us_registry"),
+      catalogue.locator("text=wand.docker.containers_us_registry"),
     ).toBeVisible();
     await expect(
-      page.locator("text=eucsf.sov6.container_supply_chain"),
+      catalogue.locator("text=eucsf.sov6.container_supply_chain"),
     ).toBeVisible();
   });
 });

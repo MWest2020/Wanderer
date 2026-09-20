@@ -28,19 +28,20 @@ import { test, expect } from "@playwright/test";
 test.describe("Host-side scoring — rule catalogue", () => {
   test("Reporting catalogue lists the three host rules", async ({ page }) => {
     await page.goto("/ui/reporting");
+    const catalogue = page.locator("table.rule-catalogue");
 
     // Wand pack: two host rules, one for packages, one for systemd units.
     await expect(
-      page.locator("text=wand.host.no_us_telemetry_packages"),
+      catalogue.locator("text=wand.host.no_us_telemetry_packages"),
     ).toBeVisible();
     await expect(
-      page.locator("text=wand.host.no_us_telemetry_services"),
+      catalogue.locator("text=wand.host.no_us_telemetry_services"),
     ).toBeVisible();
 
     // EUCSF pack: single combined rule (SEAL rolls package + service
     // exposure into one observation).
     await expect(
-      page.locator("text=eucsf.sov5.host_no_us_telemetry"),
+      catalogue.locator("text=eucsf.sov5.host_no_us_telemetry"),
     ).toBeVisible();
   });
 

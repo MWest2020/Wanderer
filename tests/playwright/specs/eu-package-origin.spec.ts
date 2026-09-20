@@ -11,8 +11,9 @@ import { test, expect } from "@playwright/test";
 test.describe("EU package origin — catalogue", () => {
   test("Reporting catalogue lists the rule", async ({ page }) => {
     await page.goto("/ui/reporting");
+    const catalogue = page.locator("table.rule-catalogue");
     await expect(
-      page.locator("text=wand.host.eu_package_origin"),
+      catalogue.locator("text=wand.host.eu_package_origin"),
     ).toBeVisible();
   });
 });

@@ -10,9 +10,10 @@ import { test, expect } from "@playwright/test";
 test.describe("Trends rule catalogue", () => {
   test("Lists every registered rule with description", async ({ page }) => {
     await page.goto("/ui/trends");
-    await expect(page.locator("text=wand.juridisch.cert_issuer_eea")).toBeVisible();
-    await expect(page.locator("text=eucsf.sov2.cert_issuer_eu")).toBeVisible();
-    await expect(page.locator("text=TLS certificate issued by an authority in the EEA.")).toBeVisible();
+    const catalogue = page.locator("table.rule-catalogue");
+    await expect(catalogue.locator("text=wand.juridisch.cert_issuer_eea")).toBeVisible();
+    await expect(catalogue.locator("text=eucsf.sov2.cert_issuer_eu")).toBeVisible();
+    await expect(catalogue.locator("text=TLS certificate issued by an authority in the EEA.")).toBeVisible();
   });
 
   test("Status column shows worst score + target count", async ({ page }) => {

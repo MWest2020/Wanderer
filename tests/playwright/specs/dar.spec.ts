@@ -12,7 +12,7 @@ test.describe("Overview slimness", () => {
     await page.goto("/ui/");
     await expect(page.locator("h1")).toContainText("all organisations");
     await expect(page.locator("section.targets-fleet")).toBeVisible();
-    await expect(page.getByRole("heading", { name: /Verdict/i })).toBeVisible();
+    await expect(page.getByRole("heading", { name: /^Verdict\b/i })).toBeVisible();
     // Removed/relocated sections — must not appear on the Overview:
     await expect(page.locator("text=External posture")).toHaveCount(0);
     await expect(page.locator("text=Internal posture")).toHaveCount(0);

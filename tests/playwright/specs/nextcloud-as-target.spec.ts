@@ -16,15 +16,16 @@ test.describe("Nextcloud as target — rule catalogue", () => {
     page,
   }) => {
     await page.goto("/ui/reporting");
+    const catalogue = page.locator("table.rule-catalogue");
 
     await expect(
-      page.locator("text=wand.nextcloud.objectstore_eu"),
+      catalogue.locator("text=wand.nextcloud.objectstore_eu"),
     ).toBeVisible();
     await expect(
-      page.locator("text=wand.nextcloud.oidc_provider_eu"),
+      catalogue.locator("text=wand.nextcloud.oidc_provider_eu"),
     ).toBeVisible();
     await expect(
-      page.locator("text=eucsf.sov6.nextcloud_supply_chain"),
+      catalogue.locator("text=eucsf.sov6.nextcloud_supply_chain"),
     ).toBeVisible();
   });
 });
