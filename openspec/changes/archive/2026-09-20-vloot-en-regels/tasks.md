@@ -26,7 +26,7 @@
 - [x] 4.2 De bestaande regels vullen hun grenzen in; een test vangt het
   uiteenlopen van grens en vergelijking.
 
-- [ ] 4.3 Open punt uit run 04: `variant_convergence` (8 paden, 24
+- [~] 4.3 (verplaatst naar een eigen change — zie hieronder) Open punt uit run 04: `variant_convergence` (8 paden, 24
   verbindingen) en `cert_validity` (30 dagen) beslissen NIET zelf op die
   getallen — die zitten in de probe, en de regel leest een voorgekookte
   vlag. Een drempel bij die regels zetten zou onfalsifieerbaar zijn.
@@ -42,7 +42,7 @@
   regel zonder handeling faalt de tests.
 
 ## 6. Bewijs en documentatie — run 06
-- [ ] 6.1 Playwright: domein toevoegen, vloot sorteren, regelpagina met
+- [x] 6.1 Playwright: domein toevoegen, vloot sorteren, regelpagina met
   grens en handeling. In de juiste `testMatch`. (spec geschreven en
   gewijsde via een Go-httptest-harnas op de fixture; niet uitgevoerd
   onder Playwright/Chromium — geen egress in de kooi. Niet afvinken

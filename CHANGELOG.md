@@ -9,6 +9,8 @@ once a first release is cut. Until then every entry lives under
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-09-21
+
 ### Added
 
 - **Vloot en regels** (`2026-09-20-vloot-en-regels`). Domains are now
@@ -967,7 +969,8 @@ ExApp) can pin a reproducible version instead of `@main`.
   deferred (see `docs/observability.md`).
   (`openspec/changes/archive/2026-04-24-init-mvp-scanners`)
 
-[Unreleased]: https://github.com/MWest2020/wanderer/compare/v0.4.0...main
+[Unreleased]: https://github.com/MWest2020/wanderer/compare/v0.5.0...main
+[0.5.0]: https://github.com/MWest2020/wanderer/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/MWest2020/wanderer/compare/v0.3.1...v0.4.0
 [0.3.1]: https://github.com/MWest2020/wanderer/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/MWest2020/wanderer/compare/v0.2.0...v0.3.0
