@@ -36,5 +36,8 @@
 ## 5. Bewijs en documentatie — run 05
 - [ ] 5.1 Playwright: domain in → answer → reasoning, and the
   onbekend-is-not-ja case. Wired into `playwright.config.ts`.
+- [ ] 5.3 Vijf bestaande specs (dar, ui-personas ×2, sovereignty-overview
+  ×2) toetsen de oude indeling op `/ui/` en falen daarom; ze horen naar
+  `/ui/trends` te kijken. Buiten de kooi gemeten: 36 geslaagd, 5 gefaald.
 - [ ] 5.2 `docs/` + CHANGELOG; ADR-0017 gets an addendum describing the
   answer-first layering (it is an IA change, so it belongs there).
