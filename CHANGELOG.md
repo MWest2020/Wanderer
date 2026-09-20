@@ -9,6 +9,21 @@ once a first release is cut. Until then every entry lives under
 
 ## [Unreleased]
 
+### Added
+
+- **Answer-first UI** (`answer-first-ui`). `/ui/` leads with one
+  domain/host input instead of a fleet table; submitting (signed-in
+  users only) starts a scan and lands on that target's answer page —
+  one Dutch sentence, ja/nee/onbekend, naming the observation that
+  decided it, never promoting an unanswered flow to "ja". The answer
+  page fills in as findings land (meta-refresh fallback, no JS
+  required) and links one click to the reasoning: the seven
+  sovereignty flows plus accountability as plain-language questions,
+  rule IDs and evidence collapsed. The fleet table, rule catalogue and
+  matrix moved to `/ui/trends`, unchanged otherwise. `tests/playwright/specs/answer-first-flow.spec.ts` covers the
+  door → answer → reasoning flow and the "onbekend is not a yes"
+  case, in the `scan-dev` project (see ADR-0017 addendum).
+
 ## [0.3.1] - 2026-09-20
 
 ### Added

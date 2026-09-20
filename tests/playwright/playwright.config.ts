@@ -96,10 +96,16 @@ export default defineConfig({
     },
     {
       name: "scan-dev",
-      testMatch: ["ui-dev-scan.spec.ts"],
+      testMatch: ["ui-dev-scan.spec.ts", "answer-first-flow.spec.ts"],
       use: {
         ...devices["Desktop Chrome"],
         baseURL: `http://127.0.0.1:${scanDevPort}`,
+        // The door's scan input requires a signed-in user
+        // (answer-first-ui spec.md); httpCredentials answers the
+        // htpasswd Basic challenge automatically so page.goto() and
+        // form submissions in this project act as an authenticated
+        // operator. Password documented in fixtures/scan-htpasswd.
+        httpCredentials: { username: "playwright", password: "playwright-scan" },
       },
     },
   ],
@@ -137,7 +143,10 @@ export default defineConfig({
       timeout: 30_000,
     },
     {
-      command: serve(scanDevPort, "scan.db") + " -ui-allow-scan",
+      // -ui-allow-scan retired (answer-first-ui, run 02 task 2.2): a
+      // signed-in user gates the scan route now, not a dev-mode flag.
+      // -ui-htpasswd wires up that gate for this fixture.
+      command: serve(scanDevPort, "scan.db") + ` -ui-htpasswd ${fixtureDir}/scan-htpasswd`,
       url: `http://127.0.0.1:${scanDevPort}/healthz`,
       reuseExistingServer: false,
       stdout: "pipe",
