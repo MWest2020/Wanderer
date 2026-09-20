@@ -1,0 +1,18 @@
+# answer_nl.yaml — the answer page's headline copy (proposal.md "The
+# answer, in Dutch"; spec.md "The answer is one sentence with its
+# reason"). Four outcomes: a plain "ja", a "ja" qualified by how many
+# flows could not be answered, a "nee" naming the flow that decided
+# it, and "onbekend". {flow} and {verdict} name the deciding flow;
+# {clause} is the pre-formatted unanswered-count clause — Dutch plural
+# verb agreement ("kon" vs "konden") needs the count itself, so that
+# clause is built in Go rather than templated here.
+#
+# This is the single Dutch string table for the headline (design
+# intent mirrors internal/assessor/wand/accountability_nl.yaml); no
+# answer copy lives in templates or Go code.
+
+outcomes:
+  ja: "Ja — dit domein staat onder Nederlands of Europees recht."
+  ja_unanswered: "Ja — dit domein staat onder Nederlands of Europees recht, al {clause}."
+  nee: "Nee — {flow}: {verdict}"
+  onbekend: "Dat weten we niet — {clause}."
