@@ -27,6 +27,17 @@ reason").
 No template or route changes in this run — that is run 02 and 03. This
 run delivers the function, the copy and the tests.
 
+## Over bouwen en testen in de kooi — lees dit eerst
+De eerste `go build ./...` in de kooi duurt minuten: `modernc.org/sqlite`
+is getranspileerde C en staat gevendord in de repo. Draai daarom tijdens
+het werk alleen je eigen pakket:
+
+    go test ./internal/ui/...
+
+en bewaar één volledige `go build ./...` + `go vet ./...` + `go test ./...`
+voor het eind. Ga NIET zoeken naar een snellere manier, en zet GOFLAGS of
+GOPROXY niet om — die staan goed (offline uit vendor/).
+
 ## Done means
 `go build ./...`, `go vet ./...`, `go test ./...` green (offline from
 vendor/); `openspec validate 2026-09-20-answer-first-ui --strict` green.

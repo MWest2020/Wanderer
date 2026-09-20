@@ -27,6 +27,17 @@ can be revoked").
 (run 03). Raak die bestanden niet aan — er loopt een andere run in deze
 repo aan de UI-kant.
 
+## Over bouwen en testen in de kooi — lees dit eerst
+De eerste `go build ./...` in de kooi duurt minuten: `modernc.org/sqlite`
+is getranspileerde C en staat gevendord in de repo. Draai daarom tijdens
+het werk alleen je eigen pakket:
+
+    go test ./internal/ui/...
+
+en bewaar één volledige `go build ./...` + `go vet ./...` + `go test ./...`
+voor het eind. Ga NIET zoeken naar een snellere manier, en zet GOFLAGS of
+GOPROXY niet om — die staan goed (offline uit vendor/).
+
 ## Done means
 `go build ./...`, `go vet ./...`, `go test ./...` groen (offline uit
 vendor/); `openspec validate 2026-09-20-agent-enrollment --strict`
