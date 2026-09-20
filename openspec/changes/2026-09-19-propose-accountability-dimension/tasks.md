@@ -116,7 +116,7 @@ run checks off only the tasks of its own cluster.
   accountability-findings. Zet de spec in het baseline-project en vul de
   fixture aan met een scan die alle vier de antwoordtoestanden toont
   (ja / nee / onbekend / n.v.t.), zodat de spec echt iets bewijst.
-- [ ] 8.4 Playwright smoke: expand evidence, onbekend vs n.v.t.
+- [x] 8.4 Playwright smoke: expand evidence, onbekend vs n.v.t.
   rendering.
 
 - [x] 8.6 UI-defect, gevonden toen de spec eindelijk draaide: de
