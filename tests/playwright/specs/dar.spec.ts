@@ -8,18 +8,23 @@
 import { test, expect } from "@playwright/test";
 
 test.describe("Overview slimness", () => {
-  test("Overview at /ui/ stays slim — fleet + verdict pills, no steering blocks", async ({ page }) => {
+  test("The door at /ui/ stays slim; the fleet + verdict pills moved to /ui/trends (answer-first-ui)", async ({ page }) => {
     await page.goto("/ui/");
-    await expect(page.locator("h1")).toContainText("all organisations");
-    await expect(page.locator("section.targets-fleet")).toBeVisible();
-    await expect(page.getByRole("heading", { name: /^Verdict\b/i })).toBeVisible();
-    // Removed/relocated sections — must not appear on the Overview:
+    // Removed/relocated sections — must not appear on the door:
+    await expect(page.locator("section.targets-fleet")).toHaveCount(0);
+    await expect(page.getByRole("heading", { name: /^Verdict\b/i })).toHaveCount(0);
     await expect(page.locator("text=External posture")).toHaveCount(0);
     await expect(page.locator("text=Internal posture")).toHaveCount(0);
     await expect(page.locator("text=Top concerns")).toHaveCount(0);
     await expect(page.locator("text=Recent activity")).toHaveCount(0);
-    // The score matrix lives on Trends, not the Overview.
     await expect(page.locator("table.reporting-rules")).toHaveCount(0);
+
+    // That content did not disappear — it moved to Trends.
+    await page.goto("/ui/trends");
+    await expect(page.locator("h1")).toContainText("rules across your fleet");
+    await expect(page.locator("p.meta .muted")).toContainText("all organisations");
+    await expect(page.locator("section.targets-fleet")).toBeVisible();
+    await expect(page.getByRole("heading", { name: /^Verdict\b/i })).toBeVisible();
   });
 });
 

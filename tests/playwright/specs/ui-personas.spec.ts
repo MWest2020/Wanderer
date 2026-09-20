@@ -2,16 +2,18 @@
 //
 // Covers ADR docs/decisions/0017-ui-personas.md and the
 // restructure-ui-tourist-farmer-explorer OpenSpec change:
-//   - Overview leads with the target fleet (Tourist)
+//   - Trends leads with the target fleet (Tourist) — moved off the
+//     Overview by answer-first-ui (openspec/changes/2026-09-20-answer-first-ui),
+//     which turned /ui/ into the answer-first door instead
 //   - The scan assessment is the report (Explorer)
 //   - Trends consolidates catalogue + matrix (Farmer)
 //   - Nav collapses to two tabs; legacy routes redirect
 
 import { test, expect } from "@playwright/test";
 
-test.describe("Overview = Tourist", () => {
-  test("Overview leads with the target fleet, linking to reports", async ({ page }) => {
-    await page.goto("/ui/");
+test.describe("Trends = Tourist", () => {
+  test("Trends leads with the target fleet, linking to reports", async ({ page }) => {
+    await page.goto("/ui/trends");
     const fleet = page.locator("section.targets-fleet");
     await expect(fleet).toBeVisible();
     // Each row carries a verdict badge and a report link.
@@ -27,7 +29,7 @@ test.describe("Overview = Tourist", () => {
 
 test.describe("Report = Explorer", () => {
   test("Clicking a target opens its domain-titled report", async ({ page }) => {
-    await page.goto("/ui/");
+    await page.goto("/ui/trends");
     const reportLink = page.locator("section.targets-fleet a", { hasText: "report →" }).first();
     await reportLink.click();
     await expect(page).toHaveURL(/\/ui\/scans\/.+\/assessment/);
