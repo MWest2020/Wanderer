@@ -1,3 +1,39 @@
+{{/* answer-rows renders a []AccountabilityAnswer as the answer-sheet
+     rows accountability pioneered (design.md "UI direction") — one
+     plain-language question per row, ja/nee/onbekend/n.v.t., the
+     observed fact in the verdict, evidence (rule ID, protocol jargon)
+     collapsed beneath. Shared by the sovereignty-flows section and the
+     accountability dimension so the reasoning page has exactly one
+     rendering of this pattern (run 04 task 4.1: "bouw geen tweede
+     weergave"). */}}
+{{define "answer-rows"}}
+{{range .}}
+<article class="answer-row answer-{{.AnswerClass}}">
+  <p class="answer-question">{{.Question}}</p>
+  <p class="answer-verdict">
+    <span class="badge answer-badge-{{.AnswerClass}}">{{.AnswerLabel}}</span>
+    {{.Verdict}}
+  </p>
+  {{if .Remediation}}
+  <p class="answer-remediation">→ {{.Remediation}}</p>
+  {{end}}
+  <details class="answer-evidence">
+    <summary>bewijs</summary>
+    <p><code>{{.RuleID}}</code>{{if .RuleDescription}} — {{.RuleDescription}}{{end}}</p>
+    {{if .Evidence}}
+    {{range .Evidence}}
+    <p><code>{{.ProbeID}}</code> op <code>{{.Subject}}</code></p>
+    <ul>
+      {{range .Attributes}}<li><code>{{.Key}}</code>: {{.Value}}</li>{{end}}
+    </ul>
+    {{end}}
+    {{else}}
+    <p class="muted">Geen bewijs beschikbaar{{if .NoEvidenceNote}} — {{.NoEvidenceNote}}{{end}}.</p>
+    {{end}}
+  </details>
+</article>
+{{end}}
+{{end}}
 {{define "assessment.tmpl"}}<!doctype html>
 <html lang="en">
 <head>
@@ -16,28 +52,21 @@
     · Scan <code>{{.ScanID}}</code>
   </p>
   <p>
-    <a href="/ui/">← dashboard</a>
+    <a href="{{.AnswerURL}}">← antwoord</a>
+    · <a href="/ui/">dashboard</a>
     · <a href="/ui/targets">all targets</a>
     · <a href="/ui/scans/{{.ScanID}}">Findings (raw) →</a>
   </p>
 </header>
 <main>
-{{if .Flows}}
+{{if .FlowAnswers}}
 <section class="sovereignty-overview">
-  <h2>Sovereignty overview</h2>
-  <p class="meta">Where this service lives and what its traffic touches — synthesised from the observed signals.</p>
+  <h2>Onderbouwing — soevereiniteit</h2>
+  <p class="meta">Waar deze dienst draait en waar het verkeer doorheen gaat — per stroom een vraag met antwoord, bewijs ingeklapt eronder.</p>
   <div class="sov-layout">
-  <table class="flows">
-    <tbody>
-    {{range .Flows}}
-      <tr>
-        <th scope="row">{{.Label}}</th>
-        <td><span class="badge score-{{.Score}}">{{.Score}}</span></td>
-        <td>{{.Verdict}}</td>
-      </tr>
-    {{end}}
-    </tbody>
-  </table>
+  <div class="flows answer-sheet">
+  {{template "answer-rows" .FlowAnswers}}
+  </div>
   {{if .Diagram.Nodes}}
   {{with .Diagram}}
   <svg class="sov-diagram" viewBox="0 0 {{.Width}} {{.Height}}" width="{{.Width}}" height="{{.Height}}" role="img" aria-label="Sovereignty flow diagram — the host at the centre, each flow a spoke coloured by score">
@@ -74,32 +103,7 @@
     <p class="scanner-warning">⚠ {{.}}</p>
     {{end}}
     {{if .Answers}}
-    {{range .Answers}}
-    <article class="answer-row answer-{{.AnswerClass}}">
-      <p class="answer-question">{{.Question}}</p>
-      <p class="answer-verdict">
-        <span class="badge answer-badge-{{.AnswerClass}}">{{.AnswerLabel}}</span>
-        {{.Verdict}}
-      </p>
-      {{if .Remediation}}
-      <p class="answer-remediation">→ {{.Remediation}}</p>
-      {{end}}
-      <details class="answer-evidence">
-        <summary>bewijs</summary>
-        <p><code>{{.RuleID}}</code>{{if .RuleDescription}} — {{.RuleDescription}}{{end}}</p>
-        {{if .Evidence}}
-        {{range .Evidence}}
-        <p><code>{{.ProbeID}}</code> op <code>{{.Subject}}</code></p>
-        <ul>
-          {{range .Attributes}}<li><code>{{.Key}}</code>: {{.Value}}</li>{{end}}
-        </ul>
-        {{end}}
-        {{else}}
-        <p class="muted">Geen bewijs beschikbaar{{if .NoEvidenceNote}} — {{.NoEvidenceNote}}{{end}}.</p>
-        {{end}}
-      </details>
-    </article>
-    {{end}}
+    {{template "answer-rows" .Answers}}
     {{else}}
     <p class="muted">No rationales for this dimension.</p>
     {{end}}

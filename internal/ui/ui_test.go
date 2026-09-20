@@ -267,6 +267,61 @@ func TestAssessmentPage_RendersDimensionAndRule(t *testing.T) {
 	}
 }
 
+// TestAssessmentPage_FlowsRenderAsAnswerSheetWithRuleIDsInEvidenceOnly
+// covers run 04 tasks 4.1/4.2: the seven sovereignty flows render as
+// answer-sheet questions (reusing the accountability pattern), a flow
+// rule's ID no longer appears in the generic per-dimension table (it
+// would be a second, open-air view of the same fact), and a non-flow
+// rule in the same dimension is untouched.
+func TestAssessmentPage_FlowsRenderAsAnswerSheetWithRuleIDsInEvidenceOnly(t *testing.T) {
+	srv, st := newServer(t, "")
+	_, scanID := seed(t, st)
+	a := &models.Assessment{
+		ScanID:    scanID,
+		Framework: "wand",
+		Dimensions: []models.DimensionScore{{
+			Dimension:    models.DimensionJuridisch,
+			Score:        models.ScoreSoeverein,
+			Completeness: models.CompletenessComplete,
+			Rationale: []models.Rationale{
+				{CriteriumID: "wand.juridisch.cert_issuer_eea", Verdict: "cert issued in NL (EEA)", Score: models.ScoreSoeverein},
+				{CriteriumID: "wand.juridisch.registrar_jurisdiction", Verdict: "registrant in NL (EEA)", Score: models.ScoreSoeverein},
+			},
+		}},
+	}
+	if err := st.CreateAssessment(context.Background(), a); err != nil {
+		t.Fatalf("create assessment: %v", err)
+	}
+	resp, err := http.Get(srv.URL + "/ui/scans/" + scanID + "/assessment")
+	if err != nil {
+		t.Fatalf("get: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != 200 {
+		t.Fatalf("status = %d", resp.StatusCode)
+	}
+	body, _ := io.ReadAll(resp.Body)
+	bodyStr := string(body)
+
+	if !strings.Contains(bodyStr, "Waar is het certificaat uitgegeven?") {
+		t.Errorf("expected the Certificate flow's plain-language question; body:\n%s", bodyStr)
+	}
+	if strings.Contains(bodyStr, "<code>wand.juridisch.cert_issuer_eea</code>\n            <details class=\"why\">") {
+		t.Errorf("cert_issuer_eea must not also render in the generic dimension table; body:\n%s", bodyStr)
+	}
+	if !strings.Contains(bodyStr, "wand.juridisch.cert_issuer_eea") {
+		t.Errorf("cert_issuer_eea should still appear, collapsed inside the flow's evidence; body:\n%s", bodyStr)
+	}
+	if !strings.Contains(bodyStr, "wand.juridisch.registrar_jurisdiction") {
+		t.Errorf("a non-flow rule in the same dimension must still render in the generic table; body:\n%s", bodyStr)
+	}
+	// One link back to the answer page (spec.md "one click from the
+	// answer"; run 04 task 4.3).
+	if !strings.Contains(bodyStr, `href="/ui/scans/`+scanID+`/answer"`) {
+		t.Errorf("assessment page must link back to the answer page; body:\n%s", bodyStr)
+	}
+}
+
 func TestAssessmentPage_EmptyShowsHint(t *testing.T) {
 	srv, st := newServer(t, "")
 	_, scanID := seed(t, st)

@@ -842,8 +842,10 @@ type assessmentView struct {
 	Status       string
 	OrgSlug      string
 	HasReporting bool
-	Flows        []Flow  // Sovereignty overview — "what goes where"
-	Diagram      Diagram // hub-and-spoke SVG of the same flows
+	AnswerURL    string // one link back to the answer page (spec.md "The reasoning is one click from the answer")
+	Flows        []Flow // hub-and-spoke diagram data — "what goes where"
+	Diagram      Diagram
+	FlowAnswers  []AccountabilityAnswer // the seven flows as answer-sheet rows
 	Frameworks   []frameworkCardView
 }
 
@@ -915,6 +917,7 @@ func assessmentHandler(st *store.Store, tmpl *template.Template) http.HandlerFun
 			Status:       string(scan.Status),
 			OrgSlug:      scopeSlugForScan(r.Context(), st, scan.TargetID),
 			HasReporting: true,
+			AnswerURL:    "/ui/scans/" + scan.ID + "/answer",
 			Flows:        flows,
 			Diagram:      SovereigntyDiagram(subject, flows),
 		}
@@ -922,6 +925,7 @@ func assessmentHandler(st *store.Store, tmpl *template.Template) http.HandlerFun
 		for _, f := range scan.Findings {
 			findingsByID[f.ID] = f
 		}
+		view.FlowAnswers = BuildFlowAnswers(assessments, findingsByID)
 		// Stable framework order: dictu first, then alphabetical.
 		sort.SliceStable(assessments, func(i, j int) bool {
 			a, b := assessments[i].Framework, assessments[j].Framework
@@ -958,6 +962,12 @@ func assessmentHandler(st *store.Store, tmpl *template.Template) http.HandlerFun
 					ScannerWarnings: DimensionScannerWarnings(d),
 				}
 				for _, rationale := range d.Rationale {
+					if isSovereigntyFlowRule(rationale.CriteriumID) {
+						// Rendered exclusively via FlowAnswers above —
+						// showing it again here would be a second,
+						// rule-ID-in-the-open view of the same fact.
+						continue
+					}
 					row := rationaleRowView{
 						CriteriumID: rationale.CriteriumID,
 						Score:       string(rationale.Score),

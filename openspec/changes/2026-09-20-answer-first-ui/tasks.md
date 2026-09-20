@@ -28,10 +28,10 @@
 - [x] 3.3 Tests: partial scan renders, completion stops the refresh.
 
 ## 4. De onderbouwing — run 04
-- [ ] 4.1 The reasoning page: seven flows + accountability as questions
+- [x] 4.1 The reasoning page: seven flows + accountability as questions
   with answers, observed fact in the verdict, evidence collapsed.
-- [ ] 4.2 Rule IDs and protocol jargon only inside evidence.
-- [ ] 4.3 One link from answer to reasoning, and back.
+- [x] 4.2 Rule IDs and protocol jargon only inside evidence.
+- [x] 4.3 One link from answer to reasoning, and back.
 
 ## 5. Bewijs en documentatie — run 05
 - [ ] 5.1 Playwright: domain in → answer → reasoning, and the

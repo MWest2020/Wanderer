@@ -13,20 +13,39 @@ type Flow struct {
 	Score   string
 }
 
-// flowRule maps a wand rule ID to its flow label + display order. The
+// flowRule maps a wand rule ID to its flow label + display order, plus
+// the plain-language Dutch question the reasoning page asks for it
+// (spec.md "The reasoning is one click from the answer": each flow "a
+// plain-language question with ja / nee / onbekend / n.v.t."). The
 // overview is pure presentation: it re-groups signals the rule pack
 // already produced into the org/host-as-the-spil-in-the-web picture
 // ("your service lives here, its mail goes there, its DNS is run by …").
 var flowRules = []struct {
-	id, label string
+	id, label, question string
 }{
-	{"wand.juridisch.apex_ip_eea", "Hosting"},
-	{"wand.juridisch.mx_vendor_jurisdiction", "Mail"},
-	{"wand.juridisch.ns_vendor_jurisdiction", "DNS"},
-	{"wand.juridisch.cert_issuer_eea", "Certificate"},
-	{"wand.transit.eu_path", "Transit path"},
-	{"wand.technologie.no_us_hyperscaler", "CDN / hyperscaler"},
-	{"wand.technologie.third_parties_eea", "Third parties"},
+	{"wand.juridisch.apex_ip_eea", "Hosting", "Waar staat de hosting?"},
+	{"wand.juridisch.mx_vendor_jurisdiction", "Mail", "Waar loopt de mail?"},
+	{"wand.juridisch.ns_vendor_jurisdiction", "DNS", "Wie beheert de DNS?"},
+	{"wand.juridisch.cert_issuer_eea", "Certificate", "Waar is het certificaat uitgegeven?"},
+	{"wand.transit.eu_path", "Transit path", "Blijft het netwerkverkeer binnen de EER?"},
+	{"wand.technologie.no_us_hyperscaler", "CDN / hyperscaler", "Zit er een Amerikaanse hyperscaler tussen?"},
+	{"wand.technologie.third_parties_eea", "Third parties", "Zijn de derde partijen in de EER gevestigd?"},
+}
+
+// isSovereigntyFlowRule reports whether ruleID is one of the seven
+// flow rules above. The reasoning page renders these exclusively
+// through BuildFlowAnswers; the generic per-dimension rationale table
+// (assessmentHandler) skips them so the same rule ID does not appear
+// twice on the page — once collapsed in the flow's evidence, once
+// again in the open (spec.md "Rule IDs ... SHALL appear only inside
+// the evidence").
+func isSovereigntyFlowRule(ruleID string) bool {
+	for _, fr := range flowRules {
+		if fr.id == ruleID {
+			return true
+		}
+	}
+	return false
 }
 
 // SovereigntyFlows synthesises the overview from a scan's assessments.
