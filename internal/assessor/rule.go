@@ -30,6 +30,16 @@ type Rule struct {
 	// a non-empty Rationale; the corresponding rule pack's
 	// TestEveryRuleHasRationale fails the build otherwise.
 	Rationale string
+	// Observation is a one-line, plain-language name for the
+	// finding(s) / probe(s) Match reads, e.g. "The RDAP registrant
+	// lookup (`whois.registrant`)." It answers "which observation
+	// does this rule use" on the rule detail page — a reader should
+	// be able to trace the verdict back to a concrete signal, not
+	// just a category. Required: every rule registered with
+	// DefaultRules() MUST set a non-empty Observation; the
+	// corresponding rule pack's TestEveryRuleHasObservation fails
+	// the build otherwise.
+	Observation string
 	// Match is the rule body. It receives every Finding in the scan
 	// and returns a RuleResult. Rules SHOULD be total: defensively
 	// handle missing or mistyped attributes by returning

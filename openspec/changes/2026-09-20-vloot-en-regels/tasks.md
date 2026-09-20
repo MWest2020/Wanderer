@@ -34,11 +34,11 @@
   beoordelaar? Niet in deze change oplossen.
 
 ## 5. De regelpagina — run 05
-- [ ] 5.1 Per regel: wat, waarom, welke waarneming, welke grens, en wie
+- [x] 5.1 Per regel: wat, waarom, welke waarneming, welke grens, en wie
   aan welke kant staat.
-- [ ] 5.2 De handeling ("hoe los ik dit op") bij een falend oordeel,
+- [x] 5.2 De handeling ("hoe los ik dit op") bij een falend oordeel,
   ook op de onderbouwingspagina.
-- [ ] 5.3 Alle regels krijgen hun handeling in de tekstentabel; een
+- [x] 5.3 Alle regels krijgen hun handeling in de tekstentabel; een
   regel zonder handeling faalt de tests.
 
 ## 6. Bewijs en documentatie — run 06

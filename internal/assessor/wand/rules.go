@@ -144,6 +144,7 @@ func registrarJurisdiction() assessor.Rule {
 		ID:          "wand.juridisch.registrar_jurisdiction",
 		Dimension:   models.DimensionJuridisch,
 		Description: "Domain registrant registered in an EEA jurisdiction.",
+		Observation: "The WHOIS/RDAP registrant lookup (`whois.registrant`), read for its reported country.",
 		Rationale: "The party legally registered as the domain holder is the entity " +
 			"a court order or law-enforcement request would address first. A registrant " +
 			"in the EEA falls under EU jurisdiction (GDPR, Schrems II); a registrant " +
@@ -202,6 +203,7 @@ func certIssuerEEA() assessor.Rule {
 		ID:          "wand.juridisch.cert_issuer_eea",
 		Dimension:   models.DimensionJuridisch,
 		Description: "TLS certificate issued by an authority in the EEA.",
+		Observation: "The TLS certificate chain's issuer lookup (`tls.issuer`), read for the issuing CA's country.",
 		Rationale: "Certificate Authorities can revoke or refuse to renew certificates. " +
 			"When the issuer is incorporated outside the EEA, the authority that " +
 			"controls the cryptographic identity of the site sits under foreign " +
@@ -301,6 +303,7 @@ func apexIPInEEA() assessor.Rule {
 		ID:          "wand.juridisch.apex_ip_eea",
 		Dimension:   models.DimensionJuridisch,
 		Description: "Apex IP addresses resolve to AS registered in the EEA.",
+		Observation: "The apex DNS answer (`dns.a`/`dns.aaaa`) correlated with the IP-to-AS lookup (`ip.asn`) for that address.",
 		Rationale: "The IP address that serves the apex domain belongs to an Autonomous " +
 			"System operated by a specific organisation in a specific country. Where " +
 			"that AS is registered determines which legal regime governs the data " +
@@ -431,6 +434,7 @@ func mxVendorJurisdiction() assessor.Rule {
 		ID:          "wand.juridisch.mx_vendor_jurisdiction",
 		Dimension:   models.DimensionJuridisch,
 		Description: "MX hosts resolve to AS registered in the EEA.",
+		Observation: "The mail-exchange records (`dns.mx`) correlated with the IP-to-AS lookup (`ip.asn`) for each MX host.",
 		Rationale: "Email is the most common channel for sensitive correspondence. " +
 			"The mail-exchange host (`MX`) is where the organisation's inbound " +
 			"messages physically arrive; a non-EEA MX vendor processes citizen " +
@@ -515,6 +519,7 @@ func certValidity() assessor.Rule {
 		ID:          "wand.operationeel.cert_validity",
 		Dimension:   models.DimensionOperationeel,
 		Description: "TLS certificate is valid and not expiring within 30 days.",
+		Observation: "The TLS certificate's validity window (`tls.validity`).",
 		Rationale: "An expired or imminently-expiring TLS certificate is the single most " +
 			"common cause of unplanned downtime on public-facing services. The rule " +
 			"flags renewals that have not been automated and gives the operator a " +
@@ -568,6 +573,7 @@ func dnsRedundancy() assessor.Rule {
 		ID:          "wand.operationeel.dns_redundancy",
 		Dimension:   models.DimensionOperationeel,
 		Description: "At least two authoritative nameservers are delegated.",
+		Observation: "The domain's delegated nameservers (`dns.ns`).",
 		Rationale: "A single authoritative nameserver is a single point of failure for " +
 			"the entire domain — every service the organisation runs becomes " +
 			"unreachable when that one server is down. RFC 2182 recommends at " +
@@ -622,6 +628,7 @@ func caaRestricts() assessor.Rule {
 		ID:          "wand.operationeel.caa_restricts_issuance",
 		Dimension:   models.DimensionOperationeel,
 		Description: "CAA records restrict which CAs may issue certificates.",
+		Observation: "The domain's CAA records (`dns.caa`).",
 		Rationale: "A `CAA` DNS record names the Certificate Authorities allowed to " +
 			"issue certificates for the domain. Without one, any CA in the " +
 			"world's public trust store can mint a valid certificate — including " +
@@ -719,6 +726,7 @@ func thirdPartiesEEA() assessor.Rule {
 		ID:          "wand.technologie.third_parties_eea",
 		Dimension:   models.DimensionTechnologie,
 		Description: "HTTP third-party dependencies resolve to AS registered in the EEA.",
+		Observation: "The page's third-party hosts (`http.third_party`) correlated with the IP-to-AS lookup (`ip.asn`) for each host.",
 		Rationale: "Modern web pages load fonts, analytics, scripts, and assets from " +
 			"third-party hosts. Each third party that runs on a non-EEA AS adds " +
 			"another foreign-jurisdiction dependency to every page load — the " +
@@ -817,6 +825,7 @@ func noUSHyperscaler() assessor.Rule {
 		ID:          "wand.technologie.no_us_hyperscaler",
 		Dimension:   models.DimensionTechnologie,
 		Description: "Apex and third-party hosts are not routed via known US hyperscalers.",
+		Observation: "The IP-to-AS lookup (`ip.asn`) for the apex and third-party hosts, matched against a list of known US hyperscaler AS organisations.",
 		Rationale: "AWS, Google, Microsoft, Cloudflare, Akamai, and Fastly are US-" +
 			"headquartered providers subject to the CLOUD Act, which obliges them " +
 			"to surface customer data on a US warrant regardless of where the " +
@@ -887,6 +896,7 @@ func mxPresent() assessor.Rule {
 		ID:          "wand.data_ai.mx_present",
 		Dimension:   models.DimensionDataAI,
 		Description: "Domain has configured mail exchangers (routing is knowable).",
+		Observation: "The domain's mail-exchange records (`dns.mx`).",
 		Rationale: "A domain without `MX` records cannot route inbound mail. For an " +
 			"organisation that publishes contact addresses on the apex domain, " +
 			"missing MX records mean that mail addressed to the organisation " +
@@ -924,6 +934,7 @@ func oidcFederation() assessor.Rule {
 		ID:          "wand.data_ai.oidc_federation",
 		Dimension:   models.DimensionDataAI,
 		Description: "Identity federation endpoints are sovereign. Requires the egress probe (not yet landed).",
+		Observation: "The configured OIDC issuer endpoint, once the egress probe surfaces it — no probe currently produces this finding.",
 		Rationale: "OpenID Connect (OIDC) federation lets users sign in with credentials " +
 			"managed by an external identity provider. Each authentication round-trip " +
 			"sends the user's identity, organisation, and login context through that " +

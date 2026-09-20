@@ -19,7 +19,7 @@ func TestBuildFlowAnswers_MapsScoreToAnswerAndKeepsObservedFact(t *testing.T) {
 	findings := map[string]models.Finding{
 		"f1": {ID: "f1", ProbeID: "ip.asn", Subject: "example.nl", Attributes: map[string]any{"country": "NL"}},
 	}
-	rows := BuildFlowAnswers([]models.Assessment{a}, findings)
+	rows := BuildFlowAnswers([]models.Assessment{a}, findings, "example.nl")
 	if len(rows) != 2 {
 		t.Fatalf("got %d rows, want 2 (apex + mx; registrar_jurisdiction is not a flow rule)", len(rows))
 	}
@@ -45,6 +45,12 @@ func TestBuildFlowAnswers_MapsScoreToAnswerAndKeepsObservedFact(t *testing.T) {
 	if mail.AnswerClass != "nee" || mail.AnswerLabel != "Nee" {
 		t.Errorf("mail answer = %s/%s, want nee/Nee", mail.AnswerClass, mail.AnswerLabel)
 	}
+	if mail.Remediation == "" {
+		t.Error("expected a remediation line for the failing mail flow")
+	}
+	if !strings.Contains(mail.Remediation, "example.nl") {
+		t.Errorf("remediation = %q, want the {domein} placeholder filled with example.nl", mail.Remediation)
+	}
 }
 
 func TestBuildFlowAnswers_OnbekendWhenScoreOnbekend(t *testing.T) {
@@ -53,7 +59,7 @@ func TestBuildFlowAnswers_OnbekendWhenScoreOnbekend(t *testing.T) {
 			{CriteriumID: "wand.transit.eu_path", Verdict: "no geo-attributed transit hops", Score: models.ScoreOnbekend},
 		},
 	}}}
-	rows := BuildFlowAnswers([]models.Assessment{a}, nil)
+	rows := BuildFlowAnswers([]models.Assessment{a}, nil, "example.nl")
 	if len(rows) != 1 {
 		t.Fatalf("got %d rows, want 1", len(rows))
 	}
@@ -71,7 +77,7 @@ func TestBuildFlowAnswers_OmitsFlowsThatNeverFired(t *testing.T) {
 			{CriteriumID: "wand.juridisch.apex_ip_eea", Verdict: "apex in NL", Score: models.ScoreSoeverein},
 		},
 	}}}
-	rows := BuildFlowAnswers([]models.Assessment{a}, nil)
+	rows := BuildFlowAnswers([]models.Assessment{a}, nil, "example.nl")
 	if len(rows) != 1 {
 		t.Fatalf("got %d rows, want 1 (only Hosting fired)", len(rows))
 	}

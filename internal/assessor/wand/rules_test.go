@@ -537,6 +537,31 @@ func TestEveryRuleHasRationale(t *testing.T) {
 	}
 }
 
+// TestEveryRuleHasObservation checks that every rule names the
+// finding(s)/probe(s) its Match reads — the regel page's "which
+// observation does this rule use" answer (spec.md "Een regel legt
+// zichzelf uit, inclusief de drempel").
+func TestEveryRuleHasObservation(t *testing.T) {
+	for _, r := range DefaultRules() {
+		if r.Observation == "" {
+			t.Errorf("rule %s: Observation is empty (every wand rule must name the finding(s) it reads)", r.ID)
+		}
+	}
+}
+
+// TestEveryRuleHasHandeling checks that every rule has a remediation
+// line in accountability_nl.yaml's handelingen table — spec.md "Bij
+// elk oordeel 'nee' staat wat je eraan doet": a rule without one fails
+// the build, same as TestEveryRuleHasRationale does for Rationale.
+func TestEveryRuleHasHandeling(t *testing.T) {
+	for _, r := range DefaultRules() {
+		h, ok := HandelingFor(r.ID)
+		if !ok || h == "" {
+			t.Errorf("rule %s: no entry in accountability_nl.yaml's handelingen table", r.ID)
+		}
+	}
+}
+
 // TestEveryThresholdIsWellFormed checks that any Threshold a rule
 // declares carries a name, unit, and plain-language explanation — a
 // Threshold with a bare number and no meaning is as useless to a

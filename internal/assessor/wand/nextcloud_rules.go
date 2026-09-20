@@ -20,6 +20,7 @@ func nextcloudObjectstoreEU() assessor.Rule {
 		ID:          "wand.nextcloud.objectstore_eu",
 		Dimension:   models.DimensionTechnologie,
 		Description: "Nextcloud objectstore backend resolves to an EEA jurisdiction.",
+		Observation: "The Nextcloud objectstore backend inventory (`inventory.nextcloud.objectstore`), read for its geoip-resolved country.",
 		Rationale: "Where Nextcloud stores its file data is the single " +
 			"most material sovereignty signal a Nextcloud install " +
 			"produces. An S3 backend resolving to a US-headquartered " +
@@ -76,6 +77,7 @@ func nextcloudOIDCProviderEU() assessor.Rule {
 		ID:          "wand.nextcloud.oidc_provider_eu",
 		Dimension:   models.DimensionTechnologie,
 		Description: "Nextcloud OIDC identity provider resolves to an EEA jurisdiction.",
+		Observation: "The Nextcloud OIDC provider inventory (`inventory.nextcloud.oidc_provider`), read for its geoip-resolved country.",
 		Rationale: "An OIDC IdP is the gatekeeper for every Nextcloud login. " +
 			"When the IdP runs in a non-EEA jurisdiction, account " +
 			"creation, group membership, and login traces sit in a " +

@@ -19,6 +19,7 @@ func httpExposure() assessor.Rule {
 		ID:          "wand.operationeel.http_exposure",
 		Dimension:   models.DimensionOperationeel,
 		Description: "The site enforces the baseline HTTP security headers and does not leak its stack version.",
+		Observation: "The HTTP response's security headers (`http.security_headers`) and its Server/X-Powered-By banner (`http.response`).",
 		Rationale: "Missing security headers leave a site open to transport " +
 			"downgrade (no HSTS), clickjacking (no X-Frame-Options/CSP), and " +
 			"MIME/referrer leakage; a Server / X-Powered-By banner that names " +

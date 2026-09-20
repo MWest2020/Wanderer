@@ -19,6 +19,7 @@ func dockerImagesUSRegistry() assessor.Rule {
 		ID:          "wand.docker.images_us_registry",
 		Dimension:   models.DimensionTechnologie,
 		Description: "Host has no container images sourced from a US-headquartered registry.",
+		Observation: "The host's Docker image inventory (`inventory.docker.image`), classified by registry.",
 		Rationale: "Container images are runtime supply-chain dependencies. " +
 			"An image pulled from a US-headquartered registry routes " +
 			"the layer download — and any future updates — through a " +
@@ -39,6 +40,7 @@ func dockerContainersUSRegistry() assessor.Rule {
 		ID:          "wand.docker.containers_us_registry",
 		Dimension:   models.DimensionTechnologie,
 		Description: "Host runs no containers from a US-headquartered registry.",
+		Observation: "The host's running-container inventory (`inventory.docker.container`), classified by registry.",
 		Rationale: "What is actively running is a stronger signal than what " +
 			"is merely available on disk: a US-registry image that " +
 			"sits unused does not carry sovereignty risk today, but " +

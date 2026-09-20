@@ -18,6 +18,7 @@ import (
 	"net/http"
 	"net/url"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -1251,6 +1252,10 @@ type rationaleRowView struct {
 	Rationale   string
 	Retired     bool
 	Evidence    []string
+	// Remediation is set only when Score is "afhankelijk" — the one
+	// concrete handeling for this domain (run 05 task 5.2), from
+	// accountability_nl.yaml's handelingen table.
+	Remediation string
 }
 
 func assessmentHandler(st *store.Store, tmpl *template.Template) http.HandlerFunc {
@@ -1290,7 +1295,7 @@ func assessmentHandler(st *store.Store, tmpl *template.Template) http.HandlerFun
 		for _, f := range scan.Findings {
 			findingsByID[f.ID] = f
 		}
-		view.FlowAnswers = BuildFlowAnswers(assessments, findingsByID)
+		view.FlowAnswers = BuildFlowAnswers(assessments, findingsByID, subject)
 		// Stable framework order: dictu first, then alphabetical.
 		sort.SliceStable(assessments, func(i, j int) bool {
 			a, b := assessments[i].Framework, assessments[j].Framework
@@ -1345,6 +1350,11 @@ func assessmentHandler(st *store.Store, tmpl *template.Template) http.HandlerFun
 					} else {
 						row.Description = "rule retired"
 						row.Retired = true
+					}
+					if rationale.Score == models.ScoreAfhankelijk {
+						if h, ok := wand.HandelingFor(rationale.CriteriumID); ok {
+							row.Remediation = fillParams(h, map[string]string{"domein": subject})
+						}
 					}
 					card.Rationales = append(card.Rationales, row)
 				}
@@ -1586,7 +1596,20 @@ type reportingRuleView struct {
 	Dimension          string
 	Description        string
 	Rationale          string
-	Rows               []reportingRuleRowView
+	Observation        string
+	// Thresholds mirrors the rule's assessor.Threshold list (run 04);
+	// empty when the rule is a presence/absence check with no
+	// boundary — the template shows a fixed explanatory line instead
+	// of an empty heading (run 05 task 5.1).
+	Thresholds []reportingThresholdView
+	Rows       []reportingRuleRowView
+}
+
+type reportingThresholdView struct {
+	Name        string
+	Value       string
+	Unit        string
+	Explanation string
 }
 
 type reportingRuleRowView struct {
@@ -1596,6 +1619,10 @@ type reportingRuleRowView struct {
 	Score    string
 	Verdict  string
 	When     string
+	// Remediation is set only when Score is "afhankelijk" — the one
+	// concrete handeling for this domain (run 05 task 5.2), from
+	// accountability_nl.yaml's handelingen table.
+	Remediation string
 }
 
 func reportingRuleHandler(st *store.Store, tmpl *template.Template) http.HandlerFunc {
@@ -1626,7 +1653,16 @@ func reportingRuleHandler(st *store.Store, tmpl *template.Template) http.Handler
 			Dimension:    string(rule.Dimension),
 			Description:  rule.Description,
 			Rationale:    rule.Rationale,
+			Observation:  rule.Observation,
 			Rows:         make([]reportingRuleRowView, 0, len(rows)),
+		}
+		for _, th := range rule.Thresholds {
+			view.Thresholds = append(view.Thresholds, reportingThresholdView{
+				Name:        th.Name,
+				Value:       strconv.FormatFloat(th.Value, 'f', -1, 64),
+				Unit:        th.Unit,
+				Explanation: th.Explanation,
+			})
 		}
 		if scopedOrg != nil {
 			view.OrgSlug = scopedOrg.Slug
@@ -1637,14 +1673,20 @@ func reportingRuleHandler(st *store.Store, tmpl *template.Template) http.Handler
 			}
 		}
 		for _, rw := range rows {
-			view.Rows = append(view.Rows, reportingRuleRowView{
+			row := reportingRuleRowView{
 				TargetID: rw.TargetID,
 				Domain:   rw.Domain,
 				ScanID:   rw.ScanID,
 				Score:    string(rw.Score),
 				Verdict:  rw.Verdict,
 				When:     rw.When.UTC().Format(time.RFC3339),
-			})
+			}
+			if rw.Score == models.ScoreAfhankelijk {
+				if h, ok := wand.HandelingFor(ruleID); ok {
+					row.Remediation = fillParams(h, map[string]string{"domein": rw.Domain})
+				}
+			}
+			view.Rows = append(view.Rows, row)
 		}
 		render(w, tmpl, "reporting_rule.tmpl", view)
 	}

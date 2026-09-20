@@ -42,6 +42,7 @@ func registrantIdentifiable() assessor.Rule {
 		ID:          "wand.accountability.registrant_identifiable",
 		Dimension:   models.DimensionAccountability,
 		Description: "The RDAP registrant is identifiable and matches a name the organisation declared.",
+		Observation: "The RDAP registrant identity lookup (`whois.registrant_identity`), compared against the organisation's declared names (`config.expected_registrant`).",
 		Rationale: "When a service breaks or is misused, the RDAP registrant is who a " +
 			"court order, an abuse report, or a curious citizen finds first. A " +
 			"registrant that matches the organisation's own declared name is a " +
@@ -144,6 +145,7 @@ func noReseller() assessor.Rule {
 		ID:          "wand.accountability.no_reseller",
 		Dimension:   models.DimensionAccountability,
 		Description: "The domain has a direct registrar relationship, with no reseller layer.",
+		Observation: "The RDAP reseller entity lookup (`whois.reseller`).",
 		Rationale: "A reseller is an extra party between the organisation and the " +
 			"registrar of record — another business relationship that can lapse, " +
 			"get acquired, or simply stop responding, with the domain caught in " +
@@ -186,6 +188,7 @@ func soaRname() assessor.Rule {
 		ID:          "wand.accountability.soa_rname",
 		Dimension:   models.DimensionAccountability,
 		Description: "The zone's SOA RNAME mailbox domain is contactable.",
+		Observation: "The zone's SOA record (`dns.soa`), read for its RNAME mailbox domain and whether that domain resolves and has MX.",
 		Rationale: "The SOA record's RNAME is the zone's own designated contact mailbox " +
 			"— the address DNS itself points to when something is wrong with the " +
 			"zone. A mailbox domain that does not resolve, or resolves with no MX, " +
@@ -249,6 +252,7 @@ func securitytxt() assessor.Rule {
 		ID:          "wand.accountability.securitytxt",
 		Dimension:   models.DimensionAccountability,
 		Description: "RFC 9116 security.txt is present, parseable, and carries a current Contact.",
+		Observation: "The /.well-known/security.txt fetch (`http.securitytxt`).",
 		Rationale: "security.txt is the standard, machine-readable answer to 'who do I " +
 			"tell if I find a security problem here'. Without it a researcher has " +
 			"no clear channel and either gives up or improvises one (a public " +
@@ -315,6 +319,7 @@ func nsHolderTransparent() assessor.Rule {
 		ID:          "wand.accountability.ns_holder_transparent",
 		Dimension:   models.DimensionAccountability,
 		Description: "The organisation(s) behind the authoritative nameservers are identifiable.",
+		Observation: "The RDAP lookup on each nameserver holder domain (`whois.ns_holder`).",
 		Rationale: "Authoritative DNS is the control plane for the domain: whoever holds " +
 			"the nameserver provider's account can redirect or withhold every name " +
 			"the organisation publishes. A nameserver holder hidden behind a proxy " +
@@ -394,6 +399,7 @@ func domainExpiry() assessor.Rule {
 		ID:          "wand.operationeel.domain_expiry",
 		Dimension:   models.DimensionOperationeel,
 		Description: "The domain registration will not lapse unexpectedly.",
+		Observation: "The RDAP expiry event lookup (`whois.expiry`).",
 		Rationale: fmt.Sprintf(
 			"A domain that lapses because nobody renewed it in time is an "+
 				"outage an attacker can turn into a takeover: a lapsed domain can be "+
@@ -586,6 +592,7 @@ func variantConvergence() assessor.Rule {
 		ID:          "wand.operationeel.variant_convergence",
 		Dimension:   models.DimensionOperationeel,
 		Description: "All apex/www x IPv4/IPv6 x http/https paths converge on one canonical HTTPS origin.",
+		Observation: "The site variants probe (`http.variants`), read for each apex/www x IPv4/IPv6 x http/https path's reachability and final origin.",
 		Rationale: "A visitor, a bookmark, or a stale link can land on any of eight " +
 			"apex/www x IPv4/IPv6 x http/https combinations. When they don't all " +
 			"funnel to the same secure origin, some of those entry points serve " +

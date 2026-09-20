@@ -60,6 +60,7 @@ func nsVendorJurisdiction() assessor.Rule {
 		ID:          "wand.juridisch.ns_vendor_jurisdiction",
 		Dimension:   models.DimensionJuridisch,
 		Description: "Authoritative nameserver hosts resolve to AS registered in the EEA.",
+		Observation: "The domain's authoritative nameservers (`dns.ns`) correlated with the IP-to-AS lookup (`ip.asn`) for each host.",
 		Rationale: "Authoritative DNS is the control plane for every hostname the " +
 			"organisation publishes. A non-EEA DNS vendor resolves (and can " +
 			"withhold or redirect) those names under a foreign jurisdiction. " +

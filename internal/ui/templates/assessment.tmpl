@@ -141,7 +141,10 @@
             </details>
           </td>
           <td><span class="badge score-{{.Score}}">{{.Score}}</span></td>
-          <td>{{.Verdict}}</td>
+          <td>
+            {{.Verdict}}
+            {{if .Remediation}}<p class="answer-remediation">→ {{.Remediation}}</p>{{end}}
+          </td>
           <td class="evidence">
             {{range .Evidence}}
             <a href="/ui/scans/{{$.ScanID}}#{{.}}"><code>{{.}}</code></a>

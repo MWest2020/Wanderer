@@ -9,13 +9,18 @@
 // the rules, the probes").
 package ui
 
-import "github.com/MWest2020/wanderer/pkg/models"
+import (
+	"github.com/MWest2020/wanderer/internal/assessor/wand"
+	"github.com/MWest2020/wanderer/pkg/models"
+)
 
 // BuildFlowAnswers renders the seven sovereignty flows into
 // answer-sheet rows, in flowRules' fixed order. A flow whose rule
 // never fired (no rationale for its ID across the given assessments)
-// is omitted, mirroring SovereigntyFlows.
-func BuildFlowAnswers(assessments []models.Assessment, findingsByID map[string]models.Finding) []AccountabilityAnswer {
+// is omitted, mirroring SovereigntyFlows. domain fills the {domein}
+// placeholder in the handeling shown when a flow scores afhankelijk
+// (run 05 task 5.2).
+func BuildFlowAnswers(assessments []models.Assessment, findingsByID map[string]models.Finding, domain string) []AccountabilityAnswer {
 	byRule := map[string]models.Rationale{}
 	for _, a := range assessments {
 		for _, d := range a.Dimensions {
@@ -40,6 +45,11 @@ func BuildFlowAnswers(assessments []models.Assessment, findingsByID map[string]m
 		}
 		if rule, ok := lookupRule("wand", fr.id); ok {
 			row.RuleDescription = rule.Description
+		}
+		if rat.Score == models.ScoreAfhankelijk {
+			if h, ok := wand.HandelingFor(fr.id); ok {
+				row.Remediation = fillParams(h, map[string]string{"domein": domain})
+			}
 		}
 		for _, id := range rat.Evidence {
 			f, ok := findingsByID[id]

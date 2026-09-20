@@ -92,3 +92,42 @@ rules:
     remediation:
       afhankelijk: "Stel een permanente doorverwijzing van HTTP naar HTTPS in voor {path}."
       onbekend: "Controleer of de website bereikbaar is en probeer de test later opnieuw."
+
+# handelingen is the single generic "wat doe ik hieraan" line per wand
+# rule, used on the rule page (which has no domain-specific evidence
+# to build a richer sentence from, only the target's domain) and on
+# the reasoning page for rules without a richer answer-sheet entry
+# above. Every rule in DefaultRules() MUST have an entry here — run 05
+# task 5.3, enforced by TestEveryRuleHasHandeling — even the seven
+# rules already covered above, whose accountability-sheet remediation
+# stays in place for that richer, evidence-parametrised context. One
+# sentence, one parameter: {domein}.
+handelingen:
+  wand.juridisch.registrar_jurisdiction: "Verhuis de domeinregistratie van {domein} naar een registrar die in de EER is gevestigd."
+  wand.juridisch.cert_issuer_eea: "Vraag het TLS-certificaat van {domein} aan bij een certificaatautoriteit die in de EER is gevestigd."
+  wand.juridisch.apex_ip_eea: "Verhuis de hosting van {domein} naar een provider met een AS dat in de EER is geregistreerd."
+  wand.juridisch.mx_vendor_jurisdiction: "Verhuis de mailhosting van {domein} naar een aanbieder met een AS dat in de EER is geregistreerd."
+  wand.juridisch.ns_vendor_jurisdiction: "Verhuis het DNS-beheer van {domein} naar een aanbieder met een AS dat in de EER is geregistreerd."
+  wand.operationeel.cert_validity: "Vernieuw het TLS-certificaat van {domein} en zet automatische vernieuwing aan bij de certificaatautoriteit."
+  wand.operationeel.dns_redundancy: "Delegeer een tweede autoritatieve nameserver voor {domein}, bij voorkeur in een ander AS en een andere regio."
+  wand.operationeel.caa_restricts_issuance: "Voeg een CAA-record toe aan {domein} dat vastlegt welke certificaatautoriteiten mogen uitgeven."
+  wand.operationeel.http_exposure: "Zet de ontbrekende beveiligingsheaders (in elk geval Strict-Transport-Security) aan op {domein} en verwijder de Server/X-Powered-By-header die de stack verraadt."
+  wand.technologie.third_parties_eea: "Vervang de niet-EER derde partijen die {domein} inlaadt door alternatieven die in de EER zijn gevestigd, of host ze zelf."
+  wand.technologie.no_us_hyperscaler: "Verplaats de apex- en derde-partijhosting van {domein} weg van de Amerikaanse hyperscaler naar een partij in de EER."
+  wand.data_ai.mx_present: "Publiceer MX-records voor {domein} zodat inkomende mail routeerbaar is."
+  wand.data_ai.oidc_federation: "Kies voor {domein} een OIDC-identiteitsprovider die in de EER is gevestigd, of vraag de huidige aanbieder naar EU-gegevensverwerking."
+  wand.host.eu_package_origin: "Vervang de distributie op de host achter {domein} door een met een in de EER gevestigde vendor, of vraag de huidige vendor naar EU-verwerking."
+  wand.host.no_us_telemetry_packages: "Verwijder het Amerikaanse telemetriepakket van de host achter {domein}, of vervang het door een EU-gevestigd alternatief."
+  wand.host.no_us_telemetry_services: "Stop en verwijder de systemd-unit van het Amerikaanse telemetrieagent op de host achter {domein}."
+  wand.nextcloud.objectstore_eu: "Verhuis de Nextcloud-objectstore achter {domein} naar een backend met een AS/land in de EER."
+  wand.nextcloud.oidc_provider_eu: "Verhuis de Nextcloud OIDC-identiteitsprovider achter {domein} naar een aanbieder die in de EER is gevestigd."
+  wand.docker.images_us_registry: "Haal de containerimages op de host achter {domein} van een registry die niet in de VS is gevestigd, of spiegel ze naar een eigen EU-registry."
+  wand.docker.containers_us_registry: "Vervang de draaiende containers op de host achter {domein} door images van een registry die niet in de VS is gevestigd."
+  wand.transit.eu_path: "Verhuis de hosting van {domein} naar een partij die binnen de EER is gevestigd."
+  wand.accountability.registrant_identifiable: "Schakel de privacydienst uit bij de registrar van {domein} en registreer het domein onder de eigen organisatienaam."
+  wand.accountability.no_reseller: "Zet {domein} rechtstreeks bij de registrar, zonder reseller ertussen."
+  wand.accountability.soa_rname: "Corrigeer het RNAME-veld van de SOA van {domein} zodat het naar een bestaand, bereikbaar mailboxdomein wijst."
+  wand.accountability.securitytxt: "Publiceer een security.txt op {domein}/.well-known/security.txt met een Contact- en een Expires-veld."
+  wand.accountability.ns_holder_transparent: "Vraag de nameserver-provider(s) van {domein} om identificeerbare registrantgegevens te publiceren."
+  wand.operationeel.domain_expiry: "Verleng de domeinregistratie van {domein} direct en zet automatische verlenging aan bij de registrar."
+  wand.operationeel.variant_convergence: "Stel voor {domein} een permanente doorverwijzing van HTTP naar HTTPS in op alle toegangswegen."

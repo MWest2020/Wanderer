@@ -30,6 +30,7 @@ func hostEUPackageOrigin() assessor.Rule {
 		ID:          "wand.host.eu_package_origin",
 		Dimension:   models.DimensionTechnologie,
 		Description: "Installed packages source from EU-vendored distributions.",
+		Observation: "The host's installed-package inventory (`inventory.packages.rpm`/`inventory.packages.dpkg`), classified by vendor/maintainer.",
 		Rationale: "The package vendor is the upstream the host trusts for " +
 			"binary updates, security patches, and the bill of " +
 			"materials in the registry. A Fedora host trusts Red Hat " +
@@ -150,6 +151,7 @@ func hostNoUSTelemetryPackages() assessor.Rule {
 		ID:          "wand.host.no_us_telemetry_packages",
 		Dimension:   models.DimensionTechnologie,
 		Description: "Host carries no installed US-headquartered telemetry / observability agent.",
+		Observation: "The host's installed-package inventory (`inventory.packages.*`), matched against a list of known US telemetry agents.",
 		Rationale: "Telemetry and observability agents (Datadog, New Relic, " +
 			"AWS CloudWatch, Splunk, Dynatrace, Google Cloud Ops, Azure " +
 			"Monitor, etc.) phone home to their vendor's control plane on " +
@@ -194,6 +196,7 @@ func hostNoUSTelemetryServices() assessor.Rule {
 		ID:          "wand.host.no_us_telemetry_services",
 		Dimension:   models.DimensionTechnologie,
 		Description: "Host runs no systemd unit matching a known US-headquartered telemetry agent.",
+		Observation: "The host's running systemd units (`inventory.systemd.service`), matched against a list of known US telemetry agents.",
 		Rationale: "Same dependency surface as the package-side rule, but " +
 			"catches telemetry agents installed outside the package manager " +
 			"— a tarball drop-in or a container's host-side companion that " +

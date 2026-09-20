@@ -22,6 +22,7 @@ func transitEUPath() assessor.Rule {
 		Dimension: models.DimensionJuridisch,
 		Description: "The network path to the target terminates in an EEA " +
 			"jurisdiction (where the target is hosted).",
+		Observation: "The traceroute's per-hop geo-attribution (`transit.hop`), read for the destination hop's country.",
 		Rationale: "A traceroute shows where a target actually lives and " +
 			"which jurisdictions its traffic crosses. The hosting " +
 			"jurisdiction (the destination hop) is the load-bearing " +
