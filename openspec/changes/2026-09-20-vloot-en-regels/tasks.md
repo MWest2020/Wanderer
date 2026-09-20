@@ -26,6 +26,13 @@
 - [x] 4.2 De bestaande regels vullen hun grenzen in; een test vangt het
   uiteenlopen van grens en vergelijking.
 
+- [ ] 4.3 Open punt uit run 04: `variant_convergence` (8 paden, 24
+  verbindingen) en `cert_validity` (30 dagen) beslissen NIET zelf op die
+  getallen — die zitten in de probe, en de regel leest een voorgekookte
+  vlag. Een drempel bij die regels zetten zou onfalsifieerbaar zijn.
+  Eigen ontwerpvraag: wie bezit een drempel, de waarnemer of de
+  beoordelaar? Niet in deze change oplossen.
+
 ## 5. De regelpagina — run 05
 - [ ] 5.1 Per regel: wat, waarom, welke waarneming, welke grens, en wie
   aan welke kant staat.
