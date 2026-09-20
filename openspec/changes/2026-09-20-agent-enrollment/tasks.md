@@ -9,11 +9,11 @@
 - [x] 1.4 Tests incl. token twee keer, verlopen token, ingetrokken agent.
 
 ## 2. De kern luistert — run 02
-- [ ] 2.1 `serve` bouwt de router met de agent-geheimen uit de store
+- [x] 2.1 `serve` bouwt de router met de agent-geheimen uit de store
   (`RouterWithSecrets`), met een startregel als er geen agents zijn.
-- [ ] 2.2 De agent schrijft zijn geheim weg en gebruikt het daarna; bij
+- [x] 2.2 De agent schrijft zijn geheim weg en gebruikt het daarna; bij
   een bestaand geheim meldt hij zich niet opnieuw aan.
-- [ ] 2.3 Tests: aangemelde agent levert af, onbekende wordt geweigerd.
+- [x] 2.3 Tests: aangemelde agent levert af, onbekende wordt geweigerd.
 
 ## 3. Eén keer is één keer — run 03
 - [ ] 3.1 Partij-identificatie op de ontvangstroute; herhaling geeft

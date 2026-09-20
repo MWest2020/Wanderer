@@ -87,7 +87,13 @@ type CoreConfig struct {
 	DB             string `yaml:"db,omitempty"`  // mode=local
 	URL            string `yaml:"url,omitempty"` // mode=remote
 	HMACSecretFile string `yaml:"hmac_secret_file,omitempty"`
-	TargetID       string `yaml:"target_id,omitempty"`
+	// EnrolToken is the one-time enrolment token exchanged for this
+	// agent's own secret on first start (mode=remote). Only read
+	// when HMACSecretFile does not yet exist; ignored afterwards.
+	// Prefer the --enrol-token flag or WANDERER_AGENT_ENROL_TOKEN so
+	// the token does not linger in a config file after use.
+	EnrolToken string `yaml:"enrol_token,omitempty"`
+	TargetID   string `yaml:"target_id,omitempty"`
 	// Organisation is the slug the agent's host attaches to. Empty
 	// falls back to the seeded `default` organisation; in remote
 	// mode the control plane validates the slug exists and rejects

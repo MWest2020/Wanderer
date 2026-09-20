@@ -140,8 +140,14 @@ func runServe(args []string) int {
 		defer sched.Stop(context.Background())
 	}
 
+	agentSecrets := api.NewStoreAgentSecrets(st)
+	if err := warnIfNoAgentsEnrolled(ctx, st, logger); err != nil {
+		fmt.Fprintf(os.Stderr, "wanderer: list agents: %v\n", err)
+		return 1
+	}
+
 	root := http.NewServeMux()
-	root.Handle("/", api.Router(st, sc, logger))
+	root.Handle("/", api.RouterWithSecrets(st, sc, logger, agentSecrets))
 	if uiOn {
 		uiOpts := ui.Options{HtpasswdPath: htpasswd, MountPrefix: "/ui"}
 		if serveconfig.ResolveBool(setFlags, "ui-allow-scan", *uiAllowScan, "WANDERER_UI_ALLOW_SCAN", false, false, false) {
@@ -216,6 +222,24 @@ func runServe(args []string) int {
 	defer scancel()
 	_ = srv.Shutdown(shutdownCtx)
 	return 0
+}
+
+// warnIfNoAgentsEnrolled logs once, at startup, when no enrolled
+// agent would pass the findings-ingest verify path — matching the
+// route's actual behaviour (reject everything) so an operator does
+// not have to learn that the hard way from a stream of 401s.
+func warnIfNoAgentsEnrolled(ctx context.Context, st *store.Store, logger *slog.Logger) error {
+	agents, err := st.ListAgents(ctx)
+	if err != nil {
+		return err
+	}
+	for _, a := range agents {
+		if !a.Revoked() {
+			return nil
+		}
+	}
+	logger.Info("agent.ingest.inactive", "reason", "no enrolled agents")
+	return nil
 }
 
 // cfgX accessors return the YAML value for one setting, or the

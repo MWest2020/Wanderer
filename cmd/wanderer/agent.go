@@ -44,6 +44,7 @@ func runAgent(args []string) int {
 	cfgPath := fs.String("config", envOr("WANDERER_AGENT_CONFIG", "wanderer-agent.yaml"), "Path to wanderer-agent.yaml")
 	once := fs.Bool("once", false, "Run inspectors once and exit")
 	vendorsPath := fs.String("vendors", "", "Path to a custom egress vendors YAML (overrides the embedded list; falls back to WANDERER_VENDORS)")
+	enrolToken := fs.String("enrol-token", envOr("WANDERER_AGENT_ENROL_TOKEN", ""), "One-time enrolment token (mode=remote, first start only; overrides core.enrol_token)")
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}
@@ -80,7 +81,11 @@ func runAgent(args []string) int {
 	case "local":
 		return runAgentLocal(logger, cfg, inspectors, egressProbe, flowProbe, timeout, interval)
 	case "remote":
-		return runAgentRemote(logger, cfg, inspectors, egressProbe, flowProbe, timeout, interval)
+		token := *enrolToken
+		if token == "" {
+			token = cfg.Core.EnrolToken
+		}
+		return runAgentRemote(logger, cfg, token, inspectors, egressProbe, flowProbe, timeout, interval)
 	}
 	fmt.Fprintf(os.Stderr, "wanderer agent: unknown core.mode %q\n", cfg.Core.Mode)
 	return 1
@@ -222,10 +227,12 @@ func runAgentLocal(logger *slog.Logger, cfg *agent.Config, inspectors []inventor
 	})
 }
 
-func runAgentRemote(logger *slog.Logger, cfg *agent.Config, inspectors []inventory.Inspector, egressProbe egress.Probe, flowProbe *flow.Flow, timeout, interval time.Duration) int {
-	secret, err := os.ReadFile(cfg.Core.HMACSecretFile)
+func runAgentRemote(logger *slog.Logger, cfg *agent.Config, enrolToken string, inspectors []inventory.Inspector, egressProbe egress.Probe, flowProbe *flow.Flow, timeout, interval time.Duration) int {
+	enrolCtx, enrolCancel := context.WithTimeout(context.Background(), 30*time.Second)
+	secret, err := agent.EnsureSecret(enrolCtx, nil, cfg.Core.URL, cfg.Hostname, enrolToken, cfg.Core.HMACSecretFile)
+	enrolCancel()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "wanderer agent: read hmac secret: %v\n", err)
+		fmt.Fprintf(os.Stderr, "wanderer agent: %v\n", err)
 		return 1
 	}
 	r := &agent.Remote{

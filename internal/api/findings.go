@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"io"
@@ -45,6 +46,40 @@ func (s *StaticAgentSecrets) Lookup(hostname string) []byte {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return s.secrets[hostname]
+}
+
+// StoreAgentSecrets resolves an agent's signing key from the agents
+// table, so `serve` can wire real enrolment data into
+// FindingsIngestHandler instead of the always-refusing nil default.
+// An unknown or revoked hostname returns nil, which the verify path
+// converts to a 401 — a revoked agent needs no special case anywhere
+// else.
+//
+// EnrolAgent never persists an agent's plain secret, only
+// hex(sha256(secret)) (see internal/store/agent.go), so that digest
+// is what both sides actually use as the HMAC key: the agent derives
+// the identical value once, right after enrolling (see
+// internal/agent.EnsureSecret), and uses it from then on.
+type StoreAgentSecrets struct {
+	st *store.Store
+}
+
+// NewStoreAgentSecrets wraps st as an AgentSecrets.
+func NewStoreAgentSecrets(st *store.Store) *StoreAgentSecrets {
+	return &StoreAgentSecrets{st: st}
+}
+
+// Lookup implements AgentSecrets.
+func (s *StoreAgentSecrets) Lookup(hostname string) []byte {
+	host, err := models.NormaliseHost(hostname)
+	if err != nil {
+		return nil
+	}
+	ag, err := s.st.GetAgentByHostname(context.Background(), host)
+	if err != nil || ag.Revoked() {
+		return nil
+	}
+	return []byte(ag.SecretHash)
 }
 
 // FindingsIngestHandler returns the http.Handler for
