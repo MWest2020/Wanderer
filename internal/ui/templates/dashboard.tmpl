@@ -3,152 +3,57 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Wanderer — dashboard</title>
+<title>Wanderer — antwoord</title>
 <link rel="stylesheet" href="/ui/static/main.css">
 </head>
 <body>
 {{template "nav.tmpl" dict "Active" "dashboard" "HasReporting" .HasReporting "OrgSlug" .OrgSlug}}
-{{if .AllowScan}}
-<form class="scan-form" method="post" action="/ui/scan">
-  <label for="scan-domain">Scan a target</label>
-  <input id="scan-domain" name="domain" type="text" placeholder="example.nl or your.host" required autofocus>
-  <button type="submit">Scan</button>
-  <span class="meta">dev mode · scans then shows the sovereignty overview</span>
-</form>
-{{end}}
-<header class="headline">
+<header class="door-header">
   {{if .ScopedOrganisation}}
-  <h1>Wanderer · {{.ScopedOrganisation.Name}} · sovereignty observation</h1>
+  <h1>{{.ScopedOrganisation.Name}}</h1>
   <p class="meta">Generated {{.GeneratedAt}} · <a href="/ui/">← all organisations</a></p>
   {{else}}
-  <h1>Wanderer · all organisations · sovereignty observation</h1>
+  <h1>Wanderer</h1>
   <p class="meta">Generated {{.GeneratedAt}}</p>
   {{end}}
-  <dl class="headline-stats">
-    <div>
-      <dt>Last scan</dt>
-      <dd>{{if .Headline.LastScanAt}}<code>{{.Headline.LastScanAt}}</code>{{else}}<span class="muted">no scans yet</span>{{end}}</dd>
-    </div>
-    <div>
-      <dt>Scans</dt>
-      <dd>{{.Headline.TotalScans}}</dd>
-    </div>
-    <div>
-      <dt>External coverage</dt>
-      <dd>{{.Headline.PerimeterTargets}} perimeter target{{if ne .Headline.PerimeterTargets 1}}s{{end}}</dd>
-    </div>
-    <div>
-      <dt>Internal coverage</dt>
-      <dd>{{if eq .Headline.AgentHostTargets 0}}<span class="muted">no agent hosts reporting</span>{{else}}{{.Headline.AgentHostTargets}} agent host{{if ne .Headline.AgentHostTargets 1}}s{{end}}{{end}}</dd>
-    </div>
-    <div>
-      <dt>Frameworks scored</dt>
-      <dd>{{if .Headline.Frameworks}}{{range $i, $fw := .Headline.Frameworks}}{{if $i}}, {{end}}<code>{{$fw}}</code>{{end}}{{else}}<span class="muted">none yet</span>{{end}}</dd>
-    </div>
-  </dl>
 </header>
 <main>
-{{if not .HasData}}
+
+{{if .AllowScan}}
+<form class="scan-form door-form" method="post" action="/ui/scan">
+  <label for="scan-domain">Domein of host</label>
+  <input id="scan-domain" name="domain" type="text" list="agent-hosts" placeholder="voorbeeld.nl of jouw-host" required autofocus>
+  {{if .AgentHosts}}
+  <datalist id="agent-hosts">
+    {{range .AgentHosts}}<option value="{{.}}">{{end}}
+  </datalist>
+  {{end}}
+  <button type="submit">Scan</button>
+  <span class="meta">start een scan en land direct op het antwoord</span>
+</form>
+{{end}}
+
+{{if .Recent}}
+<section class="dashboard-section door-recent">
+  <h2>Recent beantwoord</h2>
+  <ul class="answer-lines">
+    {{range .Recent}}
+    <li class="answer-line">
+      <a href="{{.ReportURL}}">{{.Domain}}</a>{{if eq .Kind "host"}} <span class="badge kind-host">host</span>{{end}}
+      <span class="badge answer-badge-{{.Verdict}}">{{.Verdict}}</span>
+      <span class="answer-line-text">{{.Headline}}</span>
+      <span class="meta">{{.LastScanAt}}</span>
+    </li>
+    {{end}}
+  </ul>
+</section>
+{{else}}
 <p class="empty-state">
   No scans yet. Run <code>wanderer scan &lt;domain&gt;</code> against a
-  target to populate the store; the dashboard refreshes on every
-  page load.
+  target{{if .AllowScan}}, or use the form above,{{end}} to get an answer.
 </p>
-{{else}}
-
-{{if .Targets}}
-<section class="dashboard-section targets-fleet">
-  <h2>Targets <span class="scope-label">your fleet, last scan &amp; verdict</span></h2>
-  <table class="targets">
-    <thead>
-      <tr><th>Target</th><th>Verdict</th><th>Last scan</th><th></th></tr>
-    </thead>
-    <tbody>
-      {{range .Targets}}
-      <tr>
-        <td>
-          {{if .ReportURL}}<a href="{{.ReportURL}}">{{.Domain}}</a>{{else}}{{.Domain}}{{end}}
-          {{if eq .Kind "host"}}<span class="badge kind-host">host</span>{{end}}
-        </td>
-        <td>
-          {{if .Verdict}}<span class="badge score-{{.Verdict}}">{{.Verdict}}</span>{{if .VerdictDimensions}} <span class="meta covers">covers: {{.VerdictDimensions}}</span>{{end}}{{else}}<span class="muted">not assessed</span>{{end}}
-          {{if .AccountabilityLink}}<a class="badge pill-accountability-{{.AccountabilityClass}}" href="{{.AccountabilityLink}}" title="accountability">verantwoording: {{.AccountabilityLabel}}</a>{{else}}<span class="badge pill-accountability-{{.AccountabilityClass}}" title="accountability">verantwoording: {{.AccountabilityLabel}}</span>{{end}}
-        </td>
-        <td>{{if .LastScanAt}}<code>{{.LastScanAt}}</code> <span class="status-{{.LastStatus}}">{{.LastStatus}}</span>{{else}}<span class="muted">never</span>{{end}}</td>
-        <td>{{if .ReportURL}}<a href="{{.ReportURL}}">report →</a>{{end}}</td>
-      </tr>
-      {{end}}
-    </tbody>
-  </table>
-</section>
 {{end}}
 
-<section class="dashboard-section">
-  <h2>Verdict <span class="scope-label">is this OK?</span></h2>
-  {{if .Verdicts}}
-  <div class="verdict-grid">
-    {{range .Verdicts}}
-    <div class="verdict-block">
-      <div class="verdict-framework"><code>{{.Framework}}</code></div>
-      <span class="badge verdict-pill score-{{.Score}}">{{.Score}}</span>
-      <p class="meta">
-        {{if eq .Score "soeverein"}}
-        all {{.Total}} target{{if ne .Total 1}}s{{end}} sovereign — no action needed.
-        {{else if eq .Score "onbekend"}}
-        {{.Total}} target{{if ne .Total 1}}s{{end}} assessed but no clear signal yet — likely a missing probe (GeoLite2, IP, etc.).
-        {{else}}
-        worst-case score reached on {{.AtWorst}} of {{.Total}} target{{if ne .Total 1}}s{{end}}.
-        Drill into <a href="/ui/analysis{{if $.OrgSlug}}?org={{$.OrgSlug}}{{end}}">analysis →</a> to steer.
-        {{end}}
-      </p>
-    </div>
-    {{end}}
-  </div>
-  {{else}}
-  <p class="muted">No assessments yet. Run <code>wanderer assess &lt;scan-id&gt; --framework both</code>.</p>
-  {{end}}
-</section>
-
-{{if .FlowRollup}}
-<section class="dashboard-section sovereignty-rollup">
-  <h2>Sovereignty by flow <span class="scope-label">what goes where</span></h2>
-  <table class="flows">
-    <tbody>
-    {{range .FlowRollup}}
-      <tr>
-        <th scope="row">{{.Label}}</th>
-        <td><span class="badge score-{{.Worst}}">{{.Worst}}</span></td>
-        <td>
-          {{if gt .Afhankelijk 0}}{{.Afhankelijk}} of {{.Total}} outside EEA{{else}}all {{.Total}} in EEA{{end}}
-        </td>
-      </tr>
-    {{end}}
-    </tbody>
-  </table>
-</section>
-{{end}}
-
-{{if .OrganisationsList}}
-<section class="dashboard-section">
-  <h2>Organisations</h2>
-  <table class="organisations">
-    <thead>
-      <tr><th>Slug</th><th>Name</th><th class="num">Targets</th></tr>
-    </thead>
-    <tbody>
-      {{range .OrganisationsList}}
-      <tr>
-        <td><a href="{{.URL}}"><code>{{.Slug}}</code></a></td>
-        <td>{{.Name}}</td>
-        <td class="num">{{.TargetCount}}</td>
-      </tr>
-      {{end}}
-    </tbody>
-  </table>
-</section>
-{{end}}
-
-{{end}}
 </main>
 </body>
 </html>

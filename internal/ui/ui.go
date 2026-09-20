@@ -77,10 +77,19 @@ func Handler(st *store.Store, opts Options) (http.Handler, error) {
 		return nil, err
 	}
 	r.Handle("/static/*", http.StripPrefix("/static/", http.FileServer(http.FS(staticFS))))
-	allowScan := opts.Scanner != nil
+	// The scan route is gated on a signed-in user, not on a dev-mode
+	// flag: it mounts only when both a Scanner is wired AND the
+	// instance has authentication configured (htpasswd or OIDC), since
+	// that is the only thing standing between an anonymous request and
+	// the handler once mounted (spec.md "UI surface stays read-only").
+	// An instance with no authentication at all refuses the route and
+	// says why, once, at startup — proposal.md "no anonymous scanning".
+	allowScan := opts.Scanner != nil && gate != nil
+	if opts.Scanner != nil && gate == nil {
+		slog.Warn("ui.scan.disabled", "reason", "no authentication configured — set --ui-htpasswd or an oidc: block to enable scanning from the UI")
+	}
 	if allowScan {
-		// The ONE sanctioned mutating route — opt-in via
-		// serve --ui-allow-scan (dev mode). The read-only test allows
+		// The ONE sanctioned mutating route. The read-only test allows
 		// exactly this POST and no other.
 		r.Post("/scan", scanTriggerHandler(st, opts.Scanner))
 		// Read-only poll page the POST bounces to while the background
@@ -116,27 +125,43 @@ func verifyAgainst(creds map[string]string, user, pass string) bool {
 	return VerifyHtpasswdLine(entry, pass)
 }
 
-// dashboardView is the shape consumed by dashboard.tmpl. The
-// posture summary, top concerns, and recent activity sections each
-// render from their own field; templates that find an empty slice
-// emit empty-state copy rather than nothing.
-type dashboardView struct {
+// recentAnsweredLimit caps the door's "recently answered" list — a
+// glance at what's fresh, not a second fleet table.
+const recentAnsweredLimit = 15
+
+// doorView is the shape consumed by dashboard.tmpl — the answer-first
+// entry surface (proposal.md "The door"): one input that starts a
+// scan and, underneath it, the recently answered targets as one-line
+// verdicts. No scan IDs, no rule IDs, no fleet table or matrix — those
+// stay reachable on /ui/trends.
+type doorView struct {
 	GeneratedAt        string
-	HasData            bool // true when at least one scan exists
-	Headline           headlineRenderView
-	OrganisationsList  []organisationLinkView // populated only on the instance-wide /ui/
+	HasAnswers         bool                   // true when at least one target has an answer to show
 	ScopedOrganisation *organisationLinkView  // populated only on /ui/orgs/{slug}
-	Verdicts           []verdictRenderView    // per-framework "is this OK" pill
-	FlowRollup         []FlowRollup           // Sovereignty-by-flow roll-up across targets
-	HasReporting       bool                   // controls whether the Reporting nav link renders
+	HasReporting       bool                   // controls whether the Trends nav link renders
 	OrgSlug            string                 // active org for nav-link scope persistence
-	AllowScan          bool                   // dev-mode: render the "Scan a target" form
-	Targets            []dashboardTargetRow   // the fleet: one row per target, newest scan first
+	AllowScan          bool                   // signed-in user: render the door's scan input
+	AgentHosts         []string               // enrolled, non-revoked agent hostnames — selectable from the same input
+	Recent             []recentAnswerView
 }
 
-// dashboardTargetRow is the glanceable per-target line on the
-// dashboard — domain, when it was last scanned, and its headline
-// sovereignty verdict, linking straight to that scan's report.
+// recentAnswerView is one line under the door's input: a target
+// that already has an answer, in the sentence BuildAnswerVerdict
+// produced for it (spec.md "recently answered targets as one-line
+// verdicts").
+type recentAnswerView struct {
+	Domain     string
+	Kind       string
+	Verdict    string // ja | nee | onbekend
+	Headline   string // the rendered Dutch sentence
+	LastScanAt string
+	ReportURL  string // /ui/scans/{id}/assessment — the dedicated answer page is run 03's job
+}
+
+// dashboardTargetRow is the glanceable per-target line on the fleet
+// table (/ui/trends) — domain, when it was last scanned, and its
+// headline sovereignty verdict, linking straight to that scan's
+// report.
 type dashboardTargetRow struct {
 	Domain            string
 	Kind              string
@@ -150,10 +175,10 @@ type dashboardTargetRow struct {
 	AccountabilityLink  string // ReportURL + "#wand-accountability"; "" when there is no report yet
 }
 
-// verdictRenderView is the per-framework verdict pill on the
-// Dashboard. Score is the worst score reached across every
-// assessed target in scope; AtWorst is how many targets are at
-// that score; Total is how many targets contributed.
+// verdictRenderView is the per-framework verdict pill on Trends.
+// Score is the worst score reached across every assessed target in
+// scope; AtWorst is how many targets are at that score; Total is how
+// many targets contributed.
 type verdictRenderView struct {
 	Framework string
 	Score     string
@@ -161,8 +186,9 @@ type verdictRenderView struct {
 	Total     int
 }
 
-// organisationLinkView is one row in the dashboard's organisation
-// list: slug, display name, and the URL to the per-org dashboard.
+// organisationLinkView is one row in the instance-wide organisation
+// list (Trends) or the door/nav's scoped-org badge: slug, display
+// name, and the URL to the per-org door.
 type organisationLinkView struct {
 	Slug        string
 	Name        string
@@ -180,15 +206,16 @@ type headlineRenderView struct {
 	Frameworks       []string
 }
 
-// scanTriggerHandler is the opt-in dev-mode scan route (POST /ui/scan).
-// It kicks the scan off in the background and bounces the browser to a
-// status page that polls until the result is ready. Running the scan
-// synchronously would hold the POST open for the full probe budget —
-// the transit probe alone waits up to 30s for traceroute replies — so
-// the browser appears frozen and the user re-submits. Detaching also
-// keeps the DB writes off the request context, which a browser cancel
-// would otherwise abort mid-scan ("begin tx: context canceled").
-// Mounted only when serve --ui-allow-scan is set (Options.Scanner != nil).
+// scanTriggerHandler is the sanctioned mutating route (POST /ui/scan),
+// mounted only for a signed-in user (Handler mounts it only when both
+// a Scanner and authentication are configured). It kicks the scan off
+// in the background and bounces the browser to a status page that
+// polls until the result is ready. Running the scan synchronously
+// would hold the POST open for the full probe budget — the transit
+// probe alone waits up to 30s for traceroute replies — so the browser
+// appears frozen and the user re-submits. Detaching also keeps the DB
+// writes off the request context, which a browser cancel would
+// otherwise abort mid-scan ("begin tx: context canceled").
 func scanTriggerHandler(st *store.Store, sc ScanTrigger) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		domain := strings.TrimSpace(r.FormValue("domain"))
@@ -197,6 +224,15 @@ func scanTriggerHandler(st *store.Store, sc ScanTrigger) http.HandlerFunc {
 			return
 		}
 		target := models.Target{Domain: domain}
+		// The door's one input doubles as the agent-host picker
+		// (spec.md "selectable from the same input"): a submission
+		// that names an enrolled, non-revoked agent hostname scans as
+		// a host, not a public domain.
+		if host, herr := models.NormaliseHost(domain); herr == nil {
+			if ag, aerr := st.GetAgentByHostname(r.Context(), host); aerr == nil && ag != nil && !ag.Revoked() {
+				target.Kind = models.TargetKindHost
+			}
+		}
 		if err := target.Validate(); err != nil {
 			// Reject bad input synchronously so we never launch a
 			// background scan that can only ever fail.
@@ -283,15 +319,13 @@ func scanStatusHandler(st *store.Store, tmpl *template.Template) http.HandlerFun
 
 func dashboardHandler(st *store.Store, tmpl *template.Template, allowScan bool) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		renderDashboard(w, r, st, tmpl, nil, allowScan)
+		renderDoor(w, r, st, tmpl, nil, allowScan)
 	}
 }
 
-// dashboardOrgHandler renders the per-organisation dashboard at
-// /ui/orgs/{slug}. The view filters scans + snapshots to that
-// organisation's Targets; the headline is rebadged with the org
-// name, and the OrganisationsList sub-section is suppressed (the
-// operator is already inside one organisation's view).
+// dashboardOrgHandler renders the per-organisation door at
+// /ui/orgs/{slug}: the recently-answered list filters to that
+// organisation's targets and the header rebadges with the org name.
 func dashboardOrgHandler(st *store.Store, tmpl *template.Template, allowScan bool) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		slug := chi.URLParam(r, "slug")
@@ -300,121 +334,98 @@ func dashboardOrgHandler(st *store.Store, tmpl *template.Template, allowScan boo
 			http.NotFound(w, r)
 			return
 		}
-		renderDashboard(w, r, st, tmpl, o, allowScan)
+		renderDoor(w, r, st, tmpl, o, allowScan)
 	}
 }
 
-// renderDashboard fills the dashboardView struct + executes the
-// template. When org is nil, the view is the instance-wide global;
-// when org is set, snapshots are filtered to that organisation and
-// the headline is rebadged.
-func renderDashboard(w http.ResponseWriter, r *http.Request, st *store.Store, tmpl *template.Template, org *models.Organisation, allowScan bool) {
+// enrolledAgentHostnames returns the hostnames of every enrolled,
+// non-revoked agent — the door's datalist, so a host that reports
+// through an agent is as easy to pick as typing a domain (spec.md
+// "selectable from the same input"). ListAgents already orders by
+// hostname.
+func enrolledAgentHostnames(ctx context.Context, st *store.Store) []string {
+	agents, err := st.ListAgents(ctx)
+	if err != nil {
+		return nil
+	}
+	out := make([]string, 0, len(agents))
+	for _, a := range agents {
+		if a.Revoked() {
+			continue
+		}
+		out = append(out, a.Hostname)
+	}
+	return out
+}
+
+// renderDoor fills the doorView struct + executes dashboard.tmpl —
+// the answer-first entry surface. When org is nil the view is the
+// instance-wide door; when org is set, the recently-answered list is
+// filtered to that organisation's targets.
+func renderDoor(w http.ResponseWriter, r *http.Request, st *store.Store, tmpl *template.Template, org *models.Organisation, allowScan bool) {
 	ctx := r.Context()
 	orgID := ""
 	if org != nil {
 		orgID = org.ID
 	}
-	snaps, scans, err := buildSnapshots(ctx, st, orgID)
+	snaps, _, err := buildSnapshots(ctx, st, orgID)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	headline := BuildHeadline(snaps, scans)
-	verdicts := WorstByFramework(snaps)
-
 	orgSlug := ""
 	if org != nil {
 		orgSlug = org.Slug
 	}
-	view := dashboardView{
+	view := doorView{
 		GeneratedAt:  time.Now().UTC().Format(time.RFC3339),
-		HasData:      len(scans) > 0,
 		HasReporting: true,
 		OrgSlug:      orgSlug,
 		AllowScan:    allowScan,
-		Headline: headlineRenderView{
-			TotalScans:       headline.TotalScans,
-			PerimeterTargets: headline.PerimeterTargets,
-			AgentHostTargets: headline.AgentHostTargets,
-			Frameworks:       headline.Frameworks,
-		},
 	}
-	if !headline.LastScanAt.IsZero() {
-		view.Headline.LastScanAt = headline.LastScanAt.UTC().Format(time.RFC3339)
+	if allowScan {
+		view.AgentHosts = enrolledAgentHostnames(ctx, st)
 	}
-	view.FlowRollup = SovereigntyFlowRollup(snaps)
-	// The fleet table — the Tourist's primary view: every target with
-	// its last scan and a one-glance verdict, linking to the report.
+	// Recently answered — newest scan first, one line per target that
+	// has at least one Assessment. A target never assessed has nothing
+	// to answer yet, so it stays off this list rather than rendering a
+	// false "onbekend" (BuildAnswerVerdict(nil) would otherwise read
+	// identically to a scan that genuinely answered nothing).
+	sort.Slice(snaps, func(i, j int) bool { return snaps[i].LastScanAt.After(snaps[j].LastScanAt) })
 	for _, s := range snaps {
-		row := dashboardTargetRow{
-			Domain:     s.Domain,
-			Kind:       string(s.Kind),
-			LastStatus: s.LastStatus,
+		if len(s.Assessments) == 0 {
+			continue
+		}
+		assessments := make([]models.Assessment, 0, len(s.Assessments))
+		for _, a := range s.Assessments {
+			assessments = append(assessments, a)
+		}
+		v := BuildAnswerVerdict(assessments)
+		row := recentAnswerView{
+			Domain:   s.Domain,
+			Kind:     string(s.Kind),
+			Verdict:  v.Verdict,
+			Headline: v.Headline,
 		}
 		if !s.LastScanAt.IsZero() {
 			row.LastScanAt = s.LastScanAt.UTC().Format(time.RFC3339)
 		}
 		if s.LastScanID != "" {
+			// The dedicated answer page is run 03's job — land on the
+			// existing report page until it exists.
 			row.ReportURL = "/ui/scans/" + s.LastScanID + "/assessment"
 		}
-		// Prefer the wand pack for the headline verdict; fall back to
-		// whatever framework was assessed.
-		var dims []models.DimensionScore
-		if a, ok := s.Assessments["wand"]; ok {
-			dims = a.Dimensions
-		} else {
-			for _, a := range s.Assessments {
-				dims = a.Dimensions
-				break
-			}
+		view.Recent = append(view.Recent, row)
+		if len(view.Recent) >= recentAnsweredLimit {
+			break
 		}
-		verdict, covered := WorstScoreCovering(dims)
-		if !(verdict == models.ScoreOnbekend && len(covered) == 0 && len(dims) == 0) {
-			row.Verdict = string(verdict)
-		}
-		if len(covered) > 0 {
-			row.VerdictDimensions = strings.Join(covered, ", ")
-		}
-		pill := AccountabilityPill(dims)
-		row.AccountabilityLabel = pill.Label
-		row.AccountabilityClass = pill.Class
-		if row.ReportURL != "" && pill.Class != "unassessed" {
-			row.AccountabilityLink = row.ReportURL + "#wand-accountability"
-		}
-		view.Targets = append(view.Targets, row)
 	}
-	sort.Slice(view.Targets, func(i, j int) bool {
-		return view.Targets[i].Domain < view.Targets[j].Domain
-	})
-	for _, v := range verdicts {
-		view.Verdicts = append(view.Verdicts, verdictRenderView{
-			Framework: v.Framework,
-			Score:     string(v.Score),
-			AtWorst:   v.TargetsAtWorst,
-			Total:     v.TotalAssessed,
-		})
-	}
-	// Organisation-aware metadata: per-org dashboards carry the
-	// scoped org's slug + name so the template can rebadge the
-	// headline; the instance-wide view carries the full list of
-	// registered orgs as drill-in links.
+	view.HasAnswers = len(view.Recent) > 0
 	if org != nil {
 		view.ScopedOrganisation = &organisationLinkView{
 			Slug: org.Slug,
 			Name: org.Name,
 			URL:  "/ui/orgs/" + org.Slug,
-		}
-	} else {
-		if orgs, listErr := st.ListOrganisations(ctx); listErr == nil {
-			for _, o := range orgs {
-				targets, _ := st.ListTargetsByOrganisation(ctx, o.ID)
-				view.OrganisationsList = append(view.OrganisationsList, organisationLinkView{
-					Slug:        o.Slug,
-					Name:        o.Name,
-					URL:         "/ui/orgs/" + o.Slug,
-					TargetCount: len(targets),
-				})
-			}
 		}
 	}
 	render(w, tmpl, "dashboard.tmpl", view)
@@ -948,6 +959,11 @@ type trendsView struct {
 	HasReporting       bool
 	OrgSlug            string
 	ScopedOrganisation *organisationLinkView
+	Headline           headlineRenderView
+	Targets            []dashboardTargetRow   // the fleet: one row per target, alphabetical — moved off the door (spec.md 2.1)
+	Verdicts           []verdictRenderView    // per-framework "is this OK" pill
+	FlowRollup         []FlowRollup           // Sovereignty-by-flow roll-up across targets
+	OrganisationsList  []organisationLinkView // populated only on the instance-wide /ui/trends
 	Catalogue          []ruleCatalogueRow
 	Matrix             []reportingRowView
 }
@@ -963,7 +979,7 @@ func trendsHandler(st *store.Store, tmpl *template.Template) http.HandlerFunc {
 		if !ok {
 			return
 		}
-		snaps, _, err := buildSnapshots(ctx, st, orgID)
+		snaps, scans, err := buildSnapshots(ctx, st, orgID)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -1010,11 +1026,31 @@ func trendsHandler(st *store.Store, tmpl *template.Template) http.HandlerFunc {
 			catalogue = append(catalogue, row)
 		}
 
+		headline := BuildHeadline(snaps, scans)
 		view := trendsView{
 			GeneratedAt:  time.Now().UTC().Format(time.RFC3339),
 			HasReporting: true,
 			Catalogue:    catalogue,
 			Matrix:       matrix,
+			Headline: headlineRenderView{
+				TotalScans:       headline.TotalScans,
+				PerimeterTargets: headline.PerimeterTargets,
+				AgentHostTargets: headline.AgentHostTargets,
+				Frameworks:       headline.Frameworks,
+			},
+			Targets:    buildFleetRows(snaps),
+			FlowRollup: SovereigntyFlowRollup(snaps),
+		}
+		if !headline.LastScanAt.IsZero() {
+			view.Headline.LastScanAt = headline.LastScanAt.UTC().Format(time.RFC3339)
+		}
+		for _, v := range WorstByFramework(snaps) {
+			view.Verdicts = append(view.Verdicts, verdictRenderView{
+				Framework: v.Framework,
+				Score:     string(v.Score),
+				AtWorst:   v.TargetsAtWorst,
+				Total:     v.TotalAssessed,
+			})
 		}
 		if scopedOrg != nil {
 			view.OrgSlug = scopedOrg.Slug
@@ -1023,9 +1059,69 @@ func trendsHandler(st *store.Store, tmpl *template.Template) http.HandlerFunc {
 				Name: scopedOrg.Name,
 				URL:  "/ui/orgs/" + scopedOrg.Slug,
 			}
+		} else if orgs, listErr := st.ListOrganisations(ctx); listErr == nil {
+			// The full org list is only meaningful unscoped — a scoped
+			// view is already inside one organisation.
+			for _, o := range orgs {
+				targets, _ := st.ListTargetsByOrganisation(ctx, o.ID)
+				view.OrganisationsList = append(view.OrganisationsList, organisationLinkView{
+					Slug:        o.Slug,
+					Name:        o.Name,
+					URL:         "/ui/orgs/" + o.Slug,
+					TargetCount: len(targets),
+				})
+			}
 		}
 		render(w, tmpl, "trends.tmpl", view)
 	}
+}
+
+// buildFleetRows is the fleet table shared by /ui/trends: every
+// target with its last scan and a one-glance verdict, linking to the
+// report. Moved here from the door (spec.md 2.1 — "the fleet table
+// ... move[s] off this first screen").
+func buildFleetRows(snaps []TargetSnapshot) []dashboardTargetRow {
+	rows := make([]dashboardTargetRow, 0, len(snaps))
+	for _, s := range snaps {
+		row := dashboardTargetRow{
+			Domain:     s.Domain,
+			Kind:       string(s.Kind),
+			LastStatus: s.LastStatus,
+		}
+		if !s.LastScanAt.IsZero() {
+			row.LastScanAt = s.LastScanAt.UTC().Format(time.RFC3339)
+		}
+		if s.LastScanID != "" {
+			row.ReportURL = "/ui/scans/" + s.LastScanID + "/assessment"
+		}
+		// Prefer the wand pack for the headline verdict; fall back to
+		// whatever framework was assessed.
+		var dims []models.DimensionScore
+		if a, ok := s.Assessments["wand"]; ok {
+			dims = a.Dimensions
+		} else {
+			for _, a := range s.Assessments {
+				dims = a.Dimensions
+				break
+			}
+		}
+		verdict, covered := WorstScoreCovering(dims)
+		if !(verdict == models.ScoreOnbekend && len(covered) == 0 && len(dims) == 0) {
+			row.Verdict = string(verdict)
+		}
+		if len(covered) > 0 {
+			row.VerdictDimensions = strings.Join(covered, ", ")
+		}
+		pill := AccountabilityPill(dims)
+		row.AccountabilityLabel = pill.Label
+		row.AccountabilityClass = pill.Class
+		if row.ReportURL != "" && pill.Class != "unassessed" {
+			row.AccountabilityLink = row.ReportURL + "#wand-accountability"
+		}
+		rows = append(rows, row)
+	}
+	sort.Slice(rows, func(i, j int) bool { return rows[i].Domain < rows[j].Domain })
+	return rows
 }
 
 // redirectToTrends 302-redirects the retired /ui/analysis and

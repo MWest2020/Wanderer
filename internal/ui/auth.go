@@ -46,10 +46,11 @@ type Options struct {
 	// cookies. Should be true behind TLS; false eases local http.
 	CookieSecure bool
 
-	// Scanner, when set (serve --ui-allow-scan, the dev-mode toggle),
-	// enables the opt-in "Scan a target" form + the single sanctioned
-	// mutating route POST /ui/scan. Nil keeps the UI fully read-only
-	// (the prod default). Gate it behind Auth when the UI is exposed.
+	// Scanner, when set, wires the door's scan input to a real scan.
+	// The route it enables, POST /ui/scan, only mounts when
+	// authentication is also configured (HtpasswdPath or Auth) — a
+	// signed-in user is what gates scanning, not this field alone. Nil
+	// keeps the UI fully read-only (the default).
 	Scanner ScanTrigger
 }
 

@@ -98,11 +98,11 @@ func TestDashboard_EmptyStoreRendersEmptyHint(t *testing.T) {
 	}
 }
 
-func TestDashboard_VerdictPill_PerFramework(t *testing.T) {
-	// After the 2026-05-10 layer restructure, Dashboard renders
-	// per-framework verdict pills (worst-score) — no posture
-	// distribution blocks, no Top concerns table, no Recent
-	// activity table.
+func TestTrends_VerdictPill_PerFramework(t *testing.T) {
+	// After the answer-first restructure, the fleet table and the
+	// per-framework verdict pills (worst-score) live on /ui/trends —
+	// no posture distribution blocks, no Top concerns table, no
+	// Recent activity table.
 	srv, st := newServer(t, "")
 	for i, score := range []models.Score{models.ScoreSoeverein, models.ScoreAfhankelijk, models.ScoreOnbekend} {
 		domain := []string{"a.example", "b.example", "c.example"}[i]
@@ -131,7 +131,7 @@ func TestDashboard_VerdictPill_PerFramework(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	resp, err := http.Get(srv.URL + "/ui/")
+	resp, err := http.Get(srv.URL + "/ui/trends")
 	if err != nil {
 		t.Fatalf("get: %v", err)
 	}
@@ -152,7 +152,7 @@ func TestDashboard_VerdictPill_PerFramework(t *testing.T) {
 		"/assessment",
 	} {
 		if !strings.Contains(bodyStr, want) {
-			t.Errorf("dashboard missing %q", want)
+			t.Errorf("trends page missing %q", want)
 		}
 	}
 	for _, mustNotHave := range []string{
@@ -709,7 +709,7 @@ func TestTargets_Filtered_ByOrg(t *testing.T) {
 	}
 }
 
-func TestDashboard_Global_ListsOrganisationsWhenMultiple(t *testing.T) {
+func TestTrends_Global_ListsOrganisationsWhenMultiple(t *testing.T) {
 	srv, st := newServer(t, "")
 	for _, slug := range []string{"acme", "beta"} {
 		o := &models.Organisation{Slug: slug, Name: slug}
@@ -717,7 +717,6 @@ func TestDashboard_Global_ListsOrganisationsWhenMultiple(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	// Seed at least one scan so HasData=true and the org list block renders.
 	tgt := &models.Target{Domain: "a.example"}
 	if err := st.UpsertTarget(context.Background(), tgt); err != nil {
 		t.Fatal(err)
@@ -725,7 +724,7 @@ func TestDashboard_Global_ListsOrganisationsWhenMultiple(t *testing.T) {
 	if _, err := st.CreateScan(context.Background(), tgt.ID); err != nil {
 		t.Fatal(err)
 	}
-	resp, err := http.Get(srv.URL + "/ui/")
+	resp, err := http.Get(srv.URL + "/ui/trends")
 	if err != nil {
 		t.Fatalf("get: %v", err)
 	}
@@ -739,7 +738,7 @@ func TestDashboard_Global_ListsOrganisationsWhenMultiple(t *testing.T) {
 		"all organisations",
 	} {
 		if !strings.Contains(bodyStr, want) {
-			t.Errorf("global dashboard missing %q", want)
+			t.Errorf("trends page missing %q", want)
 		}
 	}
 }
@@ -760,9 +759,35 @@ func (s stubScanner) Scan(ctx context.Context, target models.Target) (*models.Sc
 	return sc, nil
 }
 
-func TestUIScan_DevMode_TriggersAndRedirects(t *testing.T) {
+// basicAuthClient returns an http.Client that attaches Basic auth
+// credentials to every request — the break-glass "signed-in user" for
+// tests that don't drive the full OIDC dance.
+func basicAuthClient(user, pass string) *http.Client {
+	return &http.Client{
+		CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse },
+		Transport: roundTripperFunc(func(req *http.Request) (*http.Response, error) {
+			req.SetBasicAuth(user, pass)
+			return http.DefaultTransport.RoundTrip(req)
+		}),
+	}
+}
+
+type roundTripperFunc func(*http.Request) (*http.Response, error)
+
+func (f roundTripperFunc) RoundTrip(r *http.Request) (*http.Response, error) { return f(r) }
+
+func TestUIScan_SignedInUser_TriggersAndRedirects(t *testing.T) {
+	// spec.md "The entry surface asks for a domain and answers it":
+	// scanning requires a signed-in user — htpasswd Basic auth here,
+	// OIDC in production.
+	dir := t.TempDir()
+	htpasswd := filepath.Join(dir, "passwd")
+	hash, _ := bcrypt.GenerateFromPassword([]byte("correct horse battery staple"), bcrypt.MinCost)
+	if err := os.WriteFile(htpasswd, []byte("op:"+string(hash)+"\n"), 0o600); err != nil {
+		t.Fatalf("write: %v", err)
+	}
 	st := newTestStore(t)
-	h, err := ui.Handler(st, ui.Options{Scanner: stubScanner{st: st}})
+	h, err := ui.Handler(st, ui.Options{HtpasswdPath: htpasswd, Scanner: stubScanner{st: st}})
 	if err != nil {
 		t.Fatalf("handler: %v", err)
 	}
@@ -771,7 +796,7 @@ func TestUIScan_DevMode_TriggersAndRedirects(t *testing.T) {
 	srv := httptest.NewServer(mux)
 	t.Cleanup(srv.Close)
 
-	client := &http.Client{CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
+	client := basicAuthClient("op", "correct horse battery staple")
 	resp, err := client.PostForm(srv.URL+"/ui/scan", url.Values{"domain": {"example.nl"}})
 	if err != nil {
 		t.Fatalf("post: %v", err)
@@ -817,5 +842,91 @@ func TestUIScan_ReadOnlyByDefault_NoScanRoute(t *testing.T) {
 	defer resp.Body.Close()
 	if resp.StatusCode == http.StatusSeeOther {
 		t.Errorf("read-only UI must not trigger scans (got 303)")
+	}
+}
+
+func TestDoor_ShowsRecentAnswerAndAgentHost(t *testing.T) {
+	// spec.md "The entry surface asks for a domain and answers it":
+	// the door shows a one-line verdict (run 01's BuildAnswerVerdict),
+	// no scan/rule IDs, and offers an enrolled agent host from the
+	// same input (spec.md "selectable from the same input").
+	dir := t.TempDir()
+	htpasswd := filepath.Join(dir, "passwd")
+	hash, _ := bcrypt.GenerateFromPassword([]byte("correct horse battery staple"), bcrypt.MinCost)
+	if err := os.WriteFile(htpasswd, []byte("op:"+string(hash)+"\n"), 0o600); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+	st := newTestStore(t)
+	if _, _, err := st.EnrolAgent(context.Background(), mustEnrolmentToken(t, st), "webapp-01"); err != nil {
+		t.Fatalf("enrol: %v", err)
+	}
+	_, scanID := seed(t, st)
+	seedAssessment(t, st, scanID, "wand")
+
+	h, err := ui.Handler(st, ui.Options{HtpasswdPath: htpasswd, Scanner: stubScanner{st: st}})
+	if err != nil {
+		t.Fatalf("handler: %v", err)
+	}
+	mux := http.NewServeMux()
+	mux.Handle("/ui/", http.StripPrefix("/ui", h))
+	srv := httptest.NewServer(mux)
+	t.Cleanup(srv.Close)
+
+	client := basicAuthClient("op", "correct horse battery staple")
+	resp, err := client.Get(srv.URL + "/ui/")
+	if err != nil {
+		t.Fatalf("get: %v", err)
+	}
+	defer resp.Body.Close()
+	body, _ := io.ReadAll(resp.Body)
+	bodyStr := string(body)
+	for _, want := range []string{
+		"Ja — dit domein staat onder Nederlands of Europees recht.",
+		"webapp-01", // the agent host, selectable from the datalist
+		scanID + "/assessment",
+	} {
+		if !strings.Contains(bodyStr, want) {
+			t.Errorf("door missing %q; body:\n%s", want, bodyStr)
+		}
+	}
+	for _, mustNotHave := range []string{"targets-fleet", "wand.juridisch"} {
+		if strings.Contains(bodyStr, mustNotHave) {
+			t.Errorf("door MUST NOT contain %q — scan/rule IDs and the fleet table stay off this surface", mustNotHave)
+		}
+	}
+}
+
+// mustEnrolmentToken issues a fresh enrolment token for the enrol
+// helper tests; the plain token is the only return value they need.
+func mustEnrolmentToken(t *testing.T, st *store.Store) string {
+	t.Helper()
+	plain, _, err := st.CreateEnrolmentToken(context.Background(), time.Hour)
+	if err != nil {
+		t.Fatalf("enrolment token: %v", err)
+	}
+	return plain
+}
+
+func TestUIScan_RefusedWithoutAuth_EvenWithScanner(t *testing.T) {
+	// spec.md "No authentication configured": a Scanner alone does not
+	// open the route — an instance with no htpasswd and no OIDC has no
+	// way to gate "signed in", so the route must not mount.
+	st := newTestStore(t)
+	h, err := ui.Handler(st, ui.Options{Scanner: stubScanner{st: st}})
+	if err != nil {
+		t.Fatalf("handler: %v", err)
+	}
+	mux := http.NewServeMux()
+	mux.Handle("/ui/", http.StripPrefix("/ui", h))
+	srv := httptest.NewServer(mux)
+	t.Cleanup(srv.Close)
+
+	resp, err := http.Post(srv.URL+"/ui/scan", "application/x-www-form-urlencoded", strings.NewReader("domain=example.nl"))
+	if err != nil {
+		t.Fatalf("post: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode == http.StatusSeeOther {
+		t.Errorf("scan route must be refused with no authentication configured (got 303)")
 	}
 }

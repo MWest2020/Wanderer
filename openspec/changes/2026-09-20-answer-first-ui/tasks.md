@@ -11,13 +11,13 @@
   "one unknown question" wording.
 
 ## 2. De deur — run 02
-- [ ] 2.1 `/ui/` leads with the domain input plus recently answered
+- [x] 2.1 `/ui/` leads with the domain input plus recently answered
   targets as one-line verdicts; the fleet table and matrix move out of
   the first screen.
-- [ ] 2.2 The scan route requires a signed-in user (OIDC session or
+- [x] 2.2 The scan route requires a signed-in user (OIDC session or
   htpasswd). No authentication configured → route refused, said once at
   startup. `--ui-allow-scan` is no longer the gate.
-- [ ] 2.3 Hosts that report through an agent are selectable in the same
+- [x] 2.3 Hosts that report through an agent are selectable in the same
   input.
 
 ## 3. Het antwoord dat invult — run 03
