@@ -1,0 +1,48 @@
+# GoReleaser config for Wanderer. Builds run offline against vendor/ —
+# GOFLAGS=-mod=vendor is set explicitly on every build so a GoReleaser
+# runner (or Go toolchain change) can't silently fall back to network
+# module resolution.
+version: 2
+
+project_name: wanderer
+
+builds:
+  - id: wanderer
+    main: ./cmd/wanderer
+    binary: wanderer
+    env:
+      - CGO_ENABLED=0
+      - GOFLAGS=-mod=vendor
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    # Same version stamp as the Makefile (VERSION := git describe --tags).
+    # {{ .Tag }} is the raw tag ("vX.Y.Z"), not GoReleaser's de-v'd
+    # {{ .Version }}, so `wanderer version` reports the same string on a
+    # release build as `make build` does from a checked-out tag.
+    ldflags:
+      - -s -w -X main.Version={{ .Tag }}
+
+archives:
+  - id: wanderer
+    formats: [tar.gz]
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+    # No version in the name: the README's quickstart curl-line pulls
+    # this from the GitHub "latest/download/" alias, which needs a
+    # filename that doesn't change between releases.
+    name_template: >-
+      {{ .ProjectName }}_{{ .Os }}_{{ .Arch }}
+
+checksum:
+  name_template: "checksums.txt"
+
+release:
+  github:
+    owner: MWest2020
+    name: wanderer

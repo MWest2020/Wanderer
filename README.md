@@ -2,6 +2,26 @@
 
 > Sovereignty checker for larger organisations that lost their way.
 
+Try it in one line — no Go toolchain required:
+
+<!-- quickstart:curl -->
+```sh
+curl -sSL "https://github.com/MWest2020/wanderer/releases/latest/download/wanderer_$(uname -s | tr '[:upper:]' '[:lower:]')_$(uname -m | sed -e 's/x86_64/amd64/' -e 's/aarch64/arm64/').tar.gz" | tar xz wanderer && ./wanderer version
+```
+
+Or with Docker — the existing [ExApp image][exapp-image] ships the binary at
+`/usr/local/bin/wanderer`, no separate CLI image needed:
+
+<!-- quickstart:docker -->
+```sh
+docker run --rm ghcr.io/mwest2020/wanderer-exapp:latest wanderer version
+```
+
+[exapp-image]: https://github.com/MWest2020/wanderer-exapp
+
+`scripts/check-quickstart.sh` runs both commands, so a stale quickstart
+fails the build instead of failing the first person who tries it.
+
 **Wanderer** is an automated digital sovereignty monitor for public-sector
 organisations. It continuously maps an organisation's actual digital footprint
 — DNS, MX, TLS, IP/ASN, HTTP third parties — and scores those findings against
