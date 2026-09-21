@@ -1,0 +1,37 @@
+# Binaries bij elke release. Hoort NIET bij het werk van de builder-agent:
+# zijn rol-definitie verbiedt CI-config, en de token van de worker mist de
+# `workflow`-scope (GitHub weigert zo'n push letterlijk). Deze workflow
+# komt dus uit Marks sessie; de bijbehorende .goreleaser.yaml uit een run.
+name: release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  goreleaser:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          # GoReleaser leest de changelog uit de git-historie.
+          fetch-depth: 0
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          # De repo bouwt offline uit vendor/; een module-cache helpt niet
+          # en verbergt hooguit een kapotte vendor-map.
+          cache: false
+
+      - name: goreleaser
+        uses: goreleaser/goreleaser-action@v6
+        with:
+          version: "~> v2"
+          args: release --clean
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

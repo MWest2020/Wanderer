@@ -4,7 +4,7 @@
 - [x] 1.1 `.goreleaser.yaml`: linux/darwin/windows × amd64/arm64,
   `CGO_ENABLED=0`, versie via ldflags zoals de Makefile dat doet,
   checksums, changelog uit de tag.
-- [ ] 1.2 Release-workflow die bij een tag `v*` goreleaser draait.
+- [x] 1.2 Release-workflow die bij een tag `v*` goreleaser draait.
 - [x] 1.3 README: één curl-regel en één docker-regel bovenaan.
 - [x] 1.4 CI draait het README-commando, zodat het niet kan verouderen.
 
