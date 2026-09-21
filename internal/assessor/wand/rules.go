@@ -514,6 +514,17 @@ func mxVendorJurisdiction() assessor.Rule {
 
 // ---------- Operationeel ----------
 
+// certValidityExpiringSoonDays mirrors internal/probe/tls's
+// expiringSoonThresholdDays: the tls.validity finding carries this
+// same number on its expiring_soon_threshold attribute, alongside the
+// expiring_soon flag it explains. certValidity's Match never compares
+// against this number itself — it only reads the flag the tls probe
+// already set — so this constant exists purely to label the boundary
+// on the rule page as the probe's, not the rule's. Kept as a local
+// literal — the assessor package must not import internal/probe/tls —
+// so the two are kept in sync by hand.
+const certValidityExpiringSoonDays = 30
+
 func certValidity() assessor.Rule {
 	return assessor.Rule{
 		ID:          "wand.operationeel.cert_validity",
@@ -524,6 +535,17 @@ func certValidity() assessor.Rule {
 			"common cause of unplanned downtime on public-facing services. The rule " +
 			"flags renewals that have not been automated and gives the operator a " +
 			"30-day lead-time to fix the underlying process before the outage hits.",
+		Thresholds: []assessor.Threshold{
+			{
+				Name:  "cert_validity_expiring_soon_days",
+				Value: certValidityExpiringSoonDays,
+				Unit:  "dagen",
+				Explanation: fmt.Sprintf(
+					"de tls-waarneming hanteert %d dagen: binnen die grens meldt de waarneming het certificaat als bijna verlopen",
+					certValidityExpiringSoonDays,
+				),
+			},
+		},
 		Match: func(findings []models.Finding) assessor.RuleResult {
 			for _, f := range findings {
 				if f.ProbeID != "tls.validity" {

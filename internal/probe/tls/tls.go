@@ -24,6 +24,14 @@ import (
 	"github.com/MWest2020/wanderer/pkg/models"
 )
 
+// expiringSoonThresholdDays is the number of days before a
+// certificate's NotAfter at which tls.validity sets expiring_soon.
+// inspectState delivers this same constant on the finding's
+// expiring_soon_threshold attribute, so the flag and the number it
+// rests on cannot drift apart (openspec change
+// 2026-09-21-wie-bezit-een-drempel).
+const expiringSoonThresholdDays = 30
+
 // Probe is the TLS probe.
 type Probe struct {
 	// Dialer lets tests swap in an in-memory tls listener. Nil means
@@ -153,14 +161,16 @@ func inspectState(domain string, state *tls.ConnectionState) []models.Finding {
 	// Validity
 	sev := models.SeverityInfo
 	attrs := map[string]any{
-		"not_before": leaf.NotBefore.UTC(),
-		"not_after":  leaf.NotAfter.UTC(),
-		"days_left":  int(time.Until(leaf.NotAfter).Hours() / 24),
+		"not_before":                   leaf.NotBefore.UTC(),
+		"not_after":                    leaf.NotAfter.UTC(),
+		"days_left":                    int(time.Until(leaf.NotAfter).Hours() / 24),
+		"expiring_soon_threshold":      expiringSoonThresholdDays,
+		"expiring_soon_threshold_unit": "days",
 	}
 	if time.Now().After(leaf.NotAfter) {
 		sev = models.SeverityConcern
 		attrs["expired"] = true
-	} else if time.Until(leaf.NotAfter) < 30*24*time.Hour {
+	} else if time.Until(leaf.NotAfter) < expiringSoonThresholdDays*24*time.Hour {
 		sev = models.SeverityObservation
 		attrs["expiring_soon"] = true
 	}

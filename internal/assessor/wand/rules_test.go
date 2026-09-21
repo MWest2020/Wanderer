@@ -254,6 +254,25 @@ func TestCertValidity(t *testing.T) {
 	}
 }
 
+// TestCertValidityThresholdNamesTheObservation covers task 2.1: the
+// rule page must show the 30-day boundary with the mention that the
+// tls observation applies it, reusing the existing Thresholds
+// rendering (rule.go: the rule's Match never compares against this
+// number itself, only the probe does).
+func TestCertValidityThresholdNamesTheObservation(t *testing.T) {
+	r := ruleByID(t, "wand.operationeel.cert_validity")
+	if len(r.Thresholds) == 0 {
+		t.Fatal("cert_validity declares no Thresholds — the rule page would fall back to \"geen numerieke grens\"")
+	}
+	th := r.Thresholds[0]
+	if th.Value != certValidityExpiringSoonDays {
+		t.Errorf("threshold value = %v, want %d", th.Value, certValidityExpiringSoonDays)
+	}
+	if !strings.Contains(th.Explanation, "waarneming") {
+		t.Errorf("explanation %q does not mention the observation that applies it", th.Explanation)
+	}
+}
+
 func TestDNSRedundancy(t *testing.T) {
 	r := ruleByID(t, "wand.operationeel.dns_redundancy")
 	got := r.Match([]models.Finding{

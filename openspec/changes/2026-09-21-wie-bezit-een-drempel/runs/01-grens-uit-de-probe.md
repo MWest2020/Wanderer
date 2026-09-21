@@ -11,23 +11,23 @@ zitten in `internal/probe/tls`, de 8 paden en het budget van 24 in
 `Threshold` bij die regel zou nergens tegen vergeleken worden.
 
 ## Scope — ONLY these tasks
-- [ ] 1.1 `internal/probe/tls`: de finding die `expiring_soon` zet,
+- [x] 1.1 `internal/probe/tls`: de finding die `expiring_soon` zet,
   levert het getal en de eenheid mee waarop die vlag berust (30 dagen),
   uit DEZELFDE constante als de vergelijking. Bestaande attributen
   blijven staan; dit is additief, oude findings blijven leesbaar.
-- [ ] 1.2 `internal/probe/variants`: idem voor het aantal paden (8) en
+- [x] 1.2 `internal/probe/variants`: idem voor het aantal paden (8) en
   het verbindingsbudget (24), uit de bestaande constanten.
-- [ ] 1.3 Tests die het uiteenlopen vangen: als de vlag op een andere
+- [x] 1.3 Tests die het uiteenlopen vangen: als de vlag op een andere
   waarde wordt gezet dan het meegeleverde getal, falen ze. Leid de
   verwachting af uit de constante, niet uit een letterlijk getal in de
   test — anders verplaats je het probleem alleen.
-- [ ] 2.1 De regelpagina toont zo'n grens met de vermelding dat de
+- [x] 2.1 De regelpagina toont zo'n grens met de vermelding dat de
   wáárneming hem toepaste (bijv. "de tls-waarneming hanteert 30 dagen"),
   in plaats van "deze regel kijkt of iets aanwezig is". Hergebruik de
   bestaande weergave van `Rule.Thresholds`; zet er geen tweede naast.
-- [ ] 2.2 Een regel zonder enige grens — ook niet uit de finding —
+- [x] 2.2 Een regel zonder enige grens — ook niet uit de finding —
   blijft zeggen dat hij op aanwezigheid kijkt.
-- [ ] 3.1 docs + CHANGELOG onder `[Unreleased]`: de keuze (de probe
+- [x] 3.1 docs + CHANGELOG onder `[Unreleased]`: de keuze (de probe
   bezit de grens en geeft hem mee) en het afgewezen alternatief (de
   regel beslist op ruwe data) kort vastleggen.
 

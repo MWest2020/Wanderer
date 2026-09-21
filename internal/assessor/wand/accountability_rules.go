@@ -587,6 +587,21 @@ func familyHasDNSRecord(findings []models.Finding, family string) bool {
 // `not_tested` never count as dead — a scanner-side limitation
 // (`scanner_no_ipv6`) is reported as a reason on the result, never
 // charged to the target as a missing family.
+// variantConvergencePathCount and variantConvergenceConnectionBudget
+// mirror internal/probe/variants's path list (len(paths), 8 entries)
+// and connectionBudget: the http.variants finding carries these same
+// numbers on its path_count and connection_budget attributes.
+// variantConvergence's Match never compares against either number
+// itself — it only counts the path results the variants probe already
+// classified — so these constants exist purely to label the boundary
+// on the rule page as the probe's, not the rule's. Kept as local
+// literals — the assessor package must not import
+// internal/probe/variants — so the two are kept in sync by hand.
+const (
+	variantConvergencePathCount        = 8
+	variantConvergenceConnectionBudget = 24
+)
+
 func variantConvergence() assessor.Rule {
 	return assessor.Rule{
 		ID:          "wand.operationeel.variant_convergence",
@@ -599,6 +614,26 @@ func variantConvergence() assessor.Rule {
 			"unencrypted content or a different, possibly unmaintained site — a " +
 			"gap an attacker can sit in front of. Convergence is the operational " +
 			"discipline of making every door lead to the same, secured room.",
+		Thresholds: []assessor.Threshold{
+			{
+				Name:  "variant_convergence_path_count",
+				Value: variantConvergencePathCount,
+				Unit:  "paden",
+				Explanation: fmt.Sprintf(
+					"de variants-waarneming test %d paden (apex/www × IPv4/IPv6 × http/https)",
+					variantConvergencePathCount,
+				),
+			},
+			{
+				Name:  "variant_convergence_connection_budget",
+				Value: variantConvergenceConnectionBudget,
+				Unit:  "verbindingen",
+				Explanation: fmt.Sprintf(
+					"de variants-waarneming hanteert een budget van %d verbindingen per doel",
+					variantConvergenceConnectionBudget,
+				),
+			},
+		},
 		Match: func(findings []models.Finding) assessor.RuleResult {
 			var variantsFinding models.Finding
 			haveVariants := false

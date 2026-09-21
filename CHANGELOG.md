@@ -9,6 +9,26 @@ once a first release is cut. Until then every entry lives under
 
 ## [Unreleased]
 
+### Added
+
+- **Wie bezit een drempel** (`2026-09-21-wie-bezit-een-drempel`). The
+  `tls` and `variants` probes now carry the number their judgement
+  flags rest on alongside the flag itself, out of the same constant
+  used for the comparison: `tls.validity` adds
+  `expiring_soon_threshold` (30 days) next to `expiring_soon`, and
+  `http.variants` adds `path_count` (8) next to the existing
+  `connection_budget` (24). `wand.operationeel.cert_validity` and
+  `wand.operationeel.variant_convergence` — the two rules that only
+  read those flags, never compare against a number themselves — now
+  state that boundary on their regelpagina too, naming the observation
+  that applies it ("de tls-waarneming hanteert 30 dagen") instead of
+  "deze regel kijkt of iets aanwezig is". Rejected alternative: have
+  the probes report only raw data (`days_left`) and move the decision
+  into each rule's `Match` — cleaner in theory, but it pushes the same
+  work onto every future rule and breaks any already-stored Finding
+  that assumed the probe had decided. See
+  [`docs/reference/assessor.md`](docs/reference/assessor.md#who-owns-a-threshold).
+
 ## [0.5.0] - 2026-09-21
 
 ### Added

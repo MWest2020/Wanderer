@@ -188,6 +188,7 @@ func (p *Probe) Run(ctx context.Context, target models.Target, cfg wprobe.Config
 			"paths":             results,
 			"connections_used":  connectionBudget - w.budget,
 			"connection_budget": connectionBudget,
+			"path_count":        len(paths),
 		},
 	}}, nil
 }

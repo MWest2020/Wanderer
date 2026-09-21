@@ -295,6 +295,36 @@ raw source material the probe captured. Two reviewers running the
 assessor on the same stored scan will get the same verdicts,
 rationales, and evidence lists, modulo assessment ID and timestamp.
 
+## Who owns a threshold
+
+A `Threshold` on a `Rule` is for a number the rule's own `Match`
+compares against (`domain_expiry`, `dns_redundancy`): the same named
+constant feeds both the comparison and the declared `Threshold`, so a
+test can catch the two drifting apart.
+
+Some rules only read a judgement flag a probe already set —
+`cert_validity`'s `expiring_soon`, `variant_convergence`'s per-path
+`status`. There the probe owns the boundary: the 30-day window lives
+in `internal/probe/tls`, the 8 paths and 24-connection budget in
+`internal/probe/variants`. The probe carries that number on the
+Finding alongside the flag (`expiring_soon_threshold`, `path_count`,
+`connection_budget`), so a reader can trace the verdict to a concrete
+number without the assessor importing the probe package — it stays a
+pure consumer of `models.Finding`. The rule still declares a
+`Threshold` for the rule page, reusing the same rendering as a
+rule-owned one, but its `Explanation` names the observation as the one
+applying it, and the value is a hand-synced mirror of the probe's
+constant (kept in sync by hand, same as `variantStatusReachable` and
+`reasonScannerNoIPv6` already are across this boundary) — `Match`
+never compares against it, so it cannot be verified the way
+`domain_expiry`'s can.
+
+The rejected alternative was having the probe report only raw data
+(`days_left`) and moving the 30-day decision into each rule's `Match`.
+That is a cleaner separation on paper, but it pushes the same decision
+into every future rule that reads a probe's judgement, and it breaks
+any already-stored Finding that assumed the probe had already decided.
+
 ## Extending the rule set
 
 Rules are Go functions, not a DSL. To add one:

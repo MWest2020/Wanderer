@@ -235,6 +235,13 @@ func TestNoReseller(t *testing.T) {
 			t.Fatalf("score = %s, want onbekend", got.Score)
 		}
 	})
+
+	// Task 2.2: a rule with no boundary at all — not even one carried
+	// on a finding — keeps declaring no Thresholds, so the rule page
+	// keeps saying it checks presence/absence, not a number.
+	if len(r.Thresholds) != 0 {
+		t.Errorf("no_reseller declares %d thresholds, want 0 — it is a presence/absence check", len(r.Thresholds))
+	}
 }
 
 // ---------- soa_rname ----------
@@ -609,6 +616,23 @@ func allEightConverge(origin string) []map[string]any {
 
 func TestVariantConvergence(t *testing.T) {
 	r := ruleByID(t, "wand.operationeel.variant_convergence")
+
+	t.Run("thresholds name the observation that applies them", func(t *testing.T) {
+		// Task 2.1: the rule page must show the path-count and
+		// connection-budget boundaries with the mention that the
+		// variants observation applies them, reusing the existing
+		// Thresholds rendering (Match itself never compares against
+		// either number — it only counts what the probe already
+		// classified).
+		if len(r.Thresholds) != 2 {
+			t.Fatalf("got %d thresholds, want 2 (path count, connection budget)", len(r.Thresholds))
+		}
+		for _, th := range r.Thresholds {
+			if !strings.Contains(th.Explanation, "waarneming") {
+				t.Errorf("threshold %q explanation %q does not mention the observation that applies it", th.Name, th.Explanation)
+			}
+		}
+	})
 
 	t.Run("full convergence scores soeverein", func(t *testing.T) {
 		got := r.Match([]models.Finding{
