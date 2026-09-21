@@ -11,16 +11,19 @@ bruikbare binaries").
   Makefile (`-X main.Version=...`), checksums, archief per platform.
   Let op: de repo bouwt offline uit `vendor/` — zorg dat de configuratie
   dat niet doorbreekt.
-- [ ] 1.2 `.github/workflows/release.yml`: draait goreleaser bij een tag
-  `v*` en hangt de bestanden aan de release. Gebruik de bestaande
-  `GITHUB_TOKEN`; voeg geen nieuwe secrets toe.
+- [ ] 1.2 NIET DOOR JOU. De workflows onder `.github/workflows/` doet
+  Marks sessie: jouw rol-definitie verbiedt CI-config, en de token van
+  deze worker mist de `workflow`-scope — een push die een workflow
+  aanraakt wordt door GitHub geweigerd (waargenomen 2026-09-21).
+  Raak `.github/` dus niet aan, ook niet om een voorbeeld toe te voegen.
 - [ ] 1.3 README: bovenaan één `curl`-regel die de binary voor het
   huidige platform haalt en één `docker run`-regel (het bestaande image
   `ghcr.io/mwest2020/wanderer-exapp` bevat de binary op
   `/usr/local/bin/wanderer` — gebruik dat, bouw geen tweede image).
-- [ ] 1.4 Laat CI het README-commando echt draaien (een klein script of
-  een stap die de regel uit de README leest en uitvoert), zodat een
-  verouderde quickstart de bouw laat falen.
+- [ ] 1.4 Schrijf `scripts/check-quickstart.sh`: leest het commando uit
+  de README en voert het uit, zodat een verouderde quickstart faalt. De
+  CI-stap die dit script aanroept voegt Marks sessie toe (zie 1.2).
+  Het script moet zelfstandig te draaien zijn: `bash scripts/check-quickstart.sh`.
 
 ## Let op
 Geen nieuwe afhankelijkheden in de Go-module. goreleaser draait als
