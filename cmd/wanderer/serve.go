@@ -82,6 +82,7 @@ func runServe(args []string) int {
 	uiOn := serveconfig.ResolveBool(setFlags, "ui", *uiEnabled, "WANDERER_UI_ENABLED", cfgUIEnabled(cfg), cfg != nil, false)
 	htpasswd := serveconfig.ResolveString(setFlags, "ui-htpasswd", *uiHtpasswd, "WANDERER_UI_HTPASSWD", cfgUIHtpasswd(cfg), "")
 	defaultOrgSlug := serveconfig.ResolveString(setFlags, "organisation", "", "WANDERER_ORGANISATION", cfgOrganisation(cfg), models.DefaultOrganisationSlug)
+	demoTarget := cfgDemoTarget(cfg)
 
 	warnIfGeoIPMissing(os.Stderr, asn, skipGeoWarn)
 
@@ -147,6 +148,10 @@ func runServe(args []string) int {
 
 	root := http.NewServeMux()
 	root.Handle("/", api.RouterWithSecrets(st, sc, logger, agentSecrets))
+	if err := mountDemo(root, st, logger, demoTarget); err != nil {
+		fmt.Fprintf(os.Stderr, "wanderer: %v\n", err)
+		return 1
+	}
 	if uiOn {
 		uiOpts := ui.Options{HtpasswdPath: htpasswd, MountPrefix: "/ui"}
 		// The scanner is the same one the API uses; ui.Handler only
@@ -338,6 +343,45 @@ func cfgOrganisation(c *serveconfig.Config) string {
 		return ""
 	}
 	return c.Scan.Organisation
+}
+
+func cfgDemoTarget(c *serveconfig.Config) string {
+	if c == nil {
+		return ""
+	}
+	return c.Demo.Target
+}
+
+// logDemoStatus records, once at startup, whether the public,
+// read-only /demo route is mounted — mirroring
+// warnIfNoAgentsEnrolled's "log the exceptional state" shape so an
+// operator can tell from the log alone why /demo 404s (spec.md "leeg
+// betekent geen demo, en dat staat één keer in het opstartlog").
+func logDemoStatus(logger *slog.Logger, target string) {
+	if target == "" {
+		logger.Info("demo.disabled", "reason", "no demo.target configured")
+		return
+	}
+	logger.Info("demo.enabled", "target", target)
+}
+
+// mountDemo wires the public, read-only /demo route onto root when
+// target is non-empty, and logs the demo status either way. Extracted
+// from runServe so a test can exercise the exact wiring the real
+// server uses without starting an HTTP listener. The route is
+// alone-lezen: DemoHandler never touches a Scanner, so no request to
+// it — GET, POST, or otherwise — can start a scan (tasks.md 1.4).
+func mountDemo(root *http.ServeMux, st *store.Store, logger *slog.Logger, target string) error {
+	logDemoStatus(logger, target)
+	if target == "" {
+		return nil
+	}
+	tmpl, err := ui.Templates()
+	if err != nil {
+		return fmt.Errorf("demo: %w", err)
+	}
+	root.Handle("/demo", ui.DemoHandler(st, tmpl, target))
+	return nil
 }
 
 // oidcEnabled reports whether a usable oidc: block was loaded. OIDC

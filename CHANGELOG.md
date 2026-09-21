@@ -9,6 +9,26 @@ once a first release is cut. Until then every entry lives under
 
 ## [Unreleased]
 
+### Added
+
+- **Demo-pagina** (`2026-09-21-demo-pagina`, run 01). A public,
+  read-only `/demo` route — on the root router, not under `/ui`, so
+  it carries none of the login gate and none of the rest of the UI —
+  shows the latest completed scan of exactly one pre-configured
+  domain (`demo.target` in `serve.yaml`). It reuses the same
+  `BuildAnswerVerdict` headline and `BuildFlowAnswers` onderbouwing
+  the login-gated assessment page renders, not a second
+  implementation, and states nothing about any other domain: no
+  fleet, no organisations, no regelpagina's, no nav to the rest of
+  the UI. There is deliberately no scan button: an open "scan mijn
+  domein" button on a public page would turn this instance into a
+  scanner-for-hire, which is an abuse surface this demo is not meant
+  to prove. `demo.target` empty (the default) means the route does
+  not exist at all — `/demo` 404s — and that fact is logged once at
+  startup (`demo.disabled` / `demo.enabled`), the same shape
+  `agent.ingest.inactive` already uses for "log the exceptional
+  startup state".
+
 ## [0.5.1] - 2026-09-21
 
 ### Added

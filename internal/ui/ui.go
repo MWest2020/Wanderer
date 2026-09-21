@@ -34,11 +34,13 @@ import (
 //go:embed templates/*.tmpl static/*
 var assets embed.FS
 
-// Handler builds the chi sub-router for the UI. The Options carry
-// the authentication wiring; the zero Options leaves every route
-// open (development mode). See Options for the htpasswd / OIDC
-// combinations.
-func Handler(st *store.Store, opts Options) (http.Handler, error) {
+// Templates parses the UI's embedded templates standalone. It is the
+// seam a caller outside the login-gated Handler (the public /demo
+// route — openspec change 2026-09-21-demo-pagina — lives on the root
+// router, never under /ui) uses to render the same views with the
+// same template set, without pulling in the auth gate or any of the
+// chi routing below.
+func Templates() (*template.Template, error) {
 	tmpl, err := template.New("ui").Funcs(template.FuncMap{
 		// dict builds a map[string]any from alternating key/value
 		// args so partials can be parameterised in {{template ...}}
@@ -60,6 +62,18 @@ func Handler(st *store.Store, opts Options) (http.Handler, error) {
 	}).ParseFS(assets, "templates/*.tmpl")
 	if err != nil {
 		return nil, fmt.Errorf("ui: parse templates: %w", err)
+	}
+	return tmpl, nil
+}
+
+// Handler builds the chi sub-router for the UI. The Options carry
+// the authentication wiring; the zero Options leaves every route
+// open (development mode). See Options for the htpasswd / OIDC
+// combinations.
+func Handler(st *store.Store, opts Options) (http.Handler, error) {
+	tmpl, err := Templates()
+	if err != nil {
+		return nil, err
 	}
 	r := chi.NewRouter()
 	gate, err := newAuthGate(st, opts)

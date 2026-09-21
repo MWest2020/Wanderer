@@ -1,16 +1,16 @@
 # Tasks: demo-pagina
 
 ## 1. De route — run 01
-- [ ] 1.1 `demo.target` in de serve-configuratie; leeg = geen demo, en
+- [x] 1.1 `demo.target` in de serve-configuratie; leeg = geen demo, en
   dat staat één keer in het opstartlog.
-- [ ] 1.2 `/demo` toont de laatste voltooide scan van dat domein:
+- [x] 1.2 `/demo` toont de laatste voltooide scan van dat domein:
   antwoord + onderbouwing, met de scandatum. Hergebruik de bestaande
   weergave; bouw geen tweede.
-- [ ] 1.3 Geen ander domein in de pagina, geen links naar vloot,
+- [x] 1.3 Geen ander domein in de pagina, geen links naar vloot,
   organisaties of regelpagina's, geen scanknop.
-- [ ] 1.4 Geen scan te starten via de demoroute, ook niet met een
+- [x] 1.4 Geen scan te starten via de demoroute, ook niet met een
   handmatig POST-verzoek.
-- [ ] 1.5 Tests: demo uit → 404; demo aan zonder scan → "nog geen
+- [x] 1.5 Tests: demo uit → 404; demo aan zonder scan → "nog geen
   meting"; demo aan met scan → het oordeel; en een test die faalt als de
   pagina de naam van een ander target bevat.
 
@@ -22,5 +22,5 @@
   blijft naar de login sturen.
 
 ## 3. Documentatie
-- [ ] 3.1 docs + CHANGELOG: wat de demo is, en waarom er geen scanknop
+- [x] 3.1 docs + CHANGELOG: wat de demo is, en waarom er geen scanknop
   op staat.

@@ -27,6 +27,15 @@ type Config struct {
 	Nextcloud Nextcloud   `yaml:"nextcloud,omitempty"`
 	Schedules string      `yaml:"schedules,omitempty"`
 	Scan      ScanSection `yaml:"scan,omitempty"`
+	Demo      Demo        `yaml:"demo,omitempty"`
+}
+
+// Demo carries the public, read-only /demo route's pre-configured
+// target. An empty Target means the route does not exist at all
+// (openspec change 2026-09-21-demo-pagina: "leeg = geen demo") — the
+// demo is a narrow, separate surface, never a login exception.
+type Demo struct {
+	Target string `yaml:"target,omitempty"`
 }
 
 // GeoIP collects the GeoLite2 mmdb paths and the "missing is

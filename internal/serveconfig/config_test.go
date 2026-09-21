@@ -183,6 +183,30 @@ nextcloud:
 	}
 }
 
+func TestParse_DemoBlock(t *testing.T) {
+	yamlBody := `
+demo:
+  target: westerweel.work
+`
+	c, err := serveconfig.Parse([]byte(yamlBody))
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	if c.Demo.Target != "westerweel.work" {
+		t.Errorf("Demo.Target = %q", c.Demo.Target)
+	}
+}
+
+func TestParse_EmptyYAMLLeavesDemoTargetEmpty(t *testing.T) {
+	c, err := serveconfig.Parse([]byte("{}"))
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	if c.Demo.Target != "" {
+		t.Errorf("Demo.Target = %q, want empty (no demo by default)", c.Demo.Target)
+	}
+}
+
 func TestParse_PartialNextcloudBlockIsRejected(t *testing.T) {
 	// enabled: true but url missing — a config mistake caught at startup.
 	yamlBody := `

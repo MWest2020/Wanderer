@@ -1,0 +1,42 @@
+{{define "demo.tmpl"}}<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Wanderer — voorbeeld: {{.Domain}}</title>
+<style>
+  body { font-family: system-ui, sans-serif; max-width: 48rem; margin: 2rem auto; padding: 0 1rem; }
+  .demo-banner { background: #f2f2f2; border-radius: 6px; padding: 0.75rem 1rem; font-size: 0.9rem; }
+  .answer-headline { font-size: 1.3rem; font-weight: 600; }
+  .answer-row { border-top: 1px solid #ddd; padding: 0.75rem 0; }
+  .answer-evidence summary { cursor: pointer; }
+  .badge { display: inline-block; padding: 0.1rem 0.5rem; border-radius: 4px; background: #eee; }
+</style>
+</head>
+<body>
+<p class="demo-banner">
+  Dit is een voorbeeld van Wanderer, op één vooraf ingesteld domein — geen inlog, geen scanknop, geen andere domeinen.
+  Zelf draaien: <a href="https://github.com/MWest2020/wanderer">github.com/MWest2020/wanderer</a>.
+</p>
+<header>
+  <h1>{{.Domain}}</h1>
+  {{if .HasScan}}<p class="meta">Gescand op {{.ScannedAt}}</p>{{end}}
+</header>
+<main>
+{{if .HasScan}}
+<p class="answer-headline">{{.Headline}}</p>
+{{if .FlowAnswers}}
+<section class="sovereignty-overview">
+  <h2>Onderbouwing — soevereiniteit</h2>
+  <div class="flows answer-sheet">
+  {{template "answer-rows" .FlowAnswers}}
+  </div>
+</section>
+{{end}}
+{{else}}
+<p class="empty-state">Nog geen meting voor dit domein.</p>
+{{end}}
+</main>
+</body>
+</html>
+{{end}}

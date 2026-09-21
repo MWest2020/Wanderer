@@ -72,6 +72,9 @@ nextcloud:             # optional — publish each completed scan into Nextcloud
 
 schedules: "/etc/wanderer/schedules.yaml"
 
+demo:                  # optional — see "Public demo" below
+  target: "example.nl"
+
 scan:
   per_probe_timeout:     30s
   budget:                2m
@@ -268,6 +271,42 @@ The same line appears on the scan's onderbouwing (assessment) page.
 Every rule carries one in the Dutch copy table
 (`internal/assessor/wand/accountability_nl.yaml`'s `handelingen`
 map); a rule added without one fails the tests.
+
+### Public demo
+
+`/demo` is a public, unauthenticated route — deliberately outside
+`/ui`, so it never touches the login gate — that shows the latest
+completed scan of exactly one pre-configured domain, in the same
+answer + onderbouwing shape a signed-in user sees on the assessment
+page. It exists so someone who has never heard of Wanderer can see
+what it does without being handed an account, the way internet.nl
+and netnl both offer an anonymous, bounded demo.
+
+Enable it by setting `demo.target` in `serve.yaml` (above) to the one
+domain you want public. Leave it unset (the default) and the route
+does not exist at all — a request to `/demo` gets a plain 404, and
+the choice is logged once at startup either way (`demo.disabled` /
+`demo.enabled`).
+
+What the demo deliberately does **not** have:
+
+- **No scan button.** The page only ever shows a scan that already
+  ran on schedule. A "scan mijn domein" input on a public page would
+  turn this Wanderer instance into an open scanner for anyone's
+  domain — an abuse surface, and not what a demo needs to prove.
+  Nothing on `/demo`, including a manual `POST`, can start a scan;
+  the scan route stays behind the login exactly as it does today.
+- **No other domain, ever.** No fleet, no organisation list, no
+  regelpagina's, no nav bar linking back into `/ui` — those all name
+  or list domains this instance tracks, which is exactly the
+  information a public page must not leak. `/demo`'s only heading is
+  its own small banner: this is an example, and where to run your
+  own instance.
+- **No second view to maintain.** The headline sentence and the
+  per-flow onderbouwing are the same `BuildAnswerVerdict` /
+  `BuildFlowAnswers` output the login-gated assessment page renders —
+  `/demo` is a different door onto the same read, not a parallel
+  implementation that can drift from it.
 
 ### Nextcloud login (OIDC)
 
