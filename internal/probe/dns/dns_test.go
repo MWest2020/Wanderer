@@ -12,13 +12,15 @@ import (
 )
 
 type fakeResolver struct {
-	hosts    []string
-	mx       []*net.MX
-	ns       []*net.NS
-	cname    string
-	txt      map[string][]string
-	caa      []dnsprobe.CAA
-	hostsErr error
+	hosts     []string
+	mx        []*net.MX
+	ns        []*net.NS
+	cname     string
+	txt       map[string][]string
+	caaByName map[string][]dnsprobe.CAA
+	caaErr    error
+	caaCalls  []string
+	hostsErr  error
 }
 
 func (f *fakeResolver) LookupHost(_ context.Context, _ string) ([]string, error) {
@@ -44,8 +46,12 @@ func (f *fakeResolver) LookupTXT(_ context.Context, name string) ([]string, erro
 	return f.txt[name], nil
 }
 
-func (f *fakeResolver) LookupCAA(_ context.Context, _ string) ([]dnsprobe.CAA, error) {
-	return f.caa, nil
+func (f *fakeResolver) LookupCAA(_ context.Context, name string) ([]dnsprobe.CAA, error) {
+	f.caaCalls = append(f.caaCalls, name)
+	if f.caaErr != nil {
+		return nil, f.caaErr
+	}
+	return f.caaByName[name], nil
 }
 
 func TestHappyPath(t *testing.T) {
@@ -60,7 +66,9 @@ func TestHappyPath(t *testing.T) {
 			"example.nl":        {"v=spf1 include:_spf.example.net ~all"},
 			"_dmarc.example.nl": {"v=DMARC1; p=reject; rua=mailto:dmarc@example.nl"},
 		},
-		caa: []dnsprobe.CAA{{Flag: 0, Tag: "issue", Value: "letsencrypt.org"}},
+		caaByName: map[string][]dnsprobe.CAA{
+			"example.nl": {{Flag: 0, Tag: "issue", Value: "letsencrypt.org"}},
+		},
 	}
 	p := &dnsprobe.Probe{Resolver: r}
 	findings, err := p.Run(context.Background(), models.Target{Domain: "example.nl"}, probe.Config{})
@@ -140,5 +148,134 @@ func TestResolverNil(t *testing.T) {
 	_, err := p.Run(context.Background(), models.Target{Domain: "example.nl"}, probe.Config{})
 	if err == nil || !errors.Is(err, err) {
 		t.Errorf("expected error for nil resolver, got %v", err)
+	}
+}
+
+func caaFinding(findings []models.Finding) (models.Finding, bool) {
+	for _, f := range findings {
+		if f.ProbeID == "dns.caa" {
+			return f, true
+		}
+	}
+	return models.Finding{}, false
+}
+
+// TestCAAOwnRecords covers a subdomain with its own CAA records: no
+// climb, no inherited_from attribute.
+func TestCAAOwnRecords(t *testing.T) {
+	r := &fakeResolver{
+		caaByName: map[string][]dnsprobe.CAA{
+			"iam.voorbeeld.nl": {{Flag: 0, Tag: "issue", Value: "digicert.com"}},
+		},
+	}
+	p := &dnsprobe.Probe{Resolver: r}
+	findings, err := p.Run(context.Background(), models.Target{Domain: "iam.voorbeeld.nl"}, probe.Config{})
+	if err != nil {
+		t.Fatalf("run: %v", err)
+	}
+	f, ok := caaFinding(findings)
+	if !ok {
+		t.Fatal("no dns.caa finding")
+	}
+	if f.Attributes["value"] != "digicert.com" {
+		t.Errorf("value = %v, want digicert.com", f.Attributes["value"])
+	}
+	if _, inherited := f.Attributes["inherited_from"]; inherited {
+		t.Errorf("own records should not carry inherited_from, got %v", f.Attributes["inherited_from"])
+	}
+}
+
+// TestCAAInherited covers a subdomain with no CAA of its own but an
+// apex that has records — the case the original bug (LookupCAA always
+// returning nil, nil) made indistinguishable from "nowhere at all".
+func TestCAAInherited(t *testing.T) {
+	r := &fakeResolver{
+		caaByName: map[string][]dnsprobe.CAA{
+			"voorbeeld.nl": {{Flag: 0, Tag: "issue", Value: "certsign.ro"}},
+		},
+	}
+	p := &dnsprobe.Probe{Resolver: r}
+	findings, err := p.Run(context.Background(), models.Target{Domain: "iam.voorbeeld.nl"}, probe.Config{})
+	if err != nil {
+		t.Fatalf("run: %v", err)
+	}
+	f, ok := caaFinding(findings)
+	if !ok {
+		t.Fatal("no dns.caa finding")
+	}
+	if f.Subject != "iam.voorbeeld.nl" {
+		t.Errorf("subject = %q, want iam.voorbeeld.nl (the queried name, not the origin)", f.Subject)
+	}
+	if f.Attributes["inherited_from"] != "voorbeeld.nl" {
+		t.Errorf("inherited_from = %v, want voorbeeld.nl", f.Attributes["inherited_from"])
+	}
+}
+
+// TestCAANowhere covers a zone with no CAA at any level up to the
+// registrable domain: "no CAA records" is only correct once the whole
+// chain has been checked, not just the queried name.
+func TestCAANowhere(t *testing.T) {
+	r := &fakeResolver{caaByName: map[string][]dnsprobe.CAA{}}
+	p := &dnsprobe.Probe{Resolver: r}
+	findings, err := p.Run(context.Background(), models.Target{Domain: "iam.voorbeeld.nl"}, probe.Config{})
+	if err != nil {
+		t.Fatalf("run: %v", err)
+	}
+	f, ok := caaFinding(findings)
+	if !ok {
+		t.Fatal("no dns.caa finding")
+	}
+	if f.Attributes["no_answer"] != true {
+		t.Errorf("expected no_answer finding, got %v", f.Attributes)
+	}
+}
+
+// TestCAAAlwaysEmptyResolver plugs in a resolver whose LookupCAA
+// silently returns nil, nil for every name — the exact shape of the
+// original bug, now used as a stub instead of the live implementation.
+// It pins two things the old code got wrong at once: the probe must
+// still report "no CAA records" (not fabricate a positive result), and
+// it must have actually queried every level up to the registrable
+// domain before concluding that — not just the name it was handed.
+// The original bug queried once and stopped, which this test would
+// have caught via the call count alone.
+func TestCAAAlwaysEmptyResolver(t *testing.T) {
+	r := &fakeResolver{} // caaByName is nil: every LookupCAA call returns nil, nil
+	p := &dnsprobe.Probe{Resolver: r}
+	findings, err := p.Run(context.Background(), models.Target{Domain: "a.iam.voorbeeld.nl"}, probe.Config{})
+	if err != nil {
+		t.Fatalf("run: %v", err)
+	}
+	f, ok := caaFinding(findings)
+	if !ok {
+		t.Fatal("no dns.caa finding")
+	}
+	if f.Attributes["no_answer"] != true {
+		t.Errorf("expected no_answer finding, got %v", f.Attributes)
+	}
+	want := []string{"a.iam.voorbeeld.nl", "iam.voorbeeld.nl", "voorbeeld.nl"}
+	if len(r.caaCalls) != len(want) {
+		t.Fatalf("caaCalls = %v, want %v", r.caaCalls, want)
+	}
+	for i := range want {
+		if r.caaCalls[i] != want[i] {
+			t.Errorf("caaCalls[%d] = %q, want %q", i, r.caaCalls[i], want[i])
+		}
+	}
+}
+
+func TestCAALookupError(t *testing.T) {
+	r := &fakeResolver{caaErr: &net.DNSError{Err: "timeout", IsTimeout: true}}
+	p := &dnsprobe.Probe{Resolver: r}
+	findings, err := p.Run(context.Background(), models.Target{Domain: "voorbeeld.nl"}, probe.Config{})
+	if err != nil {
+		t.Fatalf("run: %v", err)
+	}
+	f, ok := caaFinding(findings)
+	if !ok {
+		t.Fatal("no dns.caa finding")
+	}
+	if f.Attributes["kind"] != "timeout" {
+		t.Errorf("kind = %v, want timeout", f.Attributes["kind"])
 	}
 }

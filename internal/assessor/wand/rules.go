@@ -660,6 +660,7 @@ func caaRestricts() assessor.Rule {
 			var evidence []string
 			var hasCAA bool
 			var noAnswer bool
+			var inheritedFrom string
 			for _, f := range findings {
 				if f.ProbeID != "dns.caa" {
 					continue
@@ -674,13 +675,20 @@ func caaRestricts() assessor.Rule {
 				if (tag == "issue" || tag == "issuewild") && value != "" {
 					hasCAA = true
 					evidence = append(evidence, f.ID)
+					if from := stringFromAttr(f.Attributes, "inherited_from"); from != "" {
+						inheritedFrom = from
+					}
 				}
 			}
 			switch {
 			case hasCAA:
+				verdict := "CAA records restrict certificate issuance"
+				if inheritedFrom != "" {
+					verdict = fmt.Sprintf("%s (inherited from %s)", verdict, inheritedFrom)
+				}
 				return assessor.RuleResult{
 					Score:    models.ScoreVoldoende,
-					Verdict:  "CAA records restrict certificate issuance",
+					Verdict:  verdict,
 					Evidence: evidence,
 				}
 			case noAnswer:

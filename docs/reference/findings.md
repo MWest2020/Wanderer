@@ -113,7 +113,7 @@ counted lookup-error rows as configured mail exchangers).
 | `dns.txt.dkim`   | observation   | `data_ai`     | `record`, `kind: "dkim"`                           |
 | `dns.txt.dmarc`  | observation   | `data_ai`     | `record`, `kind: "dmarc"`                          |
 | `dns.txt.other`  | info          | `data_ai`     | `record`, `kind: "other"`                          |
-| `dns.caa`        | observation   | `operationeel`| `flag`, `tag`, `value`                             |
+| `dns.caa`        | observation   | `operationeel`| `flag`, `tag`, `value`, `inherited_from` (only when the records came from an ancestor) |
 | `dns.subdomain`  | observation   | —             | `apex_domain`, `source: "ct_log" \| "prefix_probe"`, `addresses` (prefix_probe only) |
 | `dns.subdomain.wildcard` | info  | —             | `apex_domain`, `source: "prefix_probe"`, `hit_count`, `ips` |
 
@@ -130,10 +130,27 @@ hits.
 with `error: "<string>"` and `kind: "nxdomain" | "timeout" |
 "temporary" | "error"`.
 
-**CAA caveat.** The Go standard library resolver does not expose CAA.
-The default adapter returns an empty result (recorded as "no CAA
-records"). Swap in a `miekg/dns`-based resolver if CAA visibility is
-load-bearing for your assessment.
+**CAA lookup.** The Go standard library resolver does not expose CAA,
+so the default adapter sends a hand-rolled UDP query (type 257) to the
+system's configured nameserver — the same approach the SOA probe uses
+for its own stdlib gap (`internal/probe/soa/resolver.go`), kept as a
+separate copy per probe rather than a shared dependency. Finding
+nothing on the queried name, it climbs one DNS label at a time until it
+finds records or reaches the registrable domain (RFC 8659 §3; the
+registrable-domain heuristic is `internal/domainutil.Registrable`, the
+same one the scanner's NS-holder lookup uses). Records found above the
+queried name carry `inherited_from` naming the zone they came from, and
+`wand.operationeel.caa_restricts_issuance`'s verdict text repeats that
+origin. Only an empty result all the way up to the registrable domain
+is recorded as "no CAA records".
+
+Until 2026-09-21 this adapter unconditionally returned an empty result
+regardless of the domain, so `caa_restricts_issuance` scored every
+target as if it had no CAA policy — `voldoende` never fired, and
+`afhankelijk` fired even for zones with real, restrictive records
+(digid.nl, mijnoverheid.nl, ncsc.nl all had them). Every prior CAA
+verdict is worthless; the rule's *logic* was fine; it was scoring
+against data that was always empty by construction.
 
 ## TLS probe — `internal/probe/tls`
 

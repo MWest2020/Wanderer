@@ -15,6 +15,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/MWest2020/wanderer/internal/domainutil"
 	"github.com/MWest2020/wanderer/internal/probe"
 	"github.com/MWest2020/wanderer/pkg/models"
 )
@@ -176,32 +177,69 @@ func (p *Probe) Run(ctx context.Context, target models.Target, _ probe.Config) (
 	}
 
 	// CAA
-	caa, err := p.Resolver.LookupCAA(ctx, domain)
-	switch {
-	case err != nil:
-		findings = append(findings, lookupError(domain, "dns.caa", err))
-	case len(caa) == 0:
-		findings = append(findings, noAnswer(domain, "dns.caa", "no CAA records"))
-	default:
-		for _, c := range caa {
-			findings = append(findings, models.Finding{
-				ProbeID:       "dns.caa",
-				DimensionHint: models.DimensionOperationeel,
-				Subject:       domain,
-				Severity:      models.SeverityObservation,
-				Attributes: map[string]any{
-					"flag":  int(c.Flag),
-					"tag":   c.Tag,
-					"value": c.Value,
-				},
-				Evidence: []byte(fmt.Sprintf("%d %s %q", c.Flag, c.Tag, c.Value)),
-			})
-		}
-	}
+	findings = append(findings, p.caaFindings(ctx, domain)...)
 
 	findings = append(findings, p.subdomainSweep(ctx, domain)...)
 
 	return findings, nil
+}
+
+// caaFindings looks up CAA for domain, climbing to the registrable
+// domain per RFC 8659 §3 if the queried name itself carries none, and
+// shapes the result into Findings. A record found above domain is
+// marked "inherited_from" so a reader does not mistake it for the
+// subdomain's own policy.
+func (p *Probe) caaFindings(ctx context.Context, domain string) []models.Finding {
+	origin, caa, err := p.lookupCAAChain(ctx, domain)
+	switch {
+	case err != nil:
+		return []models.Finding{lookupError(domain, "dns.caa", err)}
+	case len(caa) == 0:
+		return []models.Finding{noAnswer(domain, "dns.caa", "no CAA records")}
+	}
+	findings := make([]models.Finding, 0, len(caa))
+	for _, c := range caa {
+		attrs := map[string]any{
+			"flag":  int(c.Flag),
+			"tag":   c.Tag,
+			"value": c.Value,
+		}
+		if origin != domain {
+			attrs["inherited_from"] = origin
+		}
+		findings = append(findings, models.Finding{
+			ProbeID:       "dns.caa",
+			DimensionHint: models.DimensionOperationeel,
+			Subject:       domain,
+			Severity:      models.SeverityObservation,
+			Attributes:    attrs,
+			Evidence:      []byte(fmt.Sprintf("%d %s %q", c.Flag, c.Tag, c.Value)),
+		})
+	}
+	return findings
+}
+
+// lookupCAAChain queries CAA starting at domain and, finding nothing,
+// climbs one label at a time until it finds records or reaches the
+// registrable domain (RFC 8659 §3) — the point past which there is no
+// further zone to inherit from. It returns the name the records were
+// found on: domain itself, or an ancestor when inherited.
+func (p *Probe) lookupCAAChain(ctx context.Context, domain string) (origin string, caa []CAA, err error) {
+	name := domain
+	registrable := domainutil.Registrable(name)
+	for {
+		records, lerr := p.Resolver.LookupCAA(ctx, name)
+		if lerr != nil {
+			return "", nil, lerr
+		}
+		if len(records) > 0 {
+			return name, records, nil
+		}
+		if name == registrable || !strings.Contains(name, ".") {
+			return "", nil, nil
+		}
+		name = name[strings.Index(name, ".")+1:]
+	}
 }
 
 func classifyTXT(r string) string {

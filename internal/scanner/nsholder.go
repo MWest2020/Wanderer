@@ -5,9 +5,9 @@ import (
 	"log/slog"
 	"net/http"
 	"sort"
-	"strings"
 	"time"
 
+	"github.com/MWest2020/wanderer/internal/domainutil"
 	"github.com/MWest2020/wanderer/internal/probe/whois"
 	"github.com/MWest2020/wanderer/pkg/models"
 )
@@ -68,7 +68,7 @@ func uniqueRegistrableDomains(findings []models.Finding) []string {
 			continue
 		}
 		host, _ := f.Attributes["host"].(string)
-		rd := registrableDomain(host)
+		rd := domainutil.Registrable(host)
 		if rd == "" || seen[rd] {
 			continue
 		}
@@ -77,18 +77,4 @@ func uniqueRegistrableDomains(findings []models.Finding) []string {
 	}
 	sort.Strings(out)
 	return out
-}
-
-// registrableDomain returns the last two DNS labels of host — e.g.
-// "ns1.provider-a.nl" → "provider-a.nl". This is a heuristic, not a
-// public-suffix-list lookup: wanderer vendors no PSL dependency, so a
-// two-label ccTLD (e.g. "co.uk") is not special-cased. Out of scope
-// for this run; noted in the run report.
-func registrableDomain(host string) string {
-	host = strings.ToLower(strings.TrimSuffix(strings.TrimSpace(host), "."))
-	labels := strings.Split(host, ".")
-	if len(labels) < 2 {
-		return ""
-	}
-	return strings.Join(labels[len(labels)-2:], ".")
 }

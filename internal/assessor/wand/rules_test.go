@@ -387,6 +387,19 @@ func TestCAARestricts(t *testing.T) {
 	if got.Score != models.ScoreAfhankelijk {
 		t.Errorf("no caa: score = %s, want afhankelijk", got.Score)
 	}
+
+	got = r.Match([]models.Finding{
+		f("c1", "dns.caa", map[string]any{
+			"_subject": "iam.example.nl", "tag": "issue", "value": "letsencrypt.org", "flag": 0,
+			"inherited_from": "example.nl",
+		}),
+	})
+	if got.Score != models.ScoreVoldoende {
+		t.Errorf("inherited caa: score = %s, want voldoende", got.Score)
+	}
+	if !strings.Contains(got.Verdict, "inherited from example.nl") {
+		t.Errorf("inherited caa: verdict should name the origin, got %q", got.Verdict)
+	}
 }
 
 func TestThirdPartiesEEA(t *testing.T) {

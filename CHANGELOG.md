@@ -9,6 +9,36 @@ once a first release is cut. Until then every entry lives under
 
 ## [Unreleased]
 
+### Fixed
+
+- **CAA werd nooit opgezocht** (`2026-09-21-caa-echt-opzoeken`, run
+  01). `netResolver.LookupCAA` unconditionally returned `nil, nil` for
+  every domain — the probe recorded "no CAA records" for everyone,
+  always. Nagemeten op 2026-09-21: digid.nl, mijnoverheid.nl, and
+  ncsc.nl all have real, restrictive CAA records (certsign.ro,
+  digicert.com; ncsc.nl also an iodef) and all three still got "no CAA
+  records — any public CA may issue". Every past
+  `wand.operationeel.caa_restricts_issuance` verdict was worthless:
+  the rule's scoring logic was correct, but it was never given real
+  data to score. `git log` shows this adapter has read this way since
+  the DNS probe was first written; there is no earlier commit where it
+  queried anything.
+  - `LookupCAA` now sends a real DNS query (type 257) via a hand-rolled
+    UDP client, the same approach `internal/probe/soa` already uses
+    for its own net.Resolver gap.
+  - Finding nothing on the queried name, the probe climbs one label at
+    a time to the registrable domain (RFC 8659 §3), reusing the
+    registrable-domain heuristic already used by the scanner's
+    NS-holder lookup (now `internal/domainutil.Registrable`). Records
+    found on an ancestor carry `inherited_from`, and the assessor
+    verdict text names that origin.
+  - Audited the rest of `internal/probe` for the same "silently
+    returns nothing" shape (task 2.1): the only other instance is
+    `internal/probe/egress/flow.hasBPFCap`, which always returns
+    `false` — but that is a disclosed placeholder ("root remains the
+    only signal we honour"), not a claim of having checked and found
+    nothing. Left as-is; out of scope for this change.
+
 ## [0.6.0] - 2026-09-21
 
 ### Added
