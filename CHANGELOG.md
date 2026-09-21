@@ -9,6 +9,8 @@ once a first release is cut. Until then every entry lives under
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-09-21
+
 ### Added
 
 - **Demo-pagina** (`2026-09-21-demo-pagina`, run 01). A public,
@@ -1011,7 +1013,8 @@ ExApp) can pin a reproducible version instead of `@main`.
   deferred (see `docs/observability.md`).
   (`openspec/changes/archive/2026-04-24-init-mvp-scanners`)
 
-[Unreleased]: https://github.com/MWest2020/wanderer/compare/v0.5.1...main
+[Unreleased]: https://github.com/MWest2020/wanderer/compare/v0.6.0...main
+[0.6.0]: https://github.com/MWest2020/wanderer/compare/v0.5.1...v0.6.0
 [0.5.1]: https://github.com/MWest2020/wanderer/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/MWest2020/wanderer/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/MWest2020/wanderer/compare/v0.3.1...v0.4.0
