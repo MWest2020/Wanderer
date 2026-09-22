@@ -134,6 +134,7 @@ func DefaultRules() []assessor.Rule {
 		httpExposure(),
 	}
 	rules = append(rules, accountabilityRules()...)
+	rules = append(rules, standardsRules()...)
 	for i := range rules {
 		rules[i] = withHandeling(rules[i])
 	}

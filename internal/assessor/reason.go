@@ -38,6 +38,15 @@ const (
 	ReasonNotPublishedByRegistry = "not_published_by_registry"
 	ReasonScannerNoIPv6          = "scanner_no_ipv6"
 	ReasonProbeUnavailable       = "probe_unavailable"
+	// ReasonNotMeasured means no relevant external measurement was
+	// ever performed (no import, or the measurement's own tests came
+	// back not_tested/error) — seeded by the standards dimension
+	// (internal/assessor/wand/standards_rules.go), task 3.1.
+	ReasonNotMeasured = "not_measured"
+	// ReasonMeasurementStale means a relevant measurement exists but
+	// is older than the rule's configured staleness boundary —
+	// seeded by the standards dimension, task 3.1/3.2.
+	ReasonMeasurementStale = "measurement_stale"
 )
 
 type reasonInfo struct {
@@ -53,6 +62,8 @@ var reasonRegistry = map[string]reasonInfo{
 	ReasonNotPublishedByRegistry: {class: ReasonStructural, subject: ReasonSubjectTarget},
 	ReasonScannerNoIPv6:          {class: ReasonStructural, subject: ReasonSubjectScanner},
 	ReasonProbeUnavailable:       {class: ReasonGap, subject: ReasonSubjectTarget},
+	ReasonNotMeasured:            {class: ReasonGap, subject: ReasonSubjectTarget},
+	ReasonMeasurementStale:       {class: ReasonGap, subject: ReasonSubjectTarget},
 }
 
 // ReasonInfo looks up the class and subject registered for code. It

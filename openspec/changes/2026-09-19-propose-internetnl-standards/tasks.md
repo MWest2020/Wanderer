@@ -43,10 +43,35 @@
   assessor/rules territory.
 
 ## 3. Assessor
-- [ ] 3.1 `standards` dimension registration + six rules (verdict
+- [x] 3.1 `standards` dimension registration + six rules (verdict
   mapping only); table-driven tests incl. not-measured, stale,
-  mixed-verdict, and no-double-score (security.txt) paths.
-- [ ] 3.2 `standards.max_age` config (default 30d).
+  mixed-verdict, and no-double-score (security.txt) paths — done
+  2026-09-22. New `models.DimensionStandards`, registered in
+  `assessor.WandDimensions`; six rules in
+  `internal/assessor/wand/standards_rules.go`, wired into
+  `wand.DefaultRules()`. Category→rule mapping is the one measured in
+  runs/03-assessor.md (the API already resolves `web_ns_rpki_*` /
+  `mail_ns_rpki_*` / `mail_mx_ns_rpki_*` onto `web_rpki`/`mail_rpki`
+  via its own metadata hierarchy — no prefix-matching needed on
+  Wanderer's side). `error` status scores onbekend ("meting mislukt"),
+  never afhankelijk; a category whose every test is
+  `not_tested`/`error` scores onbekend, never soeverein. Two new
+  reason codes (`not_measured`, `measurement_stale`) registered in
+  reason.go. Golden-fixture counts (76 tests, six rules + unscored
+  `web_appsecpriv`) pinned in `standards_rules_test.go` against the
+  task-1.3 testdata copies. Fixed two ADDED requirements in
+  `specs/assessor/spec.md` that failed `openspec validate --strict`
+  (SHALL only appeared past the parser's first line of a soft-wrapped
+  paragraph) — wording only, no semantic change.
+- [x] 3.2 `standards.max_age` config (default 30d) — done 2026-09-22.
+  `StandardsMaxAgeDays`/`StandardsMaxAge` in
+  `internal/assessor/wand/standards_rules.go`, surfaced as an
+  `assessor.Threshold` on every standards rule (same pattern as
+  `domainExpirySafeDays`/`certValidityExpiringSoonDays`) so the
+  boundary is documented on each rule page, not just in code. Full
+  YAML/CLI wiring (an operator-facing `standards.max_age` override in
+  `serveconfig.Config`, threaded through every `wand.DefaultRules()`
+  call site) is out of this run's scope — see the run report.
 
 ## 4. Wrap-up
 - [ ] 4.1 UI: verify standards renders via existing rule rendering;

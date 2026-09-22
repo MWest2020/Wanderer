@@ -8,9 +8,11 @@ import (
 
 // WandDimensions is the canonical ordering of dimensions in every
 // Assessment: the DICTU dimensions plus wand-native ones that extend
-// beyond them (accountability has no DICTU counterpart — see
-// ADR-0011). Stable order keeps reports diffable. Callers iterate
-// this list; none may assume its length.
+// beyond them (accountability and standards have no DICTU
+// counterpart — see ADR-0011 and openspec change
+// 2026-09-19-propose-internetnl-standards). Stable order keeps
+// reports diffable. Callers iterate this list; none may assume its
+// length.
 var WandDimensions = []models.DimensionHint{
 	models.DimensionJuridisch,
 	models.DimensionTechnologie,
@@ -18,6 +20,7 @@ var WandDimensions = []models.DimensionHint{
 	models.DimensionOperationeel,
 	models.DimensionMens,
 	models.DimensionAccountability,
+	models.DimensionStandards,
 }
 
 // Assess runs every rule against findings and aggregates the results
