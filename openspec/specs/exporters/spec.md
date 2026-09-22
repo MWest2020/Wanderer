@@ -106,7 +106,7 @@ Publish failures SHALL NOT block scan completion; the local
 
 - **GIVEN** `serve.yaml`'s `nextcloud.enabled: true` block is
   configured against a reachable Nextcloud
-- **WHEN** a scan completes for `conduction.nl`
+- **WHEN** a scan completes for `voorbeeld.nl`
 - **THEN** a file appears at
   `/Files/Wanderer/<org-slug>/<scan-id>.jsonld` on the
   Nextcloud, containing the scan's Findings + Assessment

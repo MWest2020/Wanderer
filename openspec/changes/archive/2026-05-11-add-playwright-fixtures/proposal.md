@@ -35,7 +35,7 @@ anything that depends on specific finding shapes:
 
 - The "Status column shows worst score" assertion only works
   because Mark happened to run scans against
-  conduction.nl + mijnoverheid.us before invoking Playwright.
+  voorbeeld.nl + mijnoverheid.us before invoking Playwright.
 - The new host-side-scoring smoke ships `gated` on a manual
   `wanderer agent --once` run with a fixture config that's
   next to the specs (`tests/playwright/fixtures/agent-host.yaml`)
@@ -62,14 +62,14 @@ specific rule outcomes without an operator pre-running scans.
   storage logic, no new production binary, no `cmd/` surface.
 - Three fixture "scenarios", each producing a self-contained
   DB:
-  1. **`baseline`** — minimal happy path. Two orgs (conduction
+  1. **`baseline`** — minimal happy path. Two orgs (voorbeeld
      + acme), one domain target per org, one perimeter scan
      each, scored under wand + eucsf. The current dar.spec
      and reporting-catalogue.spec assertions hold against this
      deterministically (no more "depends on what Mark scanned
      last week").
   2. **`agent-host`** — adds the `alma` host target under
-     conduction with a synthetic agent scan: a handful of
+     voorbeeld with a synthetic agent scan: a handful of
      inventory.packages.rpm + inventory.systemd.service
      findings, including one US-telemetry hit (`datadog-agent`)
      so the host rule deep-dive shows `afhankelijk`.

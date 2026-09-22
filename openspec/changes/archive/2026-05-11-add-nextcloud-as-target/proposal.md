@@ -64,7 +64,7 @@ Default to **(1) Nextcloud as a target**. It is the closest
 fit to Wanderer's mission ("score the sovereignty posture
 of digital infrastructure"), reuses the existing inspector
 plumbing, lands as one or two new probes + a small
-host-rule wave, and a Conduction customer running Nextcloud
+host-rule wave, and a customer running Nextcloud
 gets immediate value. Options 2 and 3 are useful follow-ups
 but address operator ergonomics rather than the core
 sovereignty story. Option 4 is a separate product decision.

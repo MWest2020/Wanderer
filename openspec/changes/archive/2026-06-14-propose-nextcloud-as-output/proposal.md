@@ -8,7 +8,7 @@
 
 ## Intent
 
-The Wanderer team is a Conduction-style delivery shop that
+The Wanderer team is a delivery shop that
 runs Nextcloud as its day-to-day collaboration platform.
 Today Wanderer's outputs — scans, Assessments, drift diffs —
 live in the SQLite store and the `/ui/` browse layer. An
@@ -33,7 +33,7 @@ Three publication surfaces, listed cheapest to richest:
    needed. Cons: file-only, no in-app awareness.
 
 2. **Talk room notification.** Wanderer posts a one-liner
-   "scan complete: 3 afhankelijk on conduction.nl" to a
+   "scan complete: 3 afhankelijk on voorbeeld.nl" to a
    configured Talk room. Pros: where operators already work.
    Cons: requires the operator to have a bot user in their
    Nextcloud + Talk app installed.

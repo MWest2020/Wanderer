@@ -33,7 +33,7 @@ implementation is Wanderer's own. Decision: Mark, 2026-09-22.
 ## DICTU dimension(s)
 
 None map cleanly, and that is the point: accountability is a gap in
-the DICTU instrument itself. wand is Conduction's own pack (ADR-0011), so it
+the DICTU instrument itself. wand is MWest2020's own pack (ADR-0011), so it
 may extend beyond the DICTU dimensions. This change adds
 **`accountability`** as a wand-native dimension alongside
 juridisch/operationeel/technologie/data_ai/mens. Two rules

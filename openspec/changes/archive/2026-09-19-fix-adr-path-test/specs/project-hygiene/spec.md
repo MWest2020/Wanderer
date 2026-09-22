@@ -28,7 +28,7 @@ The numbered ADR set under `docs/explanation/adr/` SHALL include
 ADR-0011 covering the rename of the first-party rule pack from
 `dictu` to `wand`. The ADR SHALL explain the legal /
 reputational concern (DICTU is a Dutch government agency, not a
-Conduction product), credit the DICTU *Toetsingsinstrument
+MWest2020 product), credit the DICTU *Toetsingsinstrument
 Soevereiniteit Clouddiensten* as the public source of
 inspiration, and document the migration path (one-release CLI
 alias plus schema migration). ADR-0009 (dual-framework

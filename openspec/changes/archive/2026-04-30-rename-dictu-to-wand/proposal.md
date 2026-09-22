@@ -5,15 +5,15 @@ the Dutch government's Dienst ICT Uitvoering, an agency under
 the Ministry of Economic Affairs and Climate that publishes the
 *Toetsingsinstrument Soevereiniteit Clouddiensten*. Wanderer's
 rule pack was inspired by that publicly-available framework, but
-Wanderer itself is a Conduction product, not a DICTU one, and we
+Wanderer itself is an MWest2020 product, not a DICTU one, and we
 have no endorsement from DICTU. Branding our output under the
 DICTU name implies an affiliation we do not have, and is a real
-legal and reputational risk for Conduction. This is the kind of
+legal and reputational risk for MWest2020. This is the kind of
 issue we want to clean up before any external rollout.
 
 The rule semantics are correct and worth keeping. The label is
 the problem. We rename the rule pack to **`wand`** — short for
-**Wanderer-NL**, our own Conduction brand — and update every
+**Wanderer-NL**, our own MWest2020 brand — and update every
 rule ID, persisted Framework value, CLI flag value, code path,
 documentation reference, and ADR accordingly. The new docs and
 ADR explicitly credit DICTU's framework as the inspiration

@@ -113,7 +113,7 @@ that case.
 Two temptations:
 
 1. **"Let's train a model on config files."** No. Heuristics get us
-   to ~90% correct on Dutch public-sector Conduction-stack configs.
+   to ~90% correct on Dutch public-sector stack configs.
    The remaining 10% are `egress.unknown` findings, which a human
    categorises — and that human decision informs a new regex, not a
    retrain cycle. A model is a black box; a regex is a PR diff.

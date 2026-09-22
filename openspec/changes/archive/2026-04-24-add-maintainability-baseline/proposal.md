@@ -49,7 +49,7 @@ styles, and there is no CHANGELOG to reconstruct the ordering from.
 ## DICTU dimensions informed
 
 None directly. This change targets the *project*, not the *subject of
-scans*. It is justified by the Operationeel dimension of the Conduction
+scans*. It is justified by the Operationeel dimension of this
 toolchain itself: an un-auditable codebase cannot produce an auditable
 observatory.
 

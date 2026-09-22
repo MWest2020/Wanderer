@@ -47,7 +47,7 @@ Zeg het als je wilt dat ik die infrastructuur alsnog optuig; dat hoort
 dan waarschijnlijk in run 02 of een aparte taak.
 
 Kleinere kanttekening: `vloot-en-regels.spec.ts` noemt
-`/ui/orgs/conduction/fleet` zelf ook "het vlootscherm" (`fleet.tmpl`,
+`/ui/orgs/voorbeeld/fleet` zelf ook "het vlootscherm" (`fleet.tmpl`,
 `<h1>... · vloot</h1>`). De taak-ref schrijft expliciet "vloot
 (`/ui/`)", dus ik heb dat scherm niet meegenomen als "vloot" voor deze
 taak — maar het is een tweede, echt bestaand scherm met diezelfde naam

@@ -19,10 +19,10 @@
   enum and one exported `Build<Name>(*store.Store) error`
   function per scenario.
 - [x] 2.2 `internal/fixtures/baseline.go` — two orgs
-  (conduction + acme), one domain target per org, one scored
+  (voorbeeld + acme), one domain target per org, one scored
   scan each under wand + eucsf.
 - [x] 2.3 `internal/fixtures/agent_host.go` — adds `alma`
-  host target under conduction with a synthetic agent scan:
+  host target under voorbeeld with a synthetic agent scan:
   a curated handful of `inventory.packages.rpm` +
   `inventory.systemd.service` findings including one
   `datadog-agent` hit so the host rule deep-dive shows

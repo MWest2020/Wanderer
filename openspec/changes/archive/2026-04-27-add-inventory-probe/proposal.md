@@ -26,7 +26,7 @@ the CLI do not care which modus produced a Finding.
   - **systemd** services (name, unit file path, `LoadedActiveSubState`)
   - **Docker** containers (via `/var/run/docker.sock`)
   - **dpkg/rpm** installed packages
-  - **Nextcloud apps** via `occ app:list` (opt-in, for Conduction-stack
+  - **Nextcloud apps** via `occ app:list` (opt-in, for such
     hosts)
 - Agent writes to the Wanderer store directly (same SQLite file) or,
   when the core runs elsewhere, posts Findings to a configured core

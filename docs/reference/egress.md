@@ -90,7 +90,7 @@ egress:
     enabled: true
     paths:
       - /etc/wanderer-sample
-      - /opt/conduction/config
+      - /opt/voorbeeld/config
   procenv:
     enabled: true
   systemd:

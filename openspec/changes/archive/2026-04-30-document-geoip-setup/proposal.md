@@ -5,7 +5,7 @@ Without a GeoLite2 ASN database the IP probe emits a single
 ASN/country lookup. That cascades: every DICTU rule that depends
 on `ip.asn` (the entire `technologie` dimension and most of the
 `juridisch` dimension) returns `onbekend`. A new operator
-running their first `wanderer scan` against `conduction.nl`
+running their first `wanderer scan` against `voorbeeld.nl`
 sees a half-blank assessment and reasonably concludes "this
 tool is broken", when in fact one missing input file would have
 populated the whole picture.

@@ -103,7 +103,7 @@ that turns out to be a real need, future proposal.
 organisations:
   - slug: acme
     name: ACME B.V.
-    description: Customer of Conduction.
+    description: Customer of MWest2020.
   - slug: example-gov
     name: Example Government
     description: Public-sector pilot.

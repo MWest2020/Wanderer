@@ -46,7 +46,7 @@ alphabetical), then rule ID alphabetical within each framework.
 ├────────────────────────────────────────────────────────┤
 │ Target          | Score        | When        | Verdict │
 │-----------------|--------------|-------------|---------│
-│ conduction.nl   | afhankelijk  | 2026-05-01  | issued  │
+│ voorbeeld.nl   | afhankelijk  | 2026-05-01  | issued  │
 │                 |              |             | in US   │
 │ rijksoverheid.nl| soeverein    | 2026-05-01  | issued  │
 │                 |              |             | in IE   │

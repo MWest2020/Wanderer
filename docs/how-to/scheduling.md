@@ -18,9 +18,9 @@ Schedules live in a YAML file. Pass its path with `--schedules` or
 ```yaml
 # wanderer-schedules.yaml
 schedules:
-  - name: conduction-apex-daily
+  - name: voorbeeld-apex-daily
     target:
-      domain: conduction.nl
+      domain: voorbeeld.nl
     cron: "0 6 * * *"      # 06:00 every day
     timeout: 5m
 

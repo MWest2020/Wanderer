@@ -6,7 +6,7 @@ rules across `juridisch`, `operationeel`, `technologie`, and
 DICTU's published *Toetsingsinstrument Soevereiniteit Clouddiensten*.
 The rule semantics are independent work — Wanderer's rules read
 the same probe outputs but are written, owned, and maintained by
-Conduction. The DICTU label nevertheless implies endorsement.
+MWest2020. The DICTU label nevertheless implies endorsement.
 
 The companion EU CSF (SEAL) rule pack at `internal/assessor/eucsf`
 already establishes the multi-framework pattern: package per
@@ -51,7 +51,7 @@ row and adjust every consumer.
 ### Decision 1: New framework name is `wand`
 
 `wand` is the Wanderer-NL contraction. Short, distinct from the
-`eucsf.sov2.*` SEAL prefix already in use, owned by Conduction
+`eucsf.sov2.*` SEAL prefix already in use, owned by MWest2020
 because Wanderer is. Alternatives considered:
 
 1. **`nlsoeverein`** — Dutch, descriptive, no agency claim. Passed

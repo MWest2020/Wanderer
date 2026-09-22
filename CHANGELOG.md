@@ -686,7 +686,7 @@ ExApp) can pin a reproducible version instead of `@main`.
   [ADR-0011](docs/decisions/0011-rename-dictu-to-wand.md). DICTU's
   publicly-available *Toetsingsinstrument Soevereiniteit
   Clouddiensten* remains credited as the inspiration; the rule
-  pack's identity is Conduction's. Affects: the Go package
+  pack's identity is MWest2020's. Affects: the Go package
   (`internal/assessor/dictu/` → `internal/assessor/wand/`), every
   rule ID (`dictu.<dim>.<short>` → `wand.<dim>.<short>`), the
   persisted `Assessment.Framework` value (`"dictu"` →

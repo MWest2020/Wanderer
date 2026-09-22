@@ -23,7 +23,7 @@
 
 ## 4. Tests
 
-- [x] 4.1 `/ui/reporting?org=conduction` body contains
+- [x] 4.1 `/ui/reporting?org=voorbeeld` body contains
   `score-` badges and target counts on rules that have fired
 - [x] 4.2 Rules that have not fired render with "no rationale
   yet"

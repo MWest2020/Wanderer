@@ -604,7 +604,7 @@ access on the next request.
 
 - **GIVEN** OIDC is configured against `cloud.example.nl` and
   an operator has authenticated successfully
-- **WHEN** they request `/ui/orgs/conduction`
+- **WHEN** they request `/ui/orgs/voorbeeld`
 - **THEN** the page renders without an additional login
   prompt
 

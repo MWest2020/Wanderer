@@ -34,7 +34,7 @@
 - [x] 6.3 Updated `docs/operator.md` — wand assessor mentioned, dimension reference uses neutral language
 - [x] 6.4 Updated `docs/tutorial.md` — heritage credit for DICTU toets, sovereignty-dimension wording
 - [x] 6.5 Updated `docs/findings.md` — `dictu.*` rule examples → `wand.*`; `internal/assessor/dictu` paths → `wand`; "DICTU dimension" → "sovereignty dimension"
-- [x] 6.6 Updated `README.md` — wand pack credited as Conduction's; DICTU toetsingsinstrument credited as inspiration
+- [x] 6.6 Updated `README.md` — wand pack credited as MWest2020's; DICTU toetsingsinstrument credited as inspiration
 
 ## 7. Tests + CHANGELOG
 

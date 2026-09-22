@@ -21,9 +21,9 @@ cmd/wanderer/diff.go  # CLI: wanderer diff <scan-a> <scan-b>
 ```yaml
 # wanderer-schedules.yaml
 schedules:
-  - name: conduction-apex-daily
+  - name: voorbeeld-apex-daily
     target:
-      domain: conduction.nl
+      domain: voorbeeld.nl
     cron: "0 6 * * *"         # 06:00 every day
     probes: [dns, tls, ip, http]
     timeout: 5m
