@@ -22,15 +22,15 @@ Dat is geen randgeval: het is de enige pagina zonder inlog, en de weg
 ernaartoe is een gewone API-aanroep.
 
 ## Scope — ONLY these tasks
-- [ ] 1.1 De demopagina kiest de nieuwste scan **die een beoordeling
+- [x] 1.1 De demopagina kiest de nieuwste scan **die een beoordeling
   heeft**. Een scan zonder beoordeling slaat hij over in plaats van
   erop te stranden. Blijft er dan niets over, dan mag "nog geen
   meting" — dat klopt dan ook.
-- [ ] 1.2 Een test die dit vastlegt: twee scans voor hetzelfde domein,
+- [x] 1.2 Een test die dit vastlegt: twee scans voor hetzelfde domein,
   de nieuwste zonder beoordeling, en de pagina toont de oudere mét.
   Controleer hem één keer mét de reparatie eruit en zeg in je rapport
   dat je dat deed.
-- [ ] 1.3 Kijk of `/ui/scans/{id}/answer` en de vlootpagina dezelfde
+- [x] 1.3 Kijk of `/ui/scans/{id}/answer` en de vlootpagina dezelfde
   aanname maken. Zo ja, repareer ze mee; zo nee, zeg in je rapport
   waarom ze er geen last van hebben.
 

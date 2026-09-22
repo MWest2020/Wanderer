@@ -16,6 +16,11 @@
 // the login-gated answer page shows — rather than a third count, and
 // leads with it so a reader sees how much scores well before the
 // ja/nee/onbekend sentence that names the heaviest open point.
+//
+// "Latest" means latest assessed (docs/tasks/2026-09-22-demo-zonder-beoordeling.md
+// 1.1): latestCompletedScan skips a voltooide scan that has no
+// beoordeling yet rather than landing on it, so a bare `POST /scans`
+// on the live target can never blank out the page's last real story.
 package ui
 
 import (
@@ -23,6 +28,7 @@ import (
 	"fmt"
 	"html/template"
 	"net/http"
+	"sort"
 	"strings"
 	"time"
 
@@ -68,13 +74,6 @@ func DemoHandler(st *store.Store, tmpl *template.Template, target string) http.H
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		if len(assessments) == 0 {
-			// A completed scan nobody ever ran `wanderer assess` against
-			// has nothing to answer yet either — the same "nog geen
-			// meting" state as no scan at all, not a false onbekend.
-			render(w, tmpl, "demo.tmpl", view)
-			return
-		}
 		findingsByID := make(map[string]models.Finding, len(scan.Findings))
 		for _, f := range scan.Findings {
 			findingsByID[f.ID] = f
@@ -110,15 +109,23 @@ func composeDemoHeadline(v AnswerVerdict, fs FleetScore) string {
 }
 
 // latestCompletedScan finds target's most recent scan that is not
-// still running and did not fail outright — a "voltooide scan" in
-// tasks.md's sense: Complete (every probe succeeded) or Partial (some
-// did, so there is still something real to show). Domain matching is
-// case-insensitive, mirroring scanStatusHandler's lookup.
+// still running, did not fail outright, and has a beoordeling — a
+// "voltooide scan" in tasks.md's sense: Complete (every probe
+// succeeded) or Partial (some did, so there is still something real to
+// show), AND assessed. POST /scans never assesses — that is the
+// separate POST /scans/{id}/assessments route
+// (docs/tasks/2026-09-22-demo-zonder-beoordeling.md) — so a voltooide
+// scan can still have no verdict; this walks candidates newest-first
+// and skips those instead of landing on one, so a scan without a
+// beoordeling can never bump an older, assessed scan off the page.
+// Domain matching is case-insensitive, mirroring scanStatusHandler's
+// lookup.
 func latestCompletedScan(ctx context.Context, st *store.Store, domain string) (scanID string, startedAt time.Time, found bool, err error) {
 	scans, err := st.ListScans(ctx, store.Selectors{})
 	if err != nil {
 		return "", time.Time{}, false, err
 	}
+	var candidates []store.ScanRow
 	for _, s := range scans {
 		if !strings.EqualFold(s.Domain, domain) {
 			continue
@@ -128,9 +135,20 @@ func latestCompletedScan(ctx context.Context, st *store.Store, domain string) (s
 		default:
 			continue
 		}
-		if !found || s.StartedAt.After(startedAt) {
-			scanID, startedAt, found = s.ID, s.StartedAt, true
-		}
+		candidates = append(candidates, s)
 	}
-	return scanID, startedAt, found, nil
+	sort.Slice(candidates, func(i, j int) bool {
+		return candidates[i].StartedAt.After(candidates[j].StartedAt)
+	})
+	for _, s := range candidates {
+		assessments, aerr := st.ListAssessmentsForScan(ctx, s.ID)
+		if aerr != nil {
+			return "", time.Time{}, false, aerr
+		}
+		if len(assessments) == 0 {
+			continue
+		}
+		return s.ID, s.StartedAt, true, nil
+	}
+	return "", time.Time{}, false, nil
 }

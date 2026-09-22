@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/MWest2020/wanderer/internal/store"
 	"github.com/MWest2020/wanderer/internal/ui"
@@ -196,6 +197,62 @@ func TestDemoHandler_HeadlineLeadsWithScore(t *testing.T) {
 		if scoreIdx < 0 || scoreIdx > idx {
 			t.Errorf("expected the score before the bare 'Nee —' headline; body:\n%s", string(body))
 		}
+	}
+}
+
+// seedUnassessedScan mirrors seedCompleteScan but never calls
+// CreateAssessment — the shape a bare `POST /scans` leaves behind
+// (docs/tasks/2026-09-22-demo-zonder-beoordeling.md): a voltooide scan
+// with findings but no beoordeling.
+func seedUnassessedScan(t *testing.T, st *store.Store, domain string) {
+	t.Helper()
+	ctx := context.Background()
+	tgt := &models.Target{Domain: domain}
+	if err := st.UpsertTarget(ctx, tgt); err != nil {
+		t.Fatalf("upsert: %v", err)
+	}
+	sc, err := st.CreateScan(ctx, tgt.ID)
+	if err != nil {
+		t.Fatalf("scan: %v", err)
+	}
+	if err := st.AppendFindings(ctx, sc.ID, []models.Finding{
+		{ID: "f_unassessed_" + domain, ProbeID: "tls.issuer", Subject: domain, Severity: models.SeverityFinding},
+	}); err != nil {
+		t.Fatalf("findings: %v", err)
+	}
+	if err := st.FinishScan(ctx, sc.ID, models.ScanStatusComplete, ""); err != nil {
+		t.Fatalf("finish: %v", err)
+	}
+}
+
+// TestDemoHandler_ScanWithoutAssessmentDoesNotBlankThePage is
+// docs/tasks/2026-09-22-demo-zonder-beoordeling.md 1.2: a domain with
+// an older, assessed scan and a newer scan that a bare `POST /scans`
+// left without a beoordeling must still show the older scan's story,
+// not "Nog geen meting". Checked once with the fix reverted —
+// latestCompletedScan picking the literal newest voltooide scan
+// regardless of assessments — and it failed as expected: the page
+// showed "Nog geen meting" instead of the older verdict.
+func TestDemoHandler_ScanWithoutAssessmentDoesNotBlankThePage(t *testing.T) {
+	st := newTestStore(t)
+	seedCompleteScan(t, st, "westerweel.work")
+	time.Sleep(5 * time.Millisecond)
+	seedUnassessedScan(t, st, "westerweel.work")
+	srv := newDemoServer(t, st, "westerweel.work")
+	resp, err := http.Get(srv.URL + "/demo")
+	if err != nil {
+		t.Fatalf("get: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("status = %d", resp.StatusCode)
+	}
+	body, _ := io.ReadAll(resp.Body)
+	if strings.Contains(string(body), "Nog geen meting") {
+		t.Errorf("expected the older, assessed scan's verdict, got 'Nog geen meting'; body:\n%s", string(body))
+	}
+	if !strings.Contains(string(body), "Ja —") {
+		t.Errorf("expected the older scan's ja/nee/onbekend headline; body:\n%s", string(body))
 	}
 }
 
