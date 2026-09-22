@@ -23,12 +23,16 @@
 - [x] 2.1 `wanderer import internetnl <file>`: parse, target-match,
   persist under import-kind scan; WARN+skip for unknown domains and
   malformed entries; abort on schema-version mismatch; idempotent
-  re-import — done 2026-09-22. Idempotency keys on the file's sha256
-  alone: the measured netnl-findings/v1 schema (design.md "Design gate
+  re-import — done 2026-09-22. Idempotency keys on the file's sha256:
+  the measured netnl-findings/v1 schema (design.md "Design gate
   outcome") carries no request ID anywhere, per-domain or per-batch,
   so "file hash + request ID" as originally phrased isn't buildable
-  against the real fixture; the file hash alone already gives byte-
-  identical re-imports a no-op.
+  against the real fixture. **Corrected by habitat run 02b
+  (2026-09-22):** file hash *alone* was wrong — a domain skipped for
+  lack of a matching target still marked the whole file as imported,
+  so creating the target afterwards and re-importing silently did
+  nothing. The key is now **(file hash, domain)**: see
+  `runs/02b-import-zonder-doel.md`.
 - [x] 2.2 Store: import-kind scans coexist with perimeter scans;
   assessor reads newest per kind — done 2026-09-22. Findings.SourceModus
   gained `import` (no new Scan.Kind column, per design decision);

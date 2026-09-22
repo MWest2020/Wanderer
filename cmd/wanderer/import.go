@@ -80,28 +80,22 @@ func runImportInternetnl(args []string) int {
 	}
 	defer st.Close()
 
-	already, err := st.NetnlImportRecorded(ctx, fileHash)
+	imported, skippedUnknown, skippedAlready, err := importNetnlDomains(ctx, st, logger, fileHash, file.Domains)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "wanderer: import: %v\n", err)
 		return 1
 	}
-	if already {
+
+	// "nothing to do" only when every domain in the file was already
+	// imported from it — an empty file, or one that mixes fresh and
+	// unknown domains, must say so instead (habitat run 02b).
+	if imported == 0 && skippedUnknown == 0 && skippedAlready > 0 {
 		fmt.Fprintf(os.Stdout, "wanderer: import: %s already imported (file unchanged), nothing to do\n", path)
 		return 0
 	}
 
-	imported, skipped, err := importNetnlDomains(ctx, st, logger, file.Domains)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "wanderer: import: %v\n", err)
-		return 1
-	}
-
-	if err := st.RecordNetnlImport(ctx, fileHash); err != nil {
-		fmt.Fprintf(os.Stderr, "wanderer: import: %v\n", err)
-		return 1
-	}
-
-	fmt.Fprintf(os.Stdout, "wanderer: import: %d target(s) imported, %d domain(s) skipped (unknown target)\n", imported, skipped)
+	fmt.Fprintf(os.Stdout, "wanderer: import: %d domain(s) imported, %d skipped (unknown target), %d skipped (already imported from this file)\n",
+		imported, skippedUnknown, skippedAlready)
 	return 0
 }
 
@@ -111,7 +105,14 @@ func runImportInternetnl(args []string) int {
 // scan per matched target. Unknown domains are logged at WARN and
 // skipped — spec.md "Unknown domains SHALL be logged at WARN and
 // skipped".
-func importNetnlDomains(ctx context.Context, st *store.Store, logger *slog.Logger, domains []scanner.NetnlDomain) (imported, skipped int, err error) {
+//
+// Idempotency is checked per domain against fileHash, not once for
+// the whole file: a domain skipped on an earlier run because its
+// target did not exist yet must still be imported once the target
+// exists, even though this exact file was already seen (habitat run
+// 02b — the earlier file-level check made that second run a silent
+// no-op).
+func importNetnlDomains(ctx context.Context, st *store.Store, logger *slog.Logger, fileHash string, domains []scanner.NetnlDomain) (imported, skippedUnknown, skippedAlready int, err error) {
 	byDomain := map[string][]scanner.NetnlDomain{}
 	var order []string
 	for _, d := range domains {
@@ -122,31 +123,43 @@ func importNetnlDomains(ctx context.Context, st *store.Store, logger *slog.Logge
 	}
 
 	for _, domain := range order {
+		already, err := st.NetnlImportRecorded(ctx, fileHash, domain)
+		if err != nil {
+			return imported, skippedUnknown, skippedAlready, fmt.Errorf("check import record for %q: %w", domain, err)
+		}
+		if already {
+			skippedAlready++
+			continue
+		}
+
 		target, err := st.GetTargetByDomain(ctx, domain)
 		if err != nil {
 			if errors.Is(err, store.ErrNotFound) {
 				logger.Warn("import.internetnl.unknown_domain", "domain", domain)
-				skipped++
+				skippedUnknown++
 				continue
 			}
-			return imported, skipped, fmt.Errorf("lookup target %q: %w", domain, err)
+			return imported, skippedUnknown, skippedAlready, fmt.Errorf("lookup target %q: %w", domain, err)
 		}
 
 		scan, err := st.CreateScan(ctx, target.ID)
 		if err != nil {
-			return imported, skipped, fmt.Errorf("create scan for %q: %w", domain, err)
+			return imported, skippedUnknown, skippedAlready, fmt.Errorf("create scan for %q: %w", domain, err)
 		}
 		var findings []models.Finding
 		for _, d := range byDomain[domain] {
 			findings = append(findings, scanner.NetnlFindings(d)...)
 		}
 		if err := st.AppendFindings(ctx, scan.ID, findings); err != nil {
-			return imported, skipped, fmt.Errorf("persist findings for %q: %w", domain, err)
+			return imported, skippedUnknown, skippedAlready, fmt.Errorf("persist findings for %q: %w", domain, err)
 		}
 		if err := st.FinishScan(ctx, scan.ID, models.ScanStatusComplete, ""); err != nil {
-			return imported, skipped, fmt.Errorf("finish scan for %q: %w", domain, err)
+			return imported, skippedUnknown, skippedAlready, fmt.Errorf("finish scan for %q: %w", domain, err)
+		}
+		if err := st.RecordNetnlImport(ctx, fileHash, domain); err != nil {
+			return imported, skippedUnknown, skippedAlready, fmt.Errorf("record import for %q: %w", domain, err)
 		}
 		imported++
 	}
-	return imported, skipped, nil
+	return imported, skippedUnknown, skippedAlready, nil
 }
