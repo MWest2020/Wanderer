@@ -26,11 +26,17 @@ vóór wat elders in de change staat.
 
 ## Scope — ONLY these tasks
 - [ ] 1.3 De fixtures overnemen in Wanderer's testdata, byte-voor-byte
-  gelijk aan de kant van netnl. Ze staan in deze change onder
-  `fixtures/` (de ruwe API-antwoorden) en de findings-uitvoer komt uit
-  de internetnl-cli-repo (`tests/fixtures/`), change
-  `2026-09-22-findings-export`. Neem de findings-bestanden over, niet
-  de ruwe API-antwoorden — de importeur leest findings.
+  gelijk aan de kant van netnl. Ze staan al klaar in deze change onder
+  `fixtures/`: `findings-v1-web-20260922.json` en
+  `findings-v1-mail-20260922.json` — dat is wat de importeur leest.
+  (De twee `batch-v2-*`-bestanden ernaast zijn de ruwe API-antwoorden
+  waar ze uit gemaakt zijn; die leest de importeur niet.)
+
+  Beide bevatten 38 testuitslagen, allemaal met een categorie, geen
+  enkele `null`. Web: `web_https` 22, `web_ipv6` 5, `web_appsecpriv` 5,
+  `web_rpki` 4, `web_dnssec` 2. Mail: `mail_starttls` 19, `mail_rpki` 6,
+  `mail_auth` 5, `mail_dnssec` 4, `mail_ipv6` 4. Wijkt jouw import daar
+  vanaf, dan is de import fout, niet de fixture.
 - [ ] 2.1 `wanderer import internetnl <bestand>`: inlezen,
   domein-matchen op bestaande targets, wegschrijven onder een scan met
   `SourceModus: import`. Onbekend domein → WARN + overslaan.
