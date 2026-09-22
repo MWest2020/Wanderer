@@ -1,0 +1,87 @@
+name: action-smoke
+
+# De Action uit deze repo draaien op één echt domein (taak 2.4 van
+# distributie). Dit is de enige test die de hele keten aanraakt zoals een
+# gebruiker hem krijgt: de release-binary ophalen, de checksum
+# controleren, scannen, beoordelen, en de job-samenvatting schrijven. De
+# unit-tests dekken geen van die stappen — ze draaien tegen de code in de
+# werkmap, niet tegen een gepubliceerde binary.
+#
+# Het domein is westerweel.work: van Mark zelf, dus deze workflow scant
+# nooit ongevraagd andermans infrastructuur.
+#
+# `fail-on` blijft leeg. De uitkomst van de scan is geen bouwfout — dat is
+# precies de keuze die de Action zelf ook maakt. Deze workflow faalt op
+# iets anders: als de Action zelf stukgaat, geen score teruggeeft, of
+# geen handeling meer bij een falend punt zet.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'action.yml'
+      - 'scripts/action-*'
+      - '.github/workflows/action-smoke.yml'
+  pull_request:
+    paths:
+      - 'action.yml'
+      - 'scripts/action-*'
+      - '.github/workflows/action-smoke.yml'
+  schedule:
+    # Wekelijks, zodat een release die de binaire naamgeving verandert
+    # opvalt voordat een gebruiker erover struikelt.
+    - cron: '17 6 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: De Action draaien op een echt domein
+        id: scan
+        uses: ./
+        with:
+          domain: westerweel.work
+
+      - name: Uitvoer controleren
+        shell: bash
+        env:
+          SCORE: ${{ steps.scan.outputs.score }}
+          VERDICT: ${{ steps.scan.outputs.verdict }}
+          REPORT: ${{ steps.scan.outputs.report-path }}
+        run: |
+          set -euo pipefail
+          echo "score=$SCORE verdict=$VERDICT report=$REPORT"
+
+          # Een lege score betekent dat de Action wel doorliep maar niets
+          # gemeten heeft; dat is een stille storing en die willen we luid.
+          case "$SCORE" in
+            [0-9]*/[0-9]*) ;;
+            *) echo "::error::geen score uit de Action: '$SCORE'"; exit 1 ;;
+          esac
+
+          case "$VERDICT" in
+            soeverein|voldoende|afhankelijk|onbekend) ;;
+            *) echo "::error::onbekend oordeel: '$VERDICT'"; exit 1 ;;
+          esac
+
+          test -s "$REPORT" || { echo "::error::leeg rapport op $REPORT"; exit 1; }
+
+          # De handeling moest in de JSON komen (taak 3.1). Zonder deze
+          # controle verdwijnt die weer zodra iemand de uitvoer herschikt,
+          # en dan meldt de Action weer "geen handeling beschikbaar" —
+          # stil, want de stap blijft groen.
+          missing=$(jq '[.dimensions[].rationale[]?
+                         | select(.score == "afhankelijk")
+                         | select((.handeling // "") == "")] | length' "$REPORT")
+          if [ "$missing" != "0" ]; then
+            echo "::error::$missing niet-soevereine punten zonder handeling in het rapport"
+            jq '[.dimensions[].rationale[]? | select(.score == "afhankelijk")][0]' "$REPORT"
+            exit 1
+          fi

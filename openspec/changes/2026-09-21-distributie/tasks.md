@@ -15,7 +15,12 @@
   `geoip` (optioneel pad). Uitvoer: score, oordeel, en het pad naar het
   rapport.
 - [x] 2.3 Voorbeeldworkflow in `docs/` plus een regel in de README.
-- [ ] 2.4 De action draait in haar eigen repo-CI op één echt domein.
+- [x] 2.4 De action draait in haar eigen repo-CI op één echt domein
+  (`.github/workflows/action-smoke.yml`, westerweel.work). De workflow
+  faalt niet op het oordeel — wel op een lege score, een onbekend
+  oordeel, een leeg rapport, of een falend punt zonder handeling. Die
+  laatste controle is één keer nagemeten met de handeling eruit
+  gesloopt: 0 met, 3 zonder.
 
 ## 3. De handeling bereikbaar maken — run 03
 - [x] 3.1 Gevonden bij het uitproberen van de Action (2026-09-22): de
