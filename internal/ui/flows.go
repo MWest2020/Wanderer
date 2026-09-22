@@ -120,13 +120,13 @@ func dutchFlowVerdict(ruleID string, score models.Score, feit string) string {
 // leads with, per flow rule — "apex-adressen in NL" rather than a bare
 // "NL" — so the fact reads as a complete clause on its own.
 var flowFeitLead = map[string]string{
-	"wand.juridisch.apex_ip_eea":           "apex-adressen in",
+	"wand.juridisch.apex_ip_eea":            "apex-adressen in",
 	"wand.juridisch.mx_vendor_jurisdiction": "mailservers in",
 	"wand.juridisch.ns_vendor_jurisdiction": "nameservers in",
-	"wand.juridisch.cert_issuer_eea":       "certificaat uitgegeven in",
-	"wand.transit.eu_path":                 "bestemming in",
-	"wand.technologie.no_us_hyperscaler":   "hyperscaler",
-	"wand.technologie.third_parties_eea":   "derde partijen in",
+	"wand.juridisch.cert_issuer_eea":        "certificaat uitgegeven in",
+	"wand.transit.eu_path":                  "bestemming in",
+	"wand.technologie.no_us_hyperscaler":    "hyperscaler",
+	"wand.technologie.third_parties_eea":    "derde partijen in",
 }
 
 // flowFeit reads the observed country/party behind a flow rule's
