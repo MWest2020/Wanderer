@@ -105,8 +105,11 @@
 ```
 
 `category` carries the API's own category name **verbatim**, with its
-`web_`/`mail_` prefix: measured values are `web_appsecpriv`,
-`web_dnssec`, `web_https`, `web_ipv6`, `web_rpki`. A test entry in the
+`web_`/`mail_` prefix. Measured 2026-09-22: web gives
+`web_appsecpriv`, `web_dnssec`, `web_https`, `web_ipv6`, `web_rpki`;
+mail gives `mail_auth`, `mail_dnssec`, `mail_ipv6`, `mail_rpki`,
+`mail_starttls`. (The contract previously named `starttls_dane` — no
+such category exists.) A test entry in the
 API carries no category of its own; the producer derives it by taking
 the longest key in `results.categories` that prefixes the test name
 (`web_dnssec_exist` → `web_dnssec`). A test matching no category keeps

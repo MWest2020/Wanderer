@@ -168,8 +168,35 @@ een niet-nul exit plus een afwezig bestand verwacht. Het bestaande
 `results`-gedrag blijft zoals het is (dat is netnl's eigen contract
 met zijn gebruikers), maar de findings-export erft het niet.
 
-### Nog te bevestigen
+### Bevestigd met een mail-batch (2026-09-22)
 
-Deze meting was `--type web`. Of een **mail**-batch dezelfde platte
-`{status, verdict}`-vorm heeft, is niet gemeten. Taak 1.2 bevestigt
-dat met één echte mail-batch vóór de fixtures vastgelegd worden.
+Request `abf44e2a8f4d00b3b40447d6d11583ca`, westerweel.work, score 70%.
+Fixture: `fixtures/batch-v2-mail-westerweel.work-20260922.json`.
+
+- **Zelfde platte vorm.** 0 van de 38 testuitslagen draagt meer dan
+  `{status, verdict}`. Bevinding 1 geldt dus voor beide testsoorten;
+  `detail` is geen web-eigenaardigheid.
+- **`error` is echt.** `mail_starttls_tls_available` kwam terug als
+  `{"status": "error", "verdict": "other"}`. Bevinding 2 is daarmee
+  niet langer afgeleid uit netnl's code maar gemeten. Let op de
+  tweede waarde: `verdict` is hier `other`, een woord dat in geen
+  enkele lijst in het contract stond.
+- **Categorieën dragen een `mail_`-voorvoegsel:** `mail_auth`,
+  `mail_dnssec`, `mail_ipv6`, `mail_rpki`, `mail_starttls`. Het
+  contract noemde `starttls_dane`; die categorie bestaat niet, het is
+  `mail_starttls`. Bevinding 3 bevestigd, inclusief het gevaar van een
+  eigen woordenlijst.
+- **18 van de 38 tests staan op `not_tested`.** Een mail-meting van een
+  domein zonder volwaardige mailopstelling levert dus veel lege
+  uitslagen. De assessor moet `not_tested` als `onbekend` behandelen
+  en niet als "goed" — anders scoort een domein zonder mail
+  uitstekend op mailbeveiliging.
+
+### Wat het contract nog meer verzweeg: `verdict`
+
+Elke testuitslag heeft náást `status` een `verdict`-woord: gemeten
+waarden zijn `good`, `bad`, `warning`, `not-tested`,
+`recommendations`, `other`. Het contract noemt alleen `status` (en
+noemt dát verwarrend genoeg "verdict"). De producent draagt beide
+over: `status` is waar de assessor op scoort, `verdict` is
+verklarende tekst die netnl niet hoort te interpreteren.
