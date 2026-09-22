@@ -253,12 +253,15 @@ CREATE TABLE finding_batches (
 		Name:    "add_netnl_imports",
 		Up: `-- propose-internetnl-standards run 02: "wanderer import internetnl
 -- <file>" must be idempotent — re-importing the same completed
--- Internet.nl export a second time changes nothing. The netnl-
--- findings/v1 file carries no per-domain or per-batch request ID:
--- design.md "Design gate outcome" found it on netnl's batch API
--- response (top-level request_id), but netnl does not export it into
--- this file yet, so there is nothing here to key on until that
--- lands. The file's own sha256 is the idempotency key instead.
+-- Internet.nl export a second time changes nothing.
+--
+-- De sleutel is de sha256 van het bestand zelf, niet het request-id
+-- van de batch. Toen deze migratie geschreven werd, exporteerde netnl
+-- dat id niet; inmiddels wel (source.request_id, sinds
+-- findings-export run 04). De hash blijft toch de sleutel: twee
+-- exports van dezelfde batch zijn byte-identiek (dat is een eis aan
+-- de producent), en de hash dekt ook een handmatig samengevoegd of
+-- bijgewerkt bestand dat hetzelfde request-id draagt.
 CREATE TABLE netnl_imports (
   file_hash   TEXT PRIMARY KEY,
   imported_at DATETIME NOT NULL
