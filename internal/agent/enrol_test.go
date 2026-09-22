@@ -73,7 +73,7 @@ func TestEnsureSecret_ExchangesTokenAndWrites0600(t *testing.T) {
 func TestEnsureSecret_ExistingFileSkipsEnrolment(t *testing.T) {
 	// A core that fails the test if it is ever contacted — an agent
 	// with a secret already on disk must not re-enrol.
-	core := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	core := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
 		t.Fatalf("core: unexpected request %s %s — agent should not re-enrol", r.Method, r.URL.Path)
 	}))
 	defer core.Close()

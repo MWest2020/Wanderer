@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/binary"
 	"net"
+	"os"
 	"testing"
 	"time"
 )
@@ -112,6 +113,44 @@ func TestQueryCAA(t *testing.T) {
 		if got[i] != want[i] {
 			t.Errorf("record[%d] = %+v, want %+v", i, got[i], want[i])
 		}
+	}
+}
+
+// TestEncodeCAAQueryTransactionID checks that consecutive queries get
+// distinct, near-uniformly-spread 16-bit transaction IDs rather than a
+// constant or a collapsed-range value — the basic property any fix
+// here has to preserve, whatever the ID source.
+func TestEncodeCAAQueryTransactionID(t *testing.T) {
+	const n = 512
+	seen := make(map[uint16]int, n)
+	for i := 0; i < n; i++ {
+		_, id, err := encodeCAAQuery("voorbeeld.nl")
+		if err != nil {
+			t.Fatalf("encodeCAAQuery: %v", err)
+		}
+		seen[id]++
+	}
+	// Birthday bound: 512 draws from a 65536-value space collide about
+	// twice on average. Fewer than 480 unique values means the ID
+	// space collapsed (e.g. a bug narrowing the range), not bad luck.
+	if len(seen) < 480 {
+		t.Errorf("only %d unique transaction ids out of %d queries, want a near-uniform 16-bit id", len(seen), n)
+	}
+}
+
+// TestResolverDoesNotUseMathRand guards the RFC 5452 fix itself:
+// math/rand's PRNG is predictable, so a transaction ID drawn from it
+// lets an off-path attacker guess the ID and inject a forged answer
+// ahead of the real one. gosec (G404) already catches a regression at
+// lint time; this test catches it at `go test` time too, and fails
+// against the pre-fix code that called math/rand's rand.Intn.
+func TestResolverDoesNotUseMathRand(t *testing.T) {
+	src, err := os.ReadFile("resolver.go")
+	if err != nil {
+		t.Fatalf("read resolver.go: %v", err)
+	}
+	if bytes.Contains(src, []byte(`"math/rand"`)) {
+		t.Error("resolver.go imports math/rand — DNS transaction IDs must come from crypto/rand (RFC 5452)")
 	}
 }
 

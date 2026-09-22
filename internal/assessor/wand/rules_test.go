@@ -303,11 +303,11 @@ func TestDNSRedundancy(t *testing.T) {
 func TestDNSRedundancyThresholdMatchesComparison(t *testing.T) {
 	r := ruleByID(t, "wand.operationeel.dns_redundancy")
 
-	var min assessor.Threshold
+	var minThreshold assessor.Threshold
 	found := false
 	for _, th := range r.Thresholds {
 		if th.Name == "dns_redundancy_min_nameservers" {
-			min, found = th, true
+			minThreshold, found = th, true
 		}
 	}
 	if !found {
@@ -324,11 +324,11 @@ func TestDNSRedundancyThresholdMatchesComparison(t *testing.T) {
 		return out
 	}
 
-	if got := r.Match(nsFindings(int(min.Value) - 1)).Score; got != models.ScoreAfhankelijk {
-		t.Errorf("one below the declared minimum (%d): score = %s, want afhankelijk", int(min.Value)-1, got)
+	if got := r.Match(nsFindings(int(minThreshold.Value) - 1)).Score; got != models.ScoreAfhankelijk {
+		t.Errorf("one below the declared minimum (%d): score = %s, want afhankelijk", int(minThreshold.Value)-1, got)
 	}
-	if got := r.Match(nsFindings(int(min.Value))).Score; got != models.ScoreVoldoende {
-		t.Errorf("at the declared minimum (%d): score = %s, want voldoende", int(min.Value), got)
+	if got := r.Match(nsFindings(int(minThreshold.Value))).Score; got != models.ScoreVoldoende {
+		t.Errorf("at the declared minimum (%d): score = %s, want voldoende", int(minThreshold.Value), got)
 	}
 }
 

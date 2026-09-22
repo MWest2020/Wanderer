@@ -55,3 +55,16 @@ issues:
     - path: _test\.go
       linters: [gosec]
       text: "G306"
+    # int -> uint16 conversions in test helpers, where the value is a
+    # literal or a loop index the test itself constructs — not
+    # attacker-controlled input, so the overflow G115 warns about
+    # cannot occur here.
+    - path: _test\.go
+      linters: [gosec]
+      text: "G115"
+    # scripts/action_report_test.go starts jq with a path built from
+    # filepath.Join(".", "action-report.jq") — a fixed, test-local
+    # path, not external input.
+    - path: scripts/action_report_test\.go
+      linters: [gosec]
+      text: "G204"
