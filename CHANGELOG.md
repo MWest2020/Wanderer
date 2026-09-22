@@ -9,6 +9,36 @@ once a first release is cut. Until then every entry lives under
 
 ## [Unreleased]
 
+## [0.9.1] - 2026-09-22
+
+### Changed
+
+- **Eigenaarschap en licentie staan op MWest2020.** De
+  copyrighthouder in `LICENSE`, de `author` van de GitHub Action, en
+  elke plek in README, ADR-0011, de referentiedocumentatie en de
+  capability-specs die zei wie de wand-regelpack bezit. De
+  voorbeelddata in de testfixtures heet nu `Voorbeeld B.V.` /
+  `voorbeeld.nl`, in de stijl van de `ACME B.V.`-organisatie die er
+  al naast stond.
+
+### Fixed
+
+- **De Nextcloud-inspecteur zweeg als hij de uitvoer niet begreep.**
+  `ParseSystemConfig` gaf `nil, nil` terug bij onleesbare JSON, dus de
+  eucsf-regel meldde "inspector did not run or no relevant
+  configuration" — één zin voor drie verschillende situaties, waarvan
+  er één een fout van ons is die leest als een lege configuratie bij
+  de klant. Onleesbare uitvoer levert nu een waarschuwing in het log
+  én een bevinding met reden `scanner_unreadable_output`, die als
+  operatorwaarschuwing rendert in plaats van als antwoord over het
+  doel.
+- **Vier Playwright-specs liepen achter op de UI.** De navigatie heet
+  sinds v0.9.0 "Overzicht" en de frameworktabellen staan achter een
+  klik; twee specs zochten nog "Overview" en twee beoordeelden
+  verborgen rijen zonder ze te openen. Dat bleef verborgen omdat de
+  suite tegen een oude gebouwde binary draaide — `make playwright`
+  bouwt en seedt, kaal `npx playwright test` niet.
+
 ## [0.9.0] - 2026-09-22
 
 ### Added
@@ -1167,7 +1197,8 @@ ExApp) can pin a reproducible version instead of `@main`.
   deferred (see `docs/observability.md`).
   (`openspec/changes/archive/2026-04-24-init-mvp-scanners`)
 
-[Unreleased]: https://github.com/MWest2020/wanderer/compare/v0.9.0...main
+[Unreleased]: https://github.com/MWest2020/wanderer/compare/v0.9.1...main
+[0.9.1]: https://github.com/MWest2020/wanderer/compare/v0.9.0...v0.9.1
 [0.9.0]: https://github.com/MWest2020/wanderer/compare/v0.8.2...v0.9.0
 [0.8.2]: https://github.com/MWest2020/wanderer/compare/v0.8.1...v0.8.2
 [0.8.1]: https://github.com/MWest2020/wanderer/compare/v0.8.0...v0.8.1
