@@ -35,7 +35,7 @@
   so creating the target afterwards and re-importing silently did
   nothing. The key is now **(file hash, domain)**: see
   `runs/02b-import-zonder-doel.md`.
-- [x] 2.2 Store: import-kind scans coexist with perimeter scans;
+- [ ] 2.2 Store: import-kind scans coexist with perimeter scans;
   assessor reads newest per kind — done 2026-09-22. Findings.SourceModus
   gained `import` (no new Scan.Kind column, per design decision);
   `Store.LatestScanByModus` gives a future assessor its "newest scan
