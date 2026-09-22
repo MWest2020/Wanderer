@@ -52,6 +52,11 @@ const (
 	// counterpart: who is answerable for the footprint, and can you
 	// reach them.
 	DimensionAccountability DimensionHint = "accountability"
+	// DimensionStandards is a wand-native dimension with no DICTU
+	// counterpart: the Forum Standaardisatie comply-or-explain list,
+	// scored exclusively from imported Internet.nl verdicts (DNSSEC,
+	// mail auth, STARTTLS/DANE, IPv6, RPKI, TLS config).
+	DimensionStandards DimensionHint = "standards"
 )
 
 // Valid reports whether d is one of the defined dimensions (the empty
@@ -64,7 +69,8 @@ func (d DimensionHint) Valid() bool {
 		DimensionDataAI,
 		DimensionOperationeel,
 		DimensionMens,
-		DimensionAccountability:
+		DimensionAccountability,
+		DimensionStandards:
 		return true
 	}
 	return false

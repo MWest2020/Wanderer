@@ -44,10 +44,10 @@ score, and no first-party Wanderer finding SHALL feed these rules.
 
 ### Requirement: Stale measurements are not presented as current
 
-When a target's newest `internetnl.*` findings are older than the
-configured `standards.max_age` (default 30 days), the standards rules
-SHALL score onbekend and the verdict SHALL name the measurement date,
-so an old pass can never mask a regression.
+The standards rules SHALL score onbekend, and the verdict SHALL name
+the measurement date, when a target's newest `internetnl.*` findings
+are older than the configured `standards.max_age` (default 30 days)
+— so an old pass can never mask a regression.
 
 #### Scenario: Measurement past max_age
 
@@ -68,11 +68,7 @@ so an old pass can never mask a regression.
 
 ### Requirement: Standards rules never double-score first-party ground
 
-Categories where Wanderer keeps first-party probes for evidence
-granularity (security.txt, HTTPS variant convergence, security
-headers, certificate validity) SHALL remain scored exclusively by
-their existing first-party rules; the standards dimension SHALL NOT
-add rules over the corresponding Internet.nl subtests.
+Categories where Wanderer keeps first-party probes for evidence granularity (security.txt, HTTPS variant convergence, security headers, certificate validity) SHALL remain scored exclusively by their existing first-party rules; the standards dimension SHALL NOT add rules over the corresponding Internet.nl subtests.
 
 #### Scenario: security.txt stays first-party
 
