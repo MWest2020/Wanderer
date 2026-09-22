@@ -914,11 +914,14 @@ func TestUIScan_ReadOnlyByDefault_NoScanRoute(t *testing.T) {
 	}
 }
 
-func TestDoor_ShowsRecentAnswerAndAgentHost(t *testing.T) {
-	// spec.md "The entry surface asks for a domain and answers it":
-	// the door shows a one-line verdict (run 01's BuildAnswerVerdict),
-	// no scan/rule IDs, and offers an enrolled agent host from the
-	// same input (spec.md "selectable from the same input").
+func TestDoor_ShowsFleetScoreAndAgentHost(t *testing.T) {
+	// openspec change 2026-09-22-drie-lagen-ciso, spec.md "De vloot is
+	// de eerste laag": the door opens with the fleet's x/n score and
+	// its domains, worst first, each linking to its own answer page —
+	// and still offers the scan input, with an enrolled agent host
+	// selectable from the same input (the original entry-surface
+	// requirement), as an action inside the page rather than its
+	// headline.
 	dir := t.TempDir()
 	htpasswd := filepath.Join(dir, "passwd")
 	hash, _ := bcrypt.GenerateFromPassword([]byte("correct horse battery staple"), bcrypt.MinCost)
@@ -930,6 +933,9 @@ func TestDoor_ShowsRecentAnswerAndAgentHost(t *testing.T) {
 		t.Fatalf("enrol: %v", err)
 	}
 	_, scanID := seed(t, st)
+	if err := st.FinishScan(context.Background(), scanID, models.ScanStatusComplete, ""); err != nil {
+		t.Fatalf("finish scan: %v", err)
+	}
 	seedAssessment(t, st, scanID, "wand")
 
 	h, err := ui.Handler(st, ui.Options{HtpasswdPath: htpasswd, Scanner: stubScanner{st: st}})
@@ -950,17 +956,13 @@ func TestDoor_ShowsRecentAnswerAndAgentHost(t *testing.T) {
 	body, _ := io.ReadAll(resp.Body)
 	bodyStr := string(body)
 	for _, want := range []string{
-		"Ja — dit domein staat onder Nederlands of Europees recht.",
-		"webapp-01", // the agent host, selectable from the datalist
-		scanID + "/answer",
+		"1/1", // the fleet score: the one soeverein rationale seedAssessment creates, out of one answerable
+		"example.nl",
+		scanID + "/answer", // the domain links straight to its answer page
+		"webapp-01",        // the agent host, still selectable from the datalist
 	} {
 		if !strings.Contains(bodyStr, want) {
 			t.Errorf("door missing %q; body:\n%s", want, bodyStr)
-		}
-	}
-	for _, mustNotHave := range []string{"targets-fleet", "wand.juridisch"} {
-		if strings.Contains(bodyStr, mustNotHave) {
-			t.Errorf("door MUST NOT contain %q — scan/rule IDs and the fleet table stay off this surface", mustNotHave)
 		}
 	}
 }

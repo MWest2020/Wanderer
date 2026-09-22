@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Wanderer — antwoord</title>
+<title>Wanderer — vloot</title>
 <link rel="stylesheet" href="/ui/static/main.css">
 </head>
 <body>
@@ -19,10 +19,111 @@
 </header>
 <main>
 
+{{if .HasFleet}}
+<section class="dashboard-section fleet-summary">
+  <p class="fleet-score-headline">
+    <span class="fleet-score-total badge score-{{if .NotSovereign}}afhankelijk{{else}}soeverein{{end}}">{{.X}}/{{.N}}</span>
+    {{if .Unanswered}}<span class="muted">· {{.Unanswered}} onbeantwoord</span>{{end}}
+    {{if .NotSovereign}}
+    <strong class="not-sovereign-count">{{.NotSovereign}} domein{{if ne .NotSovereign 1}}en{{end}} niet soeverein</strong>
+    {{else}}
+    <span class="muted">geen domein niet-soeverein</span>
+    {{end}}
+  </p>
+  {{if .DomainsWithoutScan}}<p class="muted small">{{.DomainsWithoutScan}} domein{{if ne .DomainsWithoutScan 1}}en{{end}} nog niet gescand.</p>{{end}}
+  {{if .ScopedOrganisation}}<p class="meta"><a href="{{.FleetManageURL}}">vloot beheren (toevoegen/verwijderen) →</a></p>{{end}}
+</section>
+
+{{if .Flows}}
+<section class="dashboard-section sovereignty-rollup">
+  <h2>Per stroom <span class="scope-label">waar staat wat</span></h2>
+  <table class="flows">
+    <tbody>
+    {{range .Flows}}
+      <tr>
+        <th scope="row">{{.Label}}</th>
+        <td><span class="badge score-{{.Worst}}">{{.Worst}}</span></td>
+        <td>{{if gt .Afhankelijk 0}}{{.Afhankelijk}} van {{.Total}} buiten de EER{{else}}alle {{.Total}} in de EER{{end}}</td>
+      </tr>
+    {{end}}
+    </tbody>
+  </table>
+</section>
+{{end}}
+
+{{if .TopRules}}
+<section class="dashboard-section">
+  <h2>Kost de vloot de meeste punten <span class="scope-label">top 3</span></h2>
+  <ol class="top-rules">
+    {{range .TopRules}}
+    <li>
+      <a href="/ui/reporting/{{.Framework}}/{{.CriteriumID}}{{if $.OrgSlug}}?org={{$.OrgSlug}}{{end}}">{{.Description}}</a>
+      <span class="muted">— {{.TargetCount}} domein{{if ne .TargetCount 1}}en{{end}}</span>
+    </li>
+    {{end}}
+  </ol>
+</section>
+{{end}}
+
+<section class="dashboard-section">
+  <h2>Domeinen <span class="scope-label">slechtste eerst</span></h2>
+  <table class="targets">
+    <thead>
+      <tr><th>Domein</th><th>Score</th><th>Laatste scan</th></tr>
+    </thead>
+    <tbody>
+      {{range .Domains}}
+      <tr>
+        <td>
+          {{if .AnswerURL}}<a href="{{.AnswerURL}}">{{.Domain}}</a>{{else}}{{.Domain}}{{end}}
+          {{if eq .Kind "host"}}<span class="badge kind-host">host</span>{{end}}
+        </td>
+        <td>
+          {{if .HasScore}}
+          <span class="fleet-score">{{.X}}/{{.N}}{{if .Unanswered}} · {{.Unanswered}} onbekend{{end}}</span>
+          {{if .WorstFlow}}<div class="muted small">zwaarste: {{.WorstFlow}} — {{.WorstVerdict}}</div>{{end}}
+          {{else}}
+          <span class="muted">nog geen oordeel</span>
+          {{end}}
+        </td>
+        <td>{{if .LastScanAt}}<code>{{.LastScanAt}}</code>{{else}}<span class="muted">nog niet gescand</span>{{end}}</td>
+      </tr>
+      {{end}}
+    </tbody>
+  </table>
+</section>
+{{else}}
+<p class="empty-state">
+  No scans yet. Run <code>wanderer scan &lt;domain&gt;</code> against a
+  target{{if .AllowScan}}, or use the form below,{{end}} to get an answer.
+</p>
+{{end}}
+
+{{if .OrganisationsList}}
+<section class="dashboard-section">
+  <h2>Organisations</h2>
+  <table class="organisations">
+    <thead>
+      <tr><th>Slug</th><th>Name</th><th class="num">Targets</th></tr>
+    </thead>
+    <tbody>
+      {{range .OrganisationsList}}
+      <tr>
+        <td><a href="{{.URL}}"><code>{{.Slug}}</code></a></td>
+        <td>{{.Name}}</td>
+        <td class="num">{{.TargetCount}}</td>
+      </tr>
+      {{end}}
+    </tbody>
+  </table>
+</section>
+{{end}}
+
 {{if .AllowScan}}
-<form class="scan-form door-form" method="post" action="/ui/scan">
-  <label for="scan-domain">Domein of host</label>
-  <input id="scan-domain" name="domain" type="text" list="agent-hosts" placeholder="voorbeeld.nl of jouw-host" required autofocus>
+<section class="dashboard-section">
+<form class="scan-form" method="post" action="/ui/scan">
+  <label for="scan-domain">Domein of host scannen</label>
+  <input id="scan-domain" name="domain" type="text" list="agent-hosts" placeholder="voorbeeld.nl of jouw-host" required>
   {{if .AgentHosts}}
   <datalist id="agent-hosts">
     {{range .AgentHosts}}<option value="{{.}}">{{end}}
@@ -31,27 +132,7 @@
   <button type="submit">Scan</button>
   <span class="meta">start een scan en land direct op het antwoord</span>
 </form>
-{{end}}
-
-{{if .Recent}}
-<section class="dashboard-section door-recent">
-  <h2>Recent beantwoord</h2>
-  <ul class="answer-lines">
-    {{range .Recent}}
-    <li class="answer-line">
-      <a href="{{.ReportURL}}">{{.Domain}}</a>{{if eq .Kind "host"}} <span class="badge kind-host">host</span>{{end}}
-      <span class="badge answer-badge-{{.Verdict}}">{{.Verdict}}</span>
-      <span class="answer-line-text">{{.Headline}}</span>
-      <span class="meta">{{.LastScanAt}}</span>
-    </li>
-    {{end}}
-  </ul>
 </section>
-{{else}}
-<p class="empty-state">
-  No scans yet. Run <code>wanderer scan &lt;domain&gt;</code> against a
-  target{{if .AllowScan}}, or use the form above,{{end}} to get an answer.
-</p>
 {{end}}
 
 </main>

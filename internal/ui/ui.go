@@ -157,37 +157,106 @@ func verifyAgainst(creds map[string]string, user, pass string) bool {
 	return VerifyHtpasswdLine(entry, pass)
 }
 
-// recentAnsweredLimit caps the door's "recently answered" list — a
-// glance at what's fresh, not a second fleet table.
-const recentAnsweredLimit = 15
-
-// doorView is the shape consumed by dashboard.tmpl — the answer-first
-// entry surface (proposal.md "The door"): one input that starts a
-// scan and, underneath it, the recently answered targets as one-line
-// verdicts. No scan IDs, no rule IDs, no fleet table or matrix — those
-// stay reachable on /ui/trends.
+// doorView is the shape consumed by dashboard.tmpl — the vloot-first
+// entry surface (openspec change 2026-09-22-drie-lagen-ciso, spec.md
+// "De vloot is de eerste laag"): the organisation's fleet score, the
+// count of domains that are not soeverein, the per-stroom distribution,
+// the three costliest rules, and the domains themselves sorted worst
+// first. The scan input stays, but as an action inside the page, not
+// its headline (spec.md "een invoerveld ... SHALL niet de hoofdzaak
+// van de pagina zijn").
 type doorView struct {
 	GeneratedAt        string
-	HasAnswers         bool                   // true when at least one target has an answer to show
-	ScopedOrganisation *organisationLinkView  // populated only on /ui/orgs/{slug}
-	HasReporting       bool                   // controls whether the Trends nav link renders
+	HasReporting       bool                  // controls whether the Trends nav link renders
+	ScopedOrganisation *organisationLinkView // populated only on /ui/orgs/{slug}
+	OrganisationsList  []organisationLinkView // populated only when unscoped, so a multi-org instance can still reach a single vloot
 	OrgSlug            string                 // active org for nav-link scope persistence
 	AllowScan          bool                   // signed-in user: render the door's scan input
 	AgentHosts         []string               // enrolled, non-revoked agent hostnames — selectable from the same input
-	Recent             []recentAnswerView
+	FleetManageURL     string                 // /ui/orgs/{slug}/fleet — "" when unscoped (task 2.3: management stays where it is)
+
+	HasFleet bool // at least one domain with a scan to show
+
+	// The vloot score itself (fleet_score.go's FleetSummary) —
+	// proposal.md's valkuil: NotSovereign is shown right next to the
+	// score so a high X/N can never hide a failing domain.
+	X, N               int
+	Unanswered         int
+	NotSovereign       int
+	DomainsWithoutScan int
+	TopRules           []ConcernRow
+	Flows              []FlowRollup
+
+	Domains []doorDomainView
 }
 
-// recentAnswerView is one line under the door's input: a target
-// that already has an answer, in the sentence BuildAnswerVerdict
-// produced for it (spec.md "recently answered targets as one-line
-// verdicts").
-type recentAnswerView struct {
+// doorDomainView is one row in the door's vloot list — the same x/n
+// shape fleet.tmpl's row uses, without the schedule and delta columns:
+// those stay on /ui/orgs/{slug}/fleet, the fleet management page task
+// 2.3 leaves in place.
+type doorDomainView struct {
 	Domain     string
 	Kind       string
-	Verdict    string // ja | nee | onbekend
-	Headline   string // the rendered Dutch sentence
 	LastScanAt string
-	ReportURL  string // /ui/scans/{id}/assessment — the dedicated answer page is run 03's job
+	AnswerURL  string // /ui/scans/{id}/answer
+
+	HasScore     bool
+	X, N         int
+	Unanswered   int
+	WorstFlow    string
+	WorstVerdict string
+}
+
+// buildDoorDomains turns an organisation's (or the whole instance's)
+// snapshots into the door's domain rows, sorted worst score first
+// (spec.md "de lijst SHALL standaard gesorteerd zijn op de slechtste
+// score eerst") via the same fleetScorePercent ranking fleetHandler's
+// "sort=score" uses, so the two lists agree. A domain without a
+// voltooide scan — the same gate BuildFleetSummary applies — carries
+// no score and sorts after every scored domain, alphabetically.
+func buildDoorDomains(snaps []TargetSnapshot) []doorDomainView {
+	type scoredRow struct {
+		view  doorDomainView
+		score FleetScore
+	}
+	scored := make([]scoredRow, 0, len(snaps))
+	var unscanned []doorDomainView
+
+	for _, s := range snaps {
+		row := doorDomainView{Domain: s.Domain, Kind: string(s.Kind)}
+		if !s.LastScanAt.IsZero() {
+			row.LastScanAt = s.LastScanAt.UTC().Format(time.RFC3339)
+		}
+		if s.LastScanID != "" {
+			row.AnswerURL = "/ui/scans/" + s.LastScanID + "/answer"
+		}
+		switch models.ScanStatus(s.LastStatus) {
+		case models.ScanStatusComplete, models.ScanStatusPartial:
+		default:
+			unscanned = append(unscanned, row)
+			continue
+		}
+		assessments := make([]models.Assessment, 0, len(s.Assessments))
+		for _, a := range s.Assessments {
+			assessments = append(assessments, a)
+		}
+		fs := BuildFleetScore(assessments)
+		row.HasScore = true
+		row.X, row.N, row.Unanswered = fs.X, fs.N, fs.Unanswered
+		row.WorstFlow, row.WorstVerdict = fs.WorstFlow, fs.WorstVerdict
+		scored = append(scored, scoredRow{view: row, score: fs})
+	}
+
+	sort.SliceStable(scored, func(i, j int) bool {
+		return fleetScorePercent(scored[i].score) < fleetScorePercent(scored[j].score)
+	})
+	sort.Slice(unscanned, func(i, j int) bool { return unscanned[i].Domain < unscanned[j].Domain })
+
+	out := make([]doorDomainView, 0, len(snaps))
+	for _, s := range scored {
+		out = append(out, s.view)
+	}
+	return append(out, unscanned...)
 }
 
 // dashboardTargetRow is the glanceable per-target line on the fleet
@@ -381,9 +450,11 @@ func enrolledAgentHostnames(ctx context.Context, st *store.Store) []string {
 }
 
 // renderDoor fills the doorView struct + executes dashboard.tmpl —
-// the answer-first entry surface. When org is nil the view is the
-// instance-wide door; when org is set, the recently-answered list is
-// filtered to that organisation's targets.
+// the vloot-first entry surface. When org is nil the view covers every
+// target in the instance (mirroring /ui/trends' unscoped mode, with
+// the organisation list alongside so a multi-org instance can still
+// reach a single vloot); when org is set, the view is that
+// organisation's vloot alone.
 func renderDoor(w http.ResponseWriter, r *http.Request, st *store.Store, tmpl *template.Template, org *models.Organisation, allowScan bool) {
 	ctx := r.Context()
 	orgID := ""
@@ -399,53 +470,41 @@ func renderDoor(w http.ResponseWriter, r *http.Request, st *store.Store, tmpl *t
 	if org != nil {
 		orgSlug = org.Slug
 	}
+	summary := BuildFleetSummary(snaps, lookupRule)
 	view := doorView{
-		GeneratedAt:  time.Now().UTC().Format(time.RFC3339),
-		HasReporting: true,
-		OrgSlug:      orgSlug,
-		AllowScan:    allowScan,
+		GeneratedAt:        time.Now().UTC().Format(time.RFC3339),
+		HasReporting:       true,
+		OrgSlug:            orgSlug,
+		AllowScan:          allowScan,
+		X:                  summary.X,
+		N:                  summary.N,
+		Unanswered:         summary.Unanswered,
+		NotSovereign:       summary.NotSovereign,
+		DomainsWithoutScan: summary.DomainsWithoutScan,
+		TopRules:           summary.TopRules,
+		Flows:              summary.Flows,
+		Domains:            buildDoorDomains(snaps),
 	}
+	view.HasFleet = len(view.Domains) > 0
 	if allowScan {
 		view.AgentHosts = enrolledAgentHostnames(ctx, st)
 	}
-	// Recently answered — newest scan first, one line per target that
-	// has at least one Assessment. A target never assessed has nothing
-	// to answer yet, so it stays off this list rather than rendering a
-	// false "onbekend" (BuildAnswerVerdict(nil) would otherwise read
-	// identically to a scan that genuinely answered nothing).
-	sort.Slice(snaps, func(i, j int) bool { return snaps[i].LastScanAt.After(snaps[j].LastScanAt) })
-	for _, s := range snaps {
-		if len(s.Assessments) == 0 {
-			continue
-		}
-		assessments := make([]models.Assessment, 0, len(s.Assessments))
-		for _, a := range s.Assessments {
-			assessments = append(assessments, a)
-		}
-		v := BuildAnswerVerdict(assessments)
-		row := recentAnswerView{
-			Domain:   s.Domain,
-			Kind:     string(s.Kind),
-			Verdict:  v.Verdict,
-			Headline: v.Headline,
-		}
-		if !s.LastScanAt.IsZero() {
-			row.LastScanAt = s.LastScanAt.UTC().Format(time.RFC3339)
-		}
-		if s.LastScanID != "" {
-			row.ReportURL = "/ui/scans/" + s.LastScanID + "/answer"
-		}
-		view.Recent = append(view.Recent, row)
-		if len(view.Recent) >= recentAnsweredLimit {
-			break
-		}
-	}
-	view.HasAnswers = len(view.Recent) > 0
 	if org != nil {
 		view.ScopedOrganisation = &organisationLinkView{
 			Slug: org.Slug,
 			Name: org.Name,
 			URL:  "/ui/orgs/" + org.Slug,
+		}
+		view.FleetManageURL = "/ui/orgs/" + org.Slug + "/fleet"
+	} else if orgs, listErr := st.ListOrganisations(ctx); listErr == nil {
+		for _, o := range orgs {
+			targets, _ := st.ListTargetsByOrganisation(ctx, o.ID)
+			view.OrganisationsList = append(view.OrganisationsList, organisationLinkView{
+				Slug:        o.Slug,
+				Name:        o.Name,
+				URL:         "/ui/orgs/" + o.Slug,
+				TargetCount: len(targets),
+			})
 		}
 	}
 	render(w, tmpl, "dashboard.tmpl", view)

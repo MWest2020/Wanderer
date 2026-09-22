@@ -8,9 +8,9 @@
 - [x] 1.3 Tests incl. de valkuil: negen goede domeinen en één slecht.
 
 ## 2. `/ui/` wordt de vloot — run 02
-- [ ] 2.1 De vlootscore, de verdeling en de lijst (slechtste eerst).
-- [ ] 2.2 Het invoerveld blijft, als actie binnen de pagina.
-- [ ] 2.3 De oude "recent beantwoord"-lijst verdwijnt of gaat op in de
+- [x] 2.1 De vlootscore, de verdeling en de lijst (slechtste eerst).
+- [x] 2.2 Het invoerveld blijft, als actie binnen de pagina.
+- [x] 2.3 De oude "recent beantwoord"-lijst verdwijnt of gaat op in de
   vlootlijst; geen twee overzichten naast elkaar.
 
 ## 3. Het domein — run 03
