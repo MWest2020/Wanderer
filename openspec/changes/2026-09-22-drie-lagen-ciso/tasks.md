@@ -63,6 +63,12 @@
   daarop (gemeten 2026-09-22: 43 geslaagd, 2 gefaald; de
   contrastfouten waren toen al weg). Breng die twee in lijn met de
   nieuwe indeling — verander de UI NIET om een oude spec te plezieren.
-- [ ] 6.1 Playwright: vlootscore zichtbaar, slechtste domein bovenaan,
-  handeling op de antwoordpagina. In de juiste `testMatch`.
-- [ ] 6.2 docs + CHANGELOG.
+- [x] 6.1 Playwright: vlootscore zichtbaar
+  (`answer-first-flow.spec.ts:60`, `.fleet-score-total`), slechtste
+  domein bovenaan (`vloot-en-regels.spec.ts:46`), handeling op de
+  antwoordpagina (`vloot-en-regels.spec.ts:93`,
+  `.answer-remediation`). Alle drie in het `scan-dev`-project, dat ze
+  in zijn `testMatch` noemt — nagemeten: 45 geslaagd, 0 gefaald.
+- [x] 6.2 docs + CHANGELOG. `docs/how-to/operator.md` beschreef nog de
+  DAR-indeling die ADR-0018 vervangt; er staan nu drie lagen met de
+  routes erbij. CHANGELOG onder [0.8.1].

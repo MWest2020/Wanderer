@@ -223,12 +223,22 @@ fails fast at agent startup, before any Findings land.
 
 ### UI
 
-`/ui/` lists every registered organisation with a target count and
-a drill-in link. Per-organisation dashboards live at
-`/ui/orgs/{slug}` — same DAR shape (Dashboard / Analysis /
-Reporting) but filtered to that organisation. The Reporting page
-takes an optional `?org=<slug>` query parameter to filter the
-cross-target view.
+De UI heeft drie lagen, en die volgorde is een besluit
+([ADR-0018](../explanation/adr/0018-ui-three-layers.md), vervangt
+ADR-0017):
+
+1. **De vloot** — `/ui/`. Hoe staat het geheel ervoor: één score over
+   alle domeinen, de verdeling per stroom, en de domeinenlijst met het
+   slechtste bovenaan. Dit is de pagina waar iemand binnenkomt.
+2. **Eén domein** — `/ui/scans/{id}/answer`. De zeven vragen met ja /
+   nee / onbekend / n.v.t., elk met het waargenomen feit en, bij een
+   niet-soeverein antwoord, één concrete handeling.
+3. **De techniek** — `/ui/scans/{id}/assessment`. De onderbouwing:
+   bewijs per vraag, en de frameworktabellen achter één klik.
+
+Per organisatie gaat dat via `/ui/orgs/{slug}`, met dezelfde drie
+lagen maar gefilterd. De Reporting-pagina neemt een optionele
+`?org=<slug>` om de cross-target-weergave te filteren.
 
 #### The vloot screen
 
