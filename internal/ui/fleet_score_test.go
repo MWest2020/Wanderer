@@ -39,7 +39,7 @@ func TestBuildFleetScore(t *testing.T) {
 			want: FleetScore{
 				X: 6, N: 7, Unanswered: 0,
 				WorstFlow:    "Mail",
-				WorstVerdict: "mx hosts in US (outside EEA)",
+				WorstVerdict: "De mail wordt buiten de EER gerouteerd.",
 			},
 		},
 		{
@@ -59,7 +59,7 @@ func TestBuildFleetScore(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := BuildFleetScore(assessmentWith(tt.rationales...))
+			got := BuildFleetScore(assessmentWith(tt.rationales...), nil)
 			if got != tt.want {
 				t.Fatalf("BuildFleetScore() = %+v, want %+v", got, tt.want)
 			}
@@ -91,8 +91,8 @@ func TestBuildFleetScore_SameXNDifferentUnansweredAreNotEqual(t *testing.T) {
 		rationale("wand.technologie.no_us_hyperscaler", "geoip unavailable", models.ScoreOnbekend),
 	)
 
-	a := BuildFleetScore(fiveOfSeven)
-	b := BuildFleetScore(fiveOfSevenOneUnknown)
+	a := BuildFleetScore(fiveOfSeven, nil)
+	b := BuildFleetScore(fiveOfSevenOneUnknown, nil)
 
 	if a.X != b.X || a.N != b.N {
 		t.Fatalf("test setup broken: want equal x/n, got %+v and %+v", a, b)

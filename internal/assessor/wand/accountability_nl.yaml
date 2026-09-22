@@ -93,6 +93,60 @@ rules:
       afhankelijk: "Stel een permanente doorverwijzing van HTTP naar HTTPS in voor {path}."
       onbekend: "Controleer of de website bereikbaar is en probeer de test later opnieuw."
 
+# flow_verdicts is the Dutch answer-sheet verdict per outcome for the
+# seven sovereignty-flow rules (internal/ui/flowRules) — a separate
+# table from `rules:` above because these rules' remediation already
+# lives in `handelingen` below (they are not among the seven
+# accountability-sheet rules `rules:`'s own Remediation exists for).
+# Each entry is parametrised only by {feit} — the observed country/
+# party the UI reads off the rule's own Evidence findings
+# (internal/ui/flows.go flowFeit), never off this rule's English
+# Verdict sentence. {feit} is pre-formatted as either "" or
+# " — <fact>", so the template can append it to the sentence
+# unconditionally and still read cleanly when there is no evidence.
+flow_verdicts:
+  wand.juridisch.apex_ip_eea:
+    soeverein: "Ja — de hosting staat binnen de EER{feit}."
+    voldoende: "De hosting staat deels binnen de EER{feit}."
+    afhankelijk: "De hosting staat buiten de EER{feit}."
+    onbekend: "Onbekend welk land de hosting bedient{feit}."
+
+  wand.juridisch.mx_vendor_jurisdiction:
+    soeverein: "Ja — de mail wordt binnen de EER gerouteerd{feit}."
+    voldoende: "De mail wordt deels binnen de EER gerouteerd{feit}."
+    afhankelijk: "De mail wordt buiten de EER gerouteerd{feit}."
+    onbekend: "Onbekend waar de mail wordt gerouteerd{feit}."
+
+  wand.juridisch.ns_vendor_jurisdiction:
+    soeverein: "Ja — de DNS-beheerder zit binnen de EER{feit}."
+    voldoende: "De DNS-beheerder zit deels binnen de EER{feit}."
+    afhankelijk: "De DNS-beheerder zit buiten de EER{feit}."
+    onbekend: "Onbekend waar de DNS-beheerder zit{feit}."
+
+  wand.juridisch.cert_issuer_eea:
+    soeverein: "Ja — het certificaat is uitgegeven binnen de EER{feit}."
+    voldoende: "Het certificaat is deels binnen de EER uitgegeven{feit}."
+    afhankelijk: "Het certificaat is uitgegeven buiten de EER{feit}."
+    onbekend: "Onbekend waar het certificaat is uitgegeven{feit}."
+
+  wand.transit.eu_path:
+    soeverein: "Ja — het netwerkverkeer blijft binnen de EER{feit}."
+    voldoende: "Het netwerkverkeer blijft grotendeels binnen de EER{feit}."
+    afhankelijk: "Het netwerkverkeer verlaat de EER{feit}."
+    onbekend: "Onbekend welke route het netwerkverkeer volgt{feit}."
+
+  wand.technologie.no_us_hyperscaler:
+    soeverein: "Ja — er zit geen Amerikaanse hyperscaler tussen{feit}."
+    voldoende: "Geen bekende Amerikaanse hyperscaler gevonden in het pad{feit}."
+    afhankelijk: "Er zit een Amerikaanse hyperscaler tussen{feit}."
+    onbekend: "Onbekend of er een Amerikaanse hyperscaler tussen zit{feit}."
+
+  wand.technologie.third_parties_eea:
+    soeverein: "Ja — de derde partijen zijn in de EER gevestigd{feit}."
+    voldoende: "Een deel van de derde partijen is in de EER gevestigd{feit}."
+    afhankelijk: "De derde partijen zijn buiten de EER gevestigd{feit}."
+    onbekend: "Onbekend waar de derde partijen zijn gevestigd{feit}."
+
 # handelingen is the single generic "wat doe ik hieraan" line per wand
 # rule, used on the rule page (which has no domain-specific evidence
 # to build a richer sentence from, only the target's domain) and on

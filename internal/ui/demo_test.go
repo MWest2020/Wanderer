@@ -111,8 +111,8 @@ func TestDemoHandler_CompletedScanShowsVerdictAndDate(t *testing.T) {
 	if !strings.Contains(string(body), "Gescand op") {
 		t.Errorf("expected the scan date; body:\n%s", string(body))
 	}
-	if !strings.Contains(string(body), "cert issued in NL (EEA)") {
-		t.Errorf("expected the flow onderbouwing; body:\n%s", string(body))
+	if !strings.Contains(string(body), "het certificaat is uitgegeven binnen de EER") {
+		t.Errorf("expected the Dutch flow onderbouwing; body:\n%s", string(body))
 	}
 }
 

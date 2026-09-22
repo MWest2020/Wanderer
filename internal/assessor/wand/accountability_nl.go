@@ -28,12 +28,18 @@ type accountabilityNLFile struct {
 	// from Rules[...].Remediation, which only exists for the seven
 	// answer-sheet rules and carries richer, evidence-derived params.
 	Handelingen map[string]string `yaml:"handelingen"`
+	// FlowVerdicts is the Dutch verdict-per-outcome table for the seven
+	// sovereignty-flow rules (run 04b task 4.1) — a separate table from
+	// Rules because those rules' remediation already lives in
+	// Handelingen, not in a per-rule Remediation map.
+	FlowVerdicts map[string]map[string]string `yaml:"flow_verdicts"`
 }
 
 var (
 	accountabilityNLOnce        sync.Once
 	accountabilityNLMap         map[string]AccountabilityCopy
 	accountabilityNLHandelingen map[string]string
+	accountabilityNLFlowVerdict map[string]map[string]string
 	accountabilityNLErr         error
 )
 
@@ -46,6 +52,7 @@ func loadAccountabilityNL() (map[string]AccountabilityCopy, error) {
 		}
 		accountabilityNLMap = f.Rules
 		accountabilityNLHandelingen = f.Handelingen
+		accountabilityNLFlowVerdict = f.FlowVerdicts
 	})
 	return accountabilityNLMap, accountabilityNLErr
 }
@@ -71,4 +78,17 @@ func HandelingFor(ruleID string) (string, bool) {
 	}
 	h, ok := accountabilityNLHandelingen[ruleID]
 	return h, ok
+}
+
+// FlowVerdictFor returns the Dutch verdict-per-outcome map for a
+// sovereignty-flow rule ID (a full ID such as
+// "wand.juridisch.apex_ip_eea"), keyed by outcome ("soeverein",
+// "voldoende", "afhankelijk", "onbekend"). ok is false when ruleID has
+// no entry in accountability_nl.yaml's flow_verdicts table.
+func FlowVerdictFor(ruleID string) (map[string]string, bool) {
+	if _, err := loadAccountabilityNL(); err != nil {
+		return nil, false
+	}
+	m, ok := accountabilityNLFlowVerdict[ruleID]
+	return m, ok
 }

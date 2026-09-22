@@ -1226,10 +1226,13 @@ func TestFleetPage_ShowsScoreAndWorstFinding(t *testing.T) {
 	defer resp.Body.Close()
 	body, _ := io.ReadAll(resp.Body)
 	bodyStr := string(body)
-	for _, want := range []string{"1/2", "Mail", "mx hosts in US (outside EEA)"} {
+	for _, want := range []string{"1/2", "Mail", "De mail wordt buiten de EER gerouteerd."} {
 		if !strings.Contains(bodyStr, want) {
 			t.Errorf("fleet page missing %q; body:\n%s", want, bodyStr)
 		}
+	}
+	if strings.Contains(bodyStr, "mx hosts in US") {
+		t.Errorf("fleet page leaks the rule's raw English verdict; body:\n%s", bodyStr)
 	}
 }
 

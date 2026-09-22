@@ -20,7 +20,7 @@ func TestBuildAnswerVerdict_AllSoevereinIsPlainJa(t *testing.T) {
 		rationale("wand.juridisch.mx_vendor_jurisdiction", "mx in NL", models.ScoreSoeverein),
 		rationale("wand.juridisch.ns_vendor_jurisdiction", "ns in NL", models.ScoreSoeverein),
 	)
-	v := BuildAnswerVerdict(assessments)
+	v := BuildAnswerVerdict(assessments, nil)
 	if v.Verdict != "ja" {
 		t.Fatalf("verdict = %q, want ja", v.Verdict)
 	}
@@ -36,23 +36,39 @@ func TestBuildAnswerVerdict_AllSoevereinIsPlainJa(t *testing.T) {
 	}
 }
 
+// TestBuildAnswerVerdict_AfhankelijkIsNeeNamingTheFlow also guards the
+// run 04b regression: the "nee" headline must stay Dutch (never paste
+// the rule's raw English Verdict) while still naming the observed fact
+// (here, the mail flow's country) — losing the fact was exactly what
+// run 04 broke.
 func TestBuildAnswerVerdict_AfhankelijkIsNeeNamingTheFlow(t *testing.T) {
 	assessments := assessmentWith(
 		rationale("wand.juridisch.apex_ip_eea", "apex in NL", models.ScoreSoeverein),
-		rationale("wand.juridisch.mx_vendor_jurisdiction", "mx hosts in US (outside EEA)", models.ScoreAfhankelijk),
+		models.Rationale{
+			CriteriumID: "wand.juridisch.mx_vendor_jurisdiction",
+			Verdict:     "mx hosts in US (outside EEA)",
+			Score:       models.ScoreAfhankelijk,
+			Evidence:    []string{"f1"},
+		},
 	)
-	v := BuildAnswerVerdict(assessments)
+	findings := map[string]models.Finding{
+		"f1": {ID: "f1", ProbeID: "ip.asn", Subject: "mail.example.nl", Attributes: map[string]any{"country": "US"}},
+	}
+	v := BuildAnswerVerdict(assessments, findings)
 	if v.Verdict != "nee" {
 		t.Fatalf("verdict = %q, want nee", v.Verdict)
 	}
 	if v.DecidingFlow != "Mail" {
 		t.Errorf("deciding flow = %q, want Mail", v.DecidingFlow)
 	}
-	if v.DecidingVerdict != "mx hosts in US (outside EEA)" {
-		t.Errorf("deciding verdict = %q", v.DecidingVerdict)
+	if v.DecidingVerdict != "De mail wordt buiten de EER gerouteerd — mailservers in US." {
+		t.Errorf("deciding verdict = %q, want the Dutch sentence naming US", v.DecidingVerdict)
 	}
-	if !strings.Contains(v.Headline, "Mail") || !strings.Contains(v.Headline, "mx hosts in US") {
-		t.Errorf("headline %q does not name the deciding flow", v.Headline)
+	if strings.Contains(v.Headline, "mx hosts") || strings.Contains(v.Headline, "EEA") {
+		t.Errorf("headline %q leaks the rule's raw English verdict", v.Headline)
+	}
+	if !strings.Contains(v.Headline, "Mail") || !strings.Contains(v.Headline, "US") {
+		t.Errorf("headline %q does not name the deciding flow and its observed fact", v.Headline)
 	}
 	if !strings.HasPrefix(v.Headline, "Nee") {
 		t.Errorf("headline %q does not read Nee", v.Headline)
@@ -64,7 +80,7 @@ func TestBuildAnswerVerdict_TwoAfhankelijkPicksTheFixedOrderFirst(t *testing.T) 
 		rationale("wand.juridisch.mx_vendor_jurisdiction", "mx in US", models.ScoreAfhankelijk),
 		rationale("wand.juridisch.apex_ip_eea", "apex in US", models.ScoreAfhankelijk),
 	)
-	v := BuildAnswerVerdict(assessments)
+	v := BuildAnswerVerdict(assessments, nil)
 	if v.Verdict != "nee" {
 		t.Fatalf("verdict = %q, want nee", v.Verdict)
 	}
@@ -80,7 +96,7 @@ func TestBuildAnswerVerdict_HostingSoevereinDNSOnbekendIsNotAPlainJa(t *testing.
 		rationale("wand.juridisch.apex_ip_eea", "apex in NL", models.ScoreSoeverein),
 		rationale("wand.juridisch.ns_vendor_jurisdiction", "geoip unavailable", models.ScoreOnbekend),
 	)
-	v := BuildAnswerVerdict(assessments)
+	v := BuildAnswerVerdict(assessments, nil)
 	if v.Verdict != "ja" {
 		t.Fatalf("verdict = %q, want ja (no afhankelijk present)", v.Verdict)
 	}
@@ -101,7 +117,7 @@ func TestBuildAnswerVerdict_EverythingOnbekendIsOnbekend(t *testing.T) {
 		rationale("wand.juridisch.apex_ip_eea", "probe failed", models.ScoreOnbekend),
 		rationale("wand.juridisch.mx_vendor_jurisdiction", "probe failed", models.ScoreOnbekend),
 	)
-	v := BuildAnswerVerdict(assessments)
+	v := BuildAnswerVerdict(assessments, nil)
 	if v.Verdict != "onbekend" {
 		t.Fatalf("verdict = %q, want onbekend", v.Verdict)
 	}
@@ -117,7 +133,7 @@ func TestBuildAnswerVerdict_EverythingOnbekendIsOnbekend(t *testing.T) {
 }
 
 func TestBuildAnswerVerdict_NoFlowsAtAllIsOnbekend(t *testing.T) {
-	v := BuildAnswerVerdict(nil)
+	v := BuildAnswerVerdict(nil, nil)
 	if v.Verdict != "onbekend" {
 		t.Fatalf("verdict = %q, want onbekend", v.Verdict)
 	}
@@ -133,7 +149,7 @@ func TestBuildAnswerVerdict_AssessmentPredatingADimensionDoesNotCountAsNee(t *te
 	assessments := assessmentWith(
 		rationale("wand.juridisch.apex_ip_eea", "apex in NL", models.ScoreSoeverein),
 	)
-	v := BuildAnswerVerdict(assessments)
+	v := BuildAnswerVerdict(assessments, nil)
 	if v.Verdict != "ja" {
 		t.Fatalf("verdict = %q, want ja", v.Verdict)
 	}

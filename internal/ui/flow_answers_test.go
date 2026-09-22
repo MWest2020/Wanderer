@@ -7,6 +7,14 @@ import (
 	"github.com/MWest2020/wanderer/pkg/models"
 )
 
+// TestBuildFlowAnswers_MapsScoreToAnswerAndKeepsObservedFact guards the
+// run 04b regression: run 04 made this row's verdict fully Dutch but,
+// in doing so, dropped the specific country the rule observed — the
+// page read "De hosting staat buiten de EER" with no way to tell which
+// country. The verdict SHALL be Dutch (spec.md "Eén taal per laag")
+// AND SHALL still name the observed fact (here, NL / US), read off the
+// Evidence findings' own `country` attribute rather than pasted from
+// the rule's English Verdict sentence.
 func TestBuildFlowAnswers_MapsScoreToAnswerAndKeepsObservedFact(t *testing.T) {
 	a := models.Assessment{Framework: "wand", Dimensions: []models.DimensionScore{{
 		Dimension: models.DimensionJuridisch,
@@ -18,6 +26,7 @@ func TestBuildFlowAnswers_MapsScoreToAnswerAndKeepsObservedFact(t *testing.T) {
 	}}}
 	findings := map[string]models.Finding{
 		"f1": {ID: "f1", ProbeID: "ip.asn", Subject: "example.nl", Attributes: map[string]any{"country": "NL"}},
+		"f2": {ID: "f2", ProbeID: "ip.asn", Subject: "mail.example.nl", Attributes: map[string]any{"country": "US"}},
 	}
 	rows := BuildFlowAnswers([]models.Assessment{a}, findings, "example.nl")
 	if len(rows) != 2 {
@@ -34,8 +43,14 @@ func TestBuildFlowAnswers_MapsScoreToAnswerAndKeepsObservedFact(t *testing.T) {
 	if hosting.Question == "" {
 		t.Error("expected a plain-language Dutch question")
 	}
-	if hosting.Verdict != "apex IPs in NL (EEA)" {
-		t.Errorf("verdict = %q, want the rule's own observed-fact sentence unchanged", hosting.Verdict)
+	if strings.Contains(hosting.Verdict, "apex IPs in NL") || strings.Contains(hosting.Verdict, "EEA") {
+		t.Errorf("verdict = %q, leaks the rule's raw English sentence", hosting.Verdict)
+	}
+	if !strings.Contains(hosting.Verdict, "EER") {
+		t.Errorf("verdict = %q, want the Dutch answer-sheet sentence", hosting.Verdict)
+	}
+	if !strings.Contains(hosting.Verdict, "NL") {
+		t.Errorf("verdict = %q, want it to still name the observed country (NL)", hosting.Verdict)
 	}
 	if len(hosting.Evidence) != 1 || hosting.Evidence[0].ProbeID != "ip.asn" {
 		t.Errorf("expected the finding behind apex_ip_eea to be collapsed into Evidence, got %+v", hosting.Evidence)
@@ -44,6 +59,9 @@ func TestBuildFlowAnswers_MapsScoreToAnswerAndKeepsObservedFact(t *testing.T) {
 	mail := rows[1]
 	if mail.AnswerClass != "nee" || mail.AnswerLabel != "Nee" {
 		t.Errorf("mail answer = %s/%s, want nee/Nee", mail.AnswerClass, mail.AnswerLabel)
+	}
+	if !strings.Contains(mail.Verdict, "US") {
+		t.Errorf("verdict = %q, want it to still name the observed country (US)", mail.Verdict)
 	}
 	if mail.Remediation == "" {
 		t.Error("expected a remediation line for the failing mail flow")

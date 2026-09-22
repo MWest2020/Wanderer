@@ -1,6 +1,8 @@
 package ui
 
 import (
+	"strings"
+
 	"github.com/MWest2020/wanderer/internal/assessor/wand"
 	"github.com/MWest2020/wanderer/pkg/models"
 )
@@ -55,34 +57,153 @@ func isSovereigntyFlowRule(ruleID string) bool {
 // It reads the per-rule rationales (which already carry the observed
 // verdict + score) and emits one Flow per known flow rule, in a fixed
 // order. Rules that did not fire (no rationale) are omitted. No EEA
-// logic lives here — the flows mirror what the rule pack already scored.
-func SovereigntyFlows(assessments []models.Assessment) []Flow {
+// logic lives here — the flows mirror what the rule pack already
+// scored; only the verdict's *language* is translated here, via
+// dutchFlowVerdict, from the Dutch answer-sheet table (spec.md "Eén
+// taal per laag"). findingsByID resolves a rule's Evidence back to the
+// Finding that produced it so the Dutch verdict can name the observed
+// fact (dutchFlowVerdict's {feit}); it may be nil where no findings are
+// available (e.g. cross-target fleet aggregation), in which case the
+// verdict is still Dutch but names no specific fact.
+func SovereigntyFlows(assessments []models.Assessment, findingsByID map[string]models.Finding) []Flow {
 	// Index the latest rationale per rule ID across all frameworks.
-	type rv struct {
-		verdict string
-		score   models.Score
-	}
-	byRule := map[string]rv{}
+	byRule := map[string]models.Rationale{}
 	for _, a := range assessments {
 		for _, d := range a.Dimensions {
 			for _, r := range d.Rationale {
-				byRule[r.CriteriumID] = rv{verdict: r.Verdict, score: r.Score}
+				byRule[r.CriteriumID] = r
 			}
 		}
 	}
 	var flows []Flow
 	for _, fr := range flowRules {
-		r, ok := byRule[fr.id]
+		rat, ok := byRule[fr.id]
 		if !ok {
 			continue
 		}
 		flows = append(flows, Flow{
 			Label:   fr.label,
-			Verdict: r.verdict,
-			Score:   string(r.score),
+			Verdict: dutchFlowVerdict(fr.id, rat.Score, flowFeit(fr.id, rat, findingsByID)),
+			Score:   string(rat.Score),
 		})
 	}
 	return flows
+}
+
+// dutchFlowVerdict renders a sovereignty-flow rule's outcome as the
+// Dutch answer-sheet sentence for ruleID + score, from
+// accountability_nl.yaml's rules table — never a raw fallback to the
+// rule's own English Verdict (spec.md "Eén taal per laag": a shown
+// verdict SHALL come from the table). feit is the pre-formatted
+// observed-fact clause from flowFeit (either "" or " — <fact>"),
+// spliced into the template's {feit} placeholder. Returns "" when
+// ruleID or the outcome has no table entry, rather than fabricating
+// text — task 4.3 guards this with
+// TestDutchFlowVerdict_UnknownRuleNeverFallsBackToRawEnglish.
+func dutchFlowVerdict(ruleID string, score models.Score, feit string) string {
+	verdicts, ok := wand.FlowVerdictFor(ruleID)
+	if !ok {
+		return ""
+	}
+	outcome := string(score)
+	if score == "" || score == models.ScoreOnbekend {
+		outcome = "onbekend"
+	}
+	tmpl, ok := verdicts[outcome]
+	if !ok {
+		return ""
+	}
+	return fillParams(tmpl, map[string]string{"feit": feit})
+}
+
+// flowFeitLead is the Dutch noun phrase dutchFlowVerdict's {feit}
+// leads with, per flow rule — "apex-adressen in NL" rather than a bare
+// "NL" — so the fact reads as a complete clause on its own.
+var flowFeitLead = map[string]string{
+	"wand.juridisch.apex_ip_eea":           "apex-adressen in",
+	"wand.juridisch.mx_vendor_jurisdiction": "mailservers in",
+	"wand.juridisch.ns_vendor_jurisdiction": "nameservers in",
+	"wand.juridisch.cert_issuer_eea":       "certificaat uitgegeven in",
+	"wand.transit.eu_path":                 "bestemming in",
+	"wand.technologie.no_us_hyperscaler":   "hyperscaler",
+	"wand.technologie.third_parties_eea":   "derde partijen in",
+}
+
+// flowFeit reads the observed country/party behind a flow rule's
+// rationale off the Finding(s) its Evidence points at — the same
+// structured attributes the rule itself matched on (`country`,
+// `organisation`, or `issuer_country` for the certificate rule) —
+// rather than parsing them out of the rule's English Verdict sentence.
+// Parsing the English sentence would either paste it whole (half-
+// English, the bug run 04 introduced by dropping it entirely) or
+// require regexing free-form prose, which this package's "boring and
+// auditable" convention rules out. Returns "" when findingsByID is nil
+// or none of the Evidence IDs resolve, so dutchFlowVerdict's {feit}
+// degrades to an empty clause rather than a dangling " — ".
+func flowFeit(ruleID string, rat models.Rationale, findingsByID map[string]models.Finding) string {
+	var countries, parties []string
+	seenC, seenP := map[string]bool{}, map[string]bool{}
+	for _, id := range rat.Evidence {
+		f, ok := findingsByID[id]
+		if !ok {
+			continue
+		}
+		if ruleID == "wand.juridisch.cert_issuer_eea" {
+			for _, c := range flowStringsAttr(f.Attributes, "issuer_country") {
+				c = strings.ToUpper(c)
+				if c != "" && !seenC[c] {
+					seenC[c] = true
+					countries = append(countries, c)
+				}
+			}
+			continue
+		}
+		if c, _ := f.Attributes["country"].(string); c != "" && !seenC[c] {
+			seenC[c] = true
+			countries = append(countries, c)
+		}
+		if org, _ := f.Attributes["organisation"].(string); org != "" && !seenP[org] {
+			seenP[org] = true
+			parties = append(parties, org)
+		}
+	}
+	var fact string
+	switch {
+	case len(countries) > 0 && len(parties) > 0:
+		fact = strings.Join(countries, ", ") + " (" + strings.Join(parties, ", ") + ")"
+	case len(countries) > 0:
+		fact = strings.Join(countries, ", ")
+	case len(parties) > 0:
+		fact = strings.Join(parties, ", ")
+	default:
+		return ""
+	}
+	if lead := flowFeitLead[ruleID]; lead != "" {
+		return " — " + lead + " " + fact
+	}
+	return " — " + fact
+}
+
+// flowStringsAttr reads a list-shaped attribute, tolerant of the
+// in-memory ([]string) and JSON-reloaded ([]any) shapes a Finding's
+// Attributes can carry — mirrors wand.stringsFromAttr (unexported,
+// duplicated here for this single UI caller).
+func flowStringsAttr(attrs map[string]any, key string) []string {
+	switch v := attrs[key].(type) {
+	case []string:
+		return v
+	case []any:
+		out := make([]string, 0, len(v))
+		for _, item := range v {
+			if s, ok := item.(string); ok {
+				out = append(out, s)
+			}
+		}
+		return out
+	case string:
+		return []string{v}
+	}
+	return nil
 }
 
 // classifyFlows buckets a scan's sovereignty flows the same way
@@ -135,27 +256,23 @@ type FlowState struct {
 // on" and "the rule has not been reached yet" look identical in the
 // Rationale — the only way to tell them apart is whether the scan
 // could still produce more findings.
-func BuildFlowStates(assessments []models.Assessment, done bool, domain string) []FlowState {
-	type rv struct {
-		verdict   string
-		score     models.Score
-		evidenced bool
-	}
-	byRule := map[string]rv{}
+func BuildFlowStates(assessments []models.Assessment, done bool, domain string, findingsByID map[string]models.Finding) []FlowState {
+	byRule := map[string]models.Rationale{}
 	for _, a := range assessments {
 		for _, d := range a.Dimensions {
 			for _, r := range d.Rationale {
-				byRule[r.CriteriumID] = rv{verdict: r.Verdict, score: r.Score, evidenced: len(r.Evidence) > 0}
+				byRule[r.CriteriumID] = r
 			}
 		}
 	}
 	out := make([]FlowState, 0, len(flowRules))
 	for _, fr := range flowRules {
 		r, ok := byRule[fr.id]
+		evidenced := ok && len(r.Evidence) > 0
 		switch {
-		case ok && r.evidenced:
-			fs := FlowState{Label: fr.label, State: "beantwoord", Verdict: r.verdict, Score: string(r.score)}
-			if r.score == models.ScoreAfhankelijk {
+		case evidenced:
+			fs := FlowState{Label: fr.label, State: "beantwoord", Verdict: dutchFlowVerdict(fr.id, r.Score, flowFeit(fr.id, r, findingsByID)), Score: string(r.Score)}
+			if r.Score == models.ScoreAfhankelijk {
 				if h, ok := wand.HandelingFor(fr.id); ok {
 					fs.Remediation = fillParams(h, map[string]string{"domein": domain})
 				}
@@ -197,7 +314,7 @@ func SovereigntyFlowRollup(snaps []TargetSnapshot) []FlowRollup {
 		for _, a := range s.Assessments {
 			assessments = append(assessments, a)
 		}
-		for _, f := range SovereigntyFlows(assessments) {
+		for _, f := range SovereigntyFlows(assessments, nil) {
 			a := byLabel[f.Label]
 			if a == nil {
 				a = &acc{}
