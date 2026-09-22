@@ -4,7 +4,7 @@ description: >-
   writes the sovereignty verdict to the job summary. Runs entirely on this
   runner: it talks to the scanned domain and to this repository's releases,
   and to nothing of ours.
-author: 'Conduction'
+author: 'MWest2020'
 
 branding:
   icon: 'compass'

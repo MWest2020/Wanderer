@@ -264,7 +264,7 @@ test suite.
 
 ### Requirement: First-party rule pack is named `wand`, not `dictu`
 
-The Conduction-owned rule pack SHALL be identified as `wand`
+The MWest2020-owned rule pack SHALL be identified as `wand`
 (Wanderer-NL) in every output Wanderer produces: the persisted
 `Assessment.Framework` value, the rule IDs (under the
 `wand.<dimension>.<short>` shape), the CLI flag value
@@ -273,7 +273,7 @@ surface that names the framework. The DICTU
 *Toetsingsinstrument Soevereiniteit Clouddiensten* SHALL be
 credited in the assessor docs and ADR-0011 as the public
 framework that inspired the rule set; the implementation,
-ownership, and label are Conduction's.
+ownership, and label are MWest2020's.
 
 #### Scenario: New assessment carries the wand framework label
 

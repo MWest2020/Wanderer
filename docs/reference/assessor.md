@@ -20,7 +20,7 @@ Its rule semantics were inspired by the Dutch government's
 publicly available *Toetsingsinstrument Soevereiniteit
 Clouddiensten*, published by **DICTU** (Dienst ICT Uitvoering, EZK).
 The rule authoring, the implementation, and the ongoing
-maintenance are Conduction's; DICTU does not endorse, certify,
+maintenance are MWest2020's; DICTU does not endorse, certify,
 or otherwise sanction Wanderer or the wand pack. See
 [ADR-0011](../explanation/adr/0011-rename-dictu-to-wand.md) for the
 rationale behind the rename.

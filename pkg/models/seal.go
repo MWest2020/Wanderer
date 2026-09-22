@@ -51,10 +51,10 @@ func (l SealLevel) ToScore() Score {
 type Framework string
 
 const (
-	// FrameworkWand is Conduction's first-party rule pack, formerly
+	// FrameworkWand is this project's first-party rule pack, formerly
 	// known as DICTU. The DICTU Toetsingsinstrument Soevereiniteit
 	// Clouddiensten inspired the rule semantics; the implementation
-	// and the `wand` (Wanderer-NL) name are Conduction's. See ADR-0011.
+	// and the `wand` (Wanderer-NL) name are MWest2020's. See ADR-0011.
 	FrameworkWand  Framework = "wand"
 	FrameworkEUCSF Framework = "eucsf"
 )

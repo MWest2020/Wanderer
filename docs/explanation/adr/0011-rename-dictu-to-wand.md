@@ -12,7 +12,7 @@ last_reviewed: 2026-07-12
 the IT-execution agency under the Ministry of Economic Affairs
 and Climate that publishes the *Toetsingsinstrument Soevereiniteit
 Clouddiensten*. Wanderer's rule semantics were inspired by that
-publicly-available framework, but Wanderer is a Conduction
+publicly-available framework, but Wanderer is an MWest2020
 product and we have no DICTU endorsement. The `dictu` label —
 showing up on every persisted Assessment, every CLI invocation,
 every rule ID, every UI screen — implied an affiliation we do
@@ -36,7 +36,7 @@ right time to clean it up is before any external rollout.
   JSON-encoded `criterium_id` starting with `dictu.` to start
   with `wand.` instead — both inside one transaction.
 
-**The `wand` name.** Short for "Wanderer-NL". Conduction-owned,
+**The `wand` name.** Short for "Wanderer-NL". MWest2020-owned,
 no agency claim, distinct from the `eucsf.sov2.*` SEAL prefix
 that already exists. Alternatives considered:
 
@@ -57,7 +57,7 @@ Soevereiniteit Clouddiensten*. We credit the framework as the
 public source of inspiration in `docs/assessor.md` and in this
 ADR; we do not claim or imply DICTU endorsement of Wanderer or
 the wand pack. The independent implementation, the rule
-authoring, and the ongoing maintenance are Conduction's.
+authoring, and the ongoing maintenance are MWest2020's.
 
 Reference: <https://www.dictu.nl/>
 

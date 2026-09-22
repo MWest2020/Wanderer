@@ -31,7 +31,7 @@ its own **wand** rule pack (Wanderer-NL — inspired by the
 [DICTU Toetsingsinstrument Soevereiniteit Clouddiensten][dictu], independent
 implementation) so that "how sovereign are we?" becomes a question you can
 answer with evidence instead of a form. The DICTU framework is credited as
-the public source of inspiration; Conduction owns and maintains the wand
+the public source of inspiration; MWest2020 owns and maintains the wand
 implementation. See [ADR-0011](docs/decisions/0011-rename-dictu-to-wand.md).
 
 [dictu]: https://www.dictu.nl/documenten/publicaties/2025/toetsingsinstrument-soevereiniteit-clouddiensten
@@ -167,7 +167,7 @@ docs/                   # Design notes, operator guide
 
 ## License
 
-[EUPL-1.2](LICENSE) — compatible with Conduction's other open-source components.
+[EUPL-1.2](LICENSE).
 
 ## Name
 

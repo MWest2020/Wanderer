@@ -22,7 +22,7 @@ carry an explicit slug, so single-customer deployments need no
 configuration.
 
 The pivot exists because Wanderer is intended to be run by
-operators who watch *their* portfolio — a Conduction-style
+operators who watch *their* portfolio — a
 delivery shop watching multiple customer organisations on one
 instance, or a single ministry watching its own estate. The
 dashboard, reporting, MCP surface, and CLI all carry the
