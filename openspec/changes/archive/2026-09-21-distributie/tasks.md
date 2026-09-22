@@ -34,5 +34,5 @@
   plaatsvervangende zin.
 
 ## 4. Documentatie
-- [x] 3.1 CHANGELOG + een korte pagina "in je pijplijn" met de
+- [x] 4.1 CHANGELOG + een korte pagina "in je pijplijn" met de
   waarschuwing dat een soevereiniteitsoordeel geen bouwfout is.
