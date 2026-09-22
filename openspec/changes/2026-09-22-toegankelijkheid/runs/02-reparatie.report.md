@@ -138,3 +138,94 @@ Dit run-rapport is geschreven op het einde van het toegewezen budget
 ($5). De meeste kosten zaten in het zelf narekenen van contrast via een
 Go-testpakket (geen `python3`/`go run` beschikbaar in de sandbox) en in
 het lezen van alle templates om elk oordeel-element te vinden.
+
+---
+
+## Vervolg — tweede poging (linkkleur op de onderbouwingspagina)
+
+Uitgangspunt: het task-ref bestand is bijgewerkt met de nameting
+buiten de kooi (42 geslaagd, 3 gefaald, allemaal dezelfde oorzaak:
+`--accent` `#1a73e8` op de getinte achtergronden van de
+onderbouwingspagina).
+
+### De rekensom
+Correctie op de vorige poging: `tmp_contrast.py` en `tmp_contrast/`
+blijken NIET untracked scratch te zijn — `git ls-files` en `git diff
+--stat` laten zien dat ze in commit `5ce27c0` (de vorige builder-run)
+zijn meegecommit, ondanks dat dat run-rapport meldde ze zelf niet
+gestaged te hebben. Ze staan dus gewoon op deze branch.
+
+Zelfde rekenaanpak als in de eerste poging: tijdelijk een testfunctie
+aan `tmp_contrast/main_test.go` toegevoegd die de twee gerapporteerde
+achtergronden reconstrueert, doorgerekend, en de toevoeging daarna weer
+teruggedraaid (`git checkout -- tmp_contrast/main_test.go`) zodat dit
+tracked-maar-buiten-scope bestand ongewijzigd blijft in mijn diff:
+
+- `.dimension-card` (de kaart om elke rationale-tabel) heeft
+  `background: #fafafa`.
+- `.score-row-afhankelijk` legt daarbovenop `rgba(217, 83, 79, 0.04)`
+  — dat is de OUDE (pre-run-02) `#d9534f`-tint, geen CSS-variabele.
+  Die twee samen blenden naar `#f9f3f3`, exact het tweede getal uit de
+  taak.
+
+Nagerekend (`go test ./tmp_contrast/... -run TestLinkColorOnDimensionCard -v`):
+```
+accent(#1a73e8) on card bg=#fafafa contrast=4.316
+accent(#1a73e8) on row bg=#f9f3f3 contrast=4.107
+```
+Komt overeen met de gerapporteerde 4,31 en 4,1.
+
+### De fix
+`--accent` (`internal/ui/static/main.css`) verdonkerd van `#1a73e8`
+naar `#1558b0`:
+```
+fg=#1558b0  onWhite=6.875  onCard(#fafafa)=6.586  onRow(#f9f3f3)=6.267
+```
+Ruim boven 4,5:1 op alle drie de achtergronden, met marge (niet
+grensgeval-krap zoals de oude `#1a73e8` op wit was: 4,505).
+
+Gekozen voor een globale `--accent`-wijziging in plaats van een
+scope-only `.rationales a`-override: `--accent` wordt verder alleen
+gebruikt als achtergrond-met-wit-tekst (`.nav-link.is-active`,
+`.scan-form button`) of als decoratie (SVG-fill, border-left) —
+verdonkeren verbetert die gevallen alleen (meer contrast tegen wit) en
+verslechtert niets. Nagekeken: geen andere plek in `main.css` of de
+templates gebruikt `#1a73e8` hardcoded (`grep -rn "1a73e8"` — alleen
+nog de toelichtende comment in `main.css` zelf).
+
+### Task-status
+- 2.1–2.4, 3.1: blijven aangevinkt (ongewijzigd t.o.v. eerste poging,
+  op deze linkkleur-fix na die onder 2.1 valt — oordeelkleuren en hun
+  contrast).
+- 2.5: **nog steeds niet aangevinkt.** Zelfde reden als de eerste
+  poging: geen egress naar de Playwright-CDN in deze kooi, dus ik kan
+  de suite niet zelf draaien. De drie eerder gerapporteerde
+  faalgevallen hebben één gemeenschappelijke oorzaak
+  (`--accent`-contrast op de onderbouwingspagina) en die is nu
+  volgens de formule opgelost met ruime marge — maar dat is een
+  berekening, geen axe-run. **Vraag aan jou: nameten met Chromium en
+  2.5 aanvinken als de suite daadwerkelijk groen is.**
+
+### Verificatie (deze poging)
+- `go build ./...` — clean.
+- `go vet ./...` — clean.
+- `go test ./...` — alle packages `ok`, inclusief `internal/ui` en het
+  (tracked, maar buiten scope) `tmp_contrast` scratch-pakket.
+- `openspec validate 2026-09-22-toegankelijkheid --strict` — "Change
+  '2026-09-22-toegankelijkheid' is valid".
+- `grep -rln "1a73e8" internal/ui/ tests/playwright/` — geen
+  hardcoded verwijzingen naar de oude kleur buiten de toelichtende
+  comment in `main.css`.
+
+### `tmp_contrast.py` en `tmp_contrast/` — correctie
+Deze bleken dus, anders dan het vorige run-rapport aannam, gewoon
+gecommit te zitten (`git log --oneline -- tmp_contrast/` wijst naar
+`5ce27c0`). Ze horen niet bij deze change (puur rekenscratch voor het
+contrast, geen implementatie/spec/doc) en `git ls-files` bevestigt dat
+ze op de branch staan. Verwijderen zou een `git rm` van bestaande,
+gecommitte bestanden zijn — dat valt buiten de taken 2.1–3.1/2.5 uit
+mijn taak-ref, dus zoals de agent-instructies voorschrijven ("fixes
+die je buiten je scope tegenkomt: noteer, voer niet uit") laat ik dat
+liggen en meld het hier. **Graag `tmp_contrast.py` en `tmp_contrast/`
+met `git rm` verwijderen voor het mergen** — ze bevatten geen
+geheimen, alleen een WCAG-contrastcalculator.

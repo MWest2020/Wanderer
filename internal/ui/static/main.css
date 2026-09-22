@@ -3,12 +3,15 @@
   --fg: #1a1a1a;
   --muted: #666;
   --border: #ddd;
-  --accent: #1a73e8;
+  --accent: #1558b0;
   /* Verdict/status colours below are chosen so foreground-on-white AND
      foreground-on-their-own-tinted-badge-background both clear 4.5:1
      (WCAG 2.1 AA) at the badges' real size (13.6px, normal weight).
      Computed with the WCAG relative-luminance formula, not eyeballed —
-     see run 02 report for the numbers. */
+     see run 02 report for the numbers. --accent was darkened from
+     #1a73e8 in a follow-up pass: the evidence links on the assessment
+     page sit on #fafafa (.dimension-card) and #f9f3f3 (afhankelijk row
+     tint over that), where #1a73e8 only cleared 4.32/4.11. */
   --info: #495057;
   --observation: #7a5b00;
   --concern: #fd7e14;

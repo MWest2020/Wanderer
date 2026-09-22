@@ -23,7 +23,11 @@ once a first release is cut. Until then every entry lives under
   ongewijzigd — dit is uitsluitend een visuele/leesbaarheidsfix bovenop
   de axe-gate uit run 01. Zie [`docs/reference/accessibility.md`](docs/reference/accessibility.md):
   **een groene run betekent "geen geautomatiseerd te vinden fouten van
-  dit type", niet "toegankelijk".**
+  dit type", niet "toegankelijk".** Vervolgens bleek de linkkleur
+  (`--accent`, `#1a73e8`) op de onderbouwingspagina te licht tegen de
+  getinte kaart-/rij-achtergronden (`#fafafa` resp. `#f9f3f3`): 4,32
+  en 4,11 in plaats van 4,5. `--accent` is verdonkerd naar `#1558b0`
+  (6,88 op wit, 6,59 op `#fafafa`, 6,27 op `#f9f3f3`).
 
 ### Added
 
