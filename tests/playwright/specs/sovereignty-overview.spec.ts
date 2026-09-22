@@ -11,6 +11,7 @@
 // updated to match that markup instead of the old table.
 
 import { test, expect } from "@playwright/test";
+import { checkAccessibility } from "../support/axe";
 
 test.describe("Sovereignty overview", () => {
   test("assessment page shows the synthesis panel with flow rows", async ({
@@ -44,6 +45,7 @@ test.describe("Sovereignty overview", () => {
     await expect(page.locator("svg.sov-diagram")).toBeVisible();
     await expect(page.locator("svg.sov-diagram circle.hub")).toBeVisible();
     expect(await page.locator("svg.sov-diagram circle.node").count()).toBeGreaterThan(0);
+    await checkAccessibility(page, "onderbouwing");
   });
 
   test("Trends rolls flows up across targets (moved off the door by answer-first-ui)", async ({ page }) => {
