@@ -29,6 +29,13 @@ De gate uit run 01 staat en de suite is daardoor rood: 39 geslaagd,
   groene run betekent "geen geautomatiseerd te vinden fouten van dit
   type", niet "toegankelijk".
 
+## Stand na de eerste poging (gemeten 2026-09-22, buiten de kooi)
+Van 6 gefaald naar **3**; de oordeelkleuren halen het nu. Wat rest is
+één geval, veertien keer op de onderbouwingspagina: de LINKkleur
+`#1a73e8` op de licht getinte rijachtergronden haalt **4,31** (op
+`#fafafa`) en **4,1** (op `#f9f3f3`) — net te laag. Maak die
+linkkleur donkerder, of de rijtint lichter. Beide mag; reken na.
+
 ## Let op
 Raak de oordeelsLOGICA niet aan — dit gaat alleen over hoe het eruitziet
 en of het leesbaar is. Dezelfde findings horen dezelfde oordelen te
