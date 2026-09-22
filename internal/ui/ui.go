@@ -1168,6 +1168,7 @@ type answerView struct {
 	JustStarted   bool
 	Headline      string
 	Verdict       string // ja | nee | onbekend; empty when JustStarted
+	X, N          int    // BuildFleetScore's x/n for this one domain (spec.md "naast de oordeelzin")
 	Unanswered    int
 	Flows         []FlowState
 	AssessmentURL string // one link to the reasoning (run 04's page does not exist yet)
@@ -1220,8 +1221,11 @@ func answerHandler(st *store.Store, tmpl *template.Template) http.HandlerFunc {
 			v := BuildAnswerVerdict(assessments)
 			view.Verdict = v.Verdict
 			view.Headline = v.Headline
-			view.Unanswered = v.Unanswered
-			view.Flows = BuildFlowStates(assessments, done)
+			fs := BuildFleetScore(assessments)
+			view.X = fs.X
+			view.N = fs.N
+			view.Unanswered = fs.Unanswered
+			view.Flows = BuildFlowStates(assessments, done, subject)
 		}
 		render(w, tmpl, "answer.tmpl", view)
 	}

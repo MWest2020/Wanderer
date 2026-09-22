@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"bytes"
 	"strings"
 	"testing"
 	"time"
@@ -230,6 +231,116 @@ func TestTopConcerns_NonAfhankelijkIgnored(t *testing.T) {
 	}
 	if got := TopConcerns(snaps, nil, 5); len(got) != 0 {
 		t.Errorf("expected zero concerns, got %d (%+v)", len(got), got)
+	}
+}
+
+func TestTopConcerns_TotalIsDenominatorForFailRate(t *testing.T) {
+	// run 03 task 2.4: "faalt op X van Y domeinen" needs Y — how many
+	// domains this rule was evaluated against, not just how many
+	// failed. Three targets: two afhankelijk, one soeverein — Total
+	// must be 3, TargetCount must stay 2 (the count itself is
+	// untouched, still afhankelijk-only).
+	snaps := []TargetSnapshot{
+		{TargetID: "t1", Assessments: map[string]models.Assessment{
+			"wand": {Dimensions: []models.DimensionScore{{Rationale: []models.Rationale{
+				{CriteriumID: "wand.juridisch.cert_issuer_eea", Score: models.ScoreAfhankelijk},
+			}}}},
+		}},
+		{TargetID: "t2", Assessments: map[string]models.Assessment{
+			"wand": {Dimensions: []models.DimensionScore{{Rationale: []models.Rationale{
+				{CriteriumID: "wand.juridisch.cert_issuer_eea", Score: models.ScoreAfhankelijk},
+			}}}},
+		}},
+		{TargetID: "t3", Assessments: map[string]models.Assessment{
+			"wand": {Dimensions: []models.DimensionScore{{Rationale: []models.Rationale{
+				{CriteriumID: "wand.juridisch.cert_issuer_eea", Score: models.ScoreSoeverein},
+			}}}},
+		}},
+	}
+	got := TopConcerns(snaps, nil, 5)
+	if len(got) != 1 {
+		t.Fatalf("len = %d, want 1", len(got))
+	}
+	if got[0].TargetCount != 2 {
+		t.Errorf("TargetCount = %d, want 2 (afhankelijk only)", got[0].TargetCount)
+	}
+	if got[0].Total != 3 {
+		t.Errorf("Total = %d, want 3 (every target the rule fired against)", got[0].Total)
+	}
+}
+
+func TestTopConcerns_MergesSameConcernAcrossFrameworks(t *testing.T) {
+	// run 03 task 2.5: wand's cert_issuer_eea and eucsf's
+	// cert_issuer_eu flag the same real-world gap. A target failing
+	// under both frameworks must count once, and the merged row must
+	// name both frameworks rather than appear twice.
+	snaps := []TargetSnapshot{
+		{TargetID: "t1", Assessments: map[string]models.Assessment{
+			"wand":  {Dimensions: []models.DimensionScore{{Rationale: []models.Rationale{{CriteriumID: "wand.juridisch.cert_issuer_eea", Score: models.ScoreAfhankelijk}}}}},
+			"eucsf": {Dimensions: []models.DimensionScore{{Rationale: []models.Rationale{{CriteriumID: "eucsf.sov2.cert_issuer_eu", Score: models.ScoreAfhankelijk}}}}},
+		}},
+		{TargetID: "t2", Assessments: map[string]models.Assessment{
+			"eucsf": {Dimensions: []models.DimensionScore{{Rationale: []models.Rationale{{CriteriumID: "eucsf.sov2.cert_issuer_eu", Score: models.ScoreAfhankelijk}}}}},
+		}},
+	}
+	got := TopConcerns(snaps, nil, 5)
+	if len(got) != 1 {
+		t.Fatalf("len = %d, want 1 merged row, got %+v", len(got), got)
+	}
+	if got[0].TargetCount != 2 {
+		t.Errorf("TargetCount = %d, want 2 — t1 counts once despite failing both frameworks", got[0].TargetCount)
+	}
+	if got[0].Framework != "wand" {
+		t.Errorf("Framework = %q, want wand (rank-first, so the reporting link resolves)", got[0].Framework)
+	}
+	wantFrameworks := []string{"wand", "eucsf"}
+	if len(got[0].Frameworks) != len(wantFrameworks) {
+		t.Fatalf("Frameworks = %v, want %v", got[0].Frameworks, wantFrameworks)
+	}
+	for i, fw := range wantFrameworks {
+		if got[0].Frameworks[i] != fw {
+			t.Errorf("Frameworks[%d] = %q, want %q", i, got[0].Frameworks[i], fw)
+		}
+	}
+}
+
+func TestDashboardTemplate_TopRulesShowsProblemNotGoal(t *testing.T) {
+	// run 03 task 2.4/2.5: the rendered top-3 list must read "faalt op
+	// X van Y domeinen" (the defect, with a denominator) rather than
+	// the rule's goal-state Description with a bare count, and a
+	// concern merged across two frameworks must name both once.
+	tmpl, err := Templates()
+	if err != nil {
+		t.Fatalf("Templates: %v", err)
+	}
+	view := doorView{
+		HasFleet: true,
+		TopRules: []ConcernRow{{
+			Framework:   "wand",
+			CriteriumID: "wand.juridisch.cert_issuer_eea",
+			Description: "TLS certificate issued by an authority in the EEA.",
+			Rationale:   "Certificate Authorities can revoke or refuse to renew certificates.",
+			TargetCount: 2,
+			Total:       3,
+			Frameworks:  []string{"wand", "eucsf"},
+		}},
+	}
+	var buf bytes.Buffer
+	if err := tmpl.ExecuteTemplate(&buf, "dashboard.tmpl", view); err != nil {
+		t.Fatalf("execute: %v", err)
+	}
+	body := buf.String()
+	if strings.Contains(body, "TLS certificate issued by an authority in the EEA.") {
+		t.Errorf("goal-state Description must not render; body:\n%s", body)
+	}
+	if !strings.Contains(body, "Certificate Authorities can revoke or refuse to renew certificates.") {
+		t.Errorf("problem-framed Rationale must render; body:\n%s", body)
+	}
+	if !strings.Contains(body, "faalt op 2 van 3 domeinen") {
+		t.Errorf("expected 'faalt op 2 van 3 domeinen'; body:\n%s", body)
+	}
+	if !strings.Contains(body, "(wand, eucsf)") {
+		t.Errorf("expected both frameworks named once; body:\n%s", body)
 	}
 }
 

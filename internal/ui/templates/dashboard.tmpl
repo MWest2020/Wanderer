@@ -57,8 +57,11 @@
   <ol class="top-rules">
     {{range .TopRules}}
     <li>
-      <a href="/ui/reporting/{{.Framework}}/{{.CriteriumID}}{{if $.OrgSlug}}?org={{$.OrgSlug}}{{end}}">{{.Description}}</a>
-      <span class="muted">— {{.TargetCount}} domein{{if ne .TargetCount 1}}en{{end}}</span>
+      <a href="/ui/reporting/{{.Framework}}/{{.CriteriumID}}{{if $.OrgSlug}}?org={{$.OrgSlug}}{{end}}">{{.Rationale}}</a>
+      <span class="muted">
+        — faalt op {{.TargetCount}} van {{.Total}} domein{{if ne .Total 1}}en{{end}}
+        {{if gt (len .Frameworks) 1}}({{range $i, $f := .Frameworks}}{{if $i}}, {{end}}{{$f}}{{end}}){{end}}
+      </span>
     </li>
     {{end}}
   </ol>

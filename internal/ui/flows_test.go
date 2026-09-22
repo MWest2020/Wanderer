@@ -59,7 +59,7 @@ func TestBuildFlowStates_RunningScanShowsBezigForMissingFlows(t *testing.T) {
 		},
 	}}}
 	byLabel := map[string]FlowState{}
-	for _, s := range BuildFlowStates([]models.Assessment{a}, false) {
+	for _, s := range BuildFlowStates([]models.Assessment{a}, false, "example.nl") {
 		byLabel[s.Label] = s
 	}
 	if got := byLabel["Hosting"]; got.State != "beantwoord" || got.Score != "soeverein" {
@@ -81,7 +81,7 @@ func TestBuildFlowStates_DoneScanShowsNietGemetenForMissingFlows(t *testing.T) {
 		},
 	}}}
 	byLabel := map[string]FlowState{}
-	for _, s := range BuildFlowStates([]models.Assessment{a}, true) {
+	for _, s := range BuildFlowStates([]models.Assessment{a}, true, "example.nl") {
 		byLabel[s.Label] = s
 	}
 	if got := byLabel["Mail"]; got.State != "niet_gemeten" {

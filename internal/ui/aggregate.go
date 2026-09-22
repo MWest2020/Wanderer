@@ -86,16 +86,51 @@ func PostureCountsByKind(snaps []TargetSnapshot, kind models.TargetKind) Posture
 // `models.Score` values.
 type PostureSummary map[string]map[models.Score]int
 
-// ConcernRow is one rule that scored `afhankelijk` on at least one
-// target's most recent Assessment. TargetCount counts distinct
-// target IDs, not finding occurrences — see Decision 2 in the
-// add-posture-dashboard design.
+// ConcernRow is one concern that scored `afhankelijk` on at least one
+// target's most recent Assessment. TargetCount counts distinct target
+// IDs, not finding occurrences — see Decision 2 in the
+// add-posture-dashboard design. Total is how many distinct targets the
+// underlying rule(s) actually evaluated (any score), so a reader can
+// read TargetCount/Total as "faalt op X van Y domeinen" (run 03 task
+// 2.4) rather than a bare count with no denominator. Framework and
+// CriteriumID identify the primary rule — the one the reporting link
+// points to and Description/Rationale come from; Frameworks lists
+// every framework that surfaced this same concern (run 03 task 2.5:
+// two frameworks flagging the same certificate-issuer jurisdiction
+// gap must read as one finding, not two).
 type ConcernRow struct {
 	Framework   string
 	CriteriumID string
 	Description string
 	Rationale   string
 	TargetCount int
+	Total       int
+	Frameworks  []string
+}
+
+// concernRuleRef is one (framework, criteriumID) pair contributing to
+// a ConcernRow.
+type concernRuleRef struct{ framework, criteriumID string }
+
+// concernTopics merges (framework, criteriumID) pairs that are the
+// same real-world concern surfaced separately per framework. Today
+// that is only the TLS-issuer-jurisdiction check: wand's
+// cert_issuer_eea and eucsf's cert_issuer_eu both flag a non-EEA/EU
+// certificate authority. Absent from this map, a rule merges with
+// nothing — it keeps its own row, keyed by its own (framework, id).
+var concernTopics = map[concernRuleRef]string{
+	{"wand", "wand.juridisch.cert_issuer_eea"}: "cert_issuer_jurisdiction",
+	{"eucsf", "eucsf.sov2.cert_issuer_eu"}:      "cert_issuer_jurisdiction",
+}
+
+// concernTopic returns the merge key for ref: the shared topic from
+// concernTopics when one is declared, otherwise a key unique to this
+// one rule (unchanged behaviour for every rule not in that table).
+func concernTopic(ref concernRuleRef) string {
+	if topic, ok := concernTopics[ref]; ok {
+		return topic
+	}
+	return ref.framework + "|" + ref.criteriumID
 }
 
 // ActivityRow is one scan in the dashboard's recent-activity feed.
@@ -225,38 +260,73 @@ func PostureCounts(snaps []TargetSnapshot) PostureSummary {
 	return out
 }
 
-// TopConcerns returns the rules whose `afhankelijk` rationales span
-// the most distinct targets, sorted descending by target-count
-// (ties broken by CriteriumID for stable rendering), capped at
-// `maxRows`.
+// TopConcerns returns the concerns whose `afhankelijk` rationales span
+// the most distinct targets, sorted descending by target-count (ties
+// broken by CriteriumID for stable rendering), capped at `maxRows`. A
+// concern spanning two frameworks (concernTopics) counts each target
+// once even if both frameworks flagged it, and reports the union of
+// frameworks that fired — never as two separate rows for the same
+// underlying gap.
 func TopConcerns(snaps []TargetSnapshot, ruleLookup func(framework, criteriumID string) (assessor.Rule, bool), maxRows int) []ConcernRow {
-	type key struct{ fw, id string }
-	targets := map[key]map[string]struct{}{}
+	afhankelijkTargets := map[string]map[string]struct{}{}
+	// allTargets tracks every target the rule fired against, any
+	// score — the denominator for "faalt op X van Y domeinen". It is
+	// a separate tally from afhankelijkTargets; nothing here changes
+	// which targets count as afhankelijk.
+	allTargets := map[string]map[string]struct{}{}
+	rulesByTopic := map[string][]concernRuleRef{}
+	seenRule := map[string]map[concernRuleRef]bool{}
 	for _, s := range snaps {
 		for fw, a := range s.Assessments {
 			for _, d := range a.Dimensions {
 				for _, r := range d.Rationale {
+					ref := concernRuleRef{fw, r.CriteriumID}
+					topic := concernTopic(ref)
+					if allTargets[topic] == nil {
+						allTargets[topic] = map[string]struct{}{}
+					}
+					allTargets[topic][s.TargetID] = struct{}{}
+					if seenRule[topic] == nil {
+						seenRule[topic] = map[concernRuleRef]bool{}
+					}
+					if !seenRule[topic][ref] {
+						seenRule[topic][ref] = true
+						rulesByTopic[topic] = append(rulesByTopic[topic], ref)
+					}
 					if r.Score != models.ScoreAfhankelijk {
 						continue
 					}
-					k := key{fw, r.CriteriumID}
-					if targets[k] == nil {
-						targets[k] = map[string]struct{}{}
+					if afhankelijkTargets[topic] == nil {
+						afhankelijkTargets[topic] = map[string]struct{}{}
 					}
-					targets[k][s.TargetID] = struct{}{}
+					afhankelijkTargets[topic][s.TargetID] = struct{}{}
 				}
 			}
 		}
 	}
-	rows := make([]ConcernRow, 0, len(targets))
-	for k, ts := range targets {
+	rows := make([]ConcernRow, 0, len(afhankelijkTargets))
+	for topic, ts := range afhankelijkTargets {
+		refs := rulesByTopic[topic]
+		sort.Slice(refs, func(i, j int) bool {
+			if reportingFrameworkRank(refs[i].framework) != reportingFrameworkRank(refs[j].framework) {
+				return reportingFrameworkRank(refs[i].framework) < reportingFrameworkRank(refs[j].framework)
+			}
+			return refs[i].framework < refs[j].framework
+		})
+		primary := refs[0]
+		frameworks := make([]string, 0, len(refs))
+		for _, ref := range refs {
+			frameworks = append(frameworks, ref.framework)
+		}
 		cr := ConcernRow{
-			Framework:   k.fw,
-			CriteriumID: k.id,
+			Framework:   primary.framework,
+			CriteriumID: primary.criteriumID,
 			TargetCount: len(ts),
+			Total:       len(allTargets[topic]),
+			Frameworks:  frameworks,
 		}
 		if ruleLookup != nil {
-			if rule, ok := ruleLookup(k.fw, k.id); ok {
+			if rule, ok := ruleLookup(primary.framework, primary.criteriumID); ok {
 				cr.Description = rule.Description
 				cr.Rationale = rule.Rationale
 			}

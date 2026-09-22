@@ -93,6 +93,38 @@ func TestAnswerPage_CompletedScanStopsRefreshing(t *testing.T) {
 	}
 }
 
+func TestAnswerPage_ShowsFleetScoreAndRemediation(t *testing.T) {
+	// spec.md "Het domein toont zijn score en wat eraan te doen is":
+	// x/n next to the verdict sentence, plus the concrete handeling for
+	// the flow that scored niet-soeverein.
+	srv, st := newServer(t, "")
+	scanID := seedRunningScan(t, st, "afhankelijk.nl", []models.Finding{
+		{ProbeID: "dns.a", Subject: "afhankelijk.nl", Severity: models.SeverityFinding},
+		{ProbeID: "ip.asn", Subject: "afhankelijk.nl", Severity: models.SeverityFinding, Attributes: map[string]any{"country": "NL"}},
+		{ProbeID: "dns.mx", Subject: "afhankelijk.nl", Severity: models.SeverityFinding, Attributes: map[string]any{"host": "mail.afhankelijk.nl"}},
+		{ProbeID: "ip.asn", Subject: "mail.afhankelijk.nl", Severity: models.SeverityFinding, Attributes: map[string]any{"country": "US", "organisation": "Amazon"}},
+	})
+	if err := st.FinishScan(context.Background(), scanID, models.ScanStatusComplete, ""); err != nil {
+		t.Fatalf("finish: %v", err)
+	}
+	resp, err := http.Get(srv.URL + "/ui/scans/" + scanID + "/answer")
+	if err != nil {
+		t.Fatalf("get: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != 200 {
+		t.Fatalf("status = %d", resp.StatusCode)
+	}
+	body, _ := io.ReadAll(resp.Body)
+	bodyStr := string(body)
+	if !strings.Contains(bodyStr, `<span class="fleet-score">`) {
+		t.Errorf("answer page must show the x/n fleet score next to the verdict; body:\n%s", bodyStr)
+	}
+	if !strings.Contains(bodyStr, "Verhuis de mailhosting van afhankelijk.nl") {
+		t.Errorf("answer page must show the handeling for the afhankelijk flow, with {domein} filled in; body:\n%s", bodyStr)
+	}
+}
+
 func TestAnswerPage_NoFindingsSaysJustStarted(t *testing.T) {
 	// A scan with zero findings has not failed to answer anything — it
 	// just started. It must not read as a definitive "Nee", nor as the
