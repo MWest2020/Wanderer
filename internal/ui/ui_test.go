@@ -83,6 +83,25 @@ func TestTargetsRoute_RendersTargetRow(t *testing.T) {
 	}
 }
 
+// TestNav_IsOneLanguage covers run 05 task 4.5: the nav bar mixed
+// "Overview · Vloot · Trends" — an English tab next to two Dutch ones.
+func TestNav_IsOneLanguage(t *testing.T) {
+	srv, _ := newServer(t, "")
+	resp, err := http.Get(srv.URL + "/ui/")
+	if err != nil {
+		t.Fatalf("get: %v", err)
+	}
+	defer resp.Body.Close()
+	body, _ := io.ReadAll(resp.Body)
+	bodyStr := string(body)
+	if !strings.Contains(bodyStr, `>Overzicht</a>`) {
+		t.Errorf("expected the Dutch nav label \"Overzicht\"; body:\n%s", bodyStr)
+	}
+	if strings.Contains(bodyStr, `>Overview</a>`) {
+		t.Errorf("nav must not read \"Overview\" next to the Dutch tabs; body:\n%s", bodyStr)
+	}
+}
+
 func TestDashboard_EmptyStoreRendersEmptyHint(t *testing.T) {
 	srv, _ := newServer(t, "")
 	resp, err := http.Get(srv.URL + "/ui/")
@@ -375,6 +394,43 @@ func TestAssessmentPage_RetiredRuleDegrades(t *testing.T) {
 	}
 	if !strings.Contains(bodyStr, "historical verdict") {
 		t.Errorf("expected historical verdict to remain visible; body:\n%s", bodyStr)
+	}
+}
+
+// TestAssessmentPage_FrameworkTablesCollapseBehindOneClick covers run 05
+// task 5.1: the onderbouwing page opens with the seven flow questions,
+// and the two raw framework tables underneath sit behind a single
+// <details> whose <summary> names what's underneath and how many rows
+// — not a bare "details".
+func TestAssessmentPage_FrameworkTablesCollapseBehindOneClick(t *testing.T) {
+	srv, st := newServer(t, "")
+	_, scanID := seed(t, st)
+	seedAssessment(t, st, scanID, "wand", "eucsf")
+	resp, err := http.Get(srv.URL + "/ui/scans/" + scanID + "/assessment")
+	if err != nil {
+		t.Fatalf("get: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != 200 {
+		t.Fatalf("status = %d", resp.StatusCode)
+	}
+	body, _ := io.ReadAll(resp.Body)
+	bodyStr := string(body)
+
+	iFlows := strings.Index(bodyStr, `class="sovereignty-overview"`)
+	iDetails := strings.Index(bodyStr, `<details class="framework-details">`)
+	iFrameworks := strings.Index(bodyStr, `<div class="frameworks">`)
+	iDetailsClose := strings.LastIndex(bodyStr, "</details>")
+	if iFlows == -1 || iDetails == -1 || iFrameworks == -1 || iDetailsClose == -1 {
+		t.Fatalf("expected the seven-questions section followed by a collapsed framework-details block; body:\n%s", bodyStr)
+	}
+	if !(iFlows < iDetails && iDetails < iFrameworks && iFrameworks < iDetailsClose) {
+		t.Errorf("expected order: sovereignty-overview, then <details>, then the frameworks div inside it; body:\n%s", bodyStr)
+	}
+
+	summaryRe := regexp.MustCompile(`<summary>[^<]*\d+[^<]*regel[^<]*</summary>`)
+	if !summaryRe.MatchString(bodyStr) {
+		t.Errorf("expected a <summary> naming what's underneath and how many regels, not a bare \"details\"; body:\n%s", bodyStr)
 	}
 }
 
@@ -1382,6 +1438,36 @@ func TestFleetPage_UnscannedDomainStaysLastRegardlessOfSort(t *testing.T) {
 		}
 		if iUnscanned < iScanned {
 			t.Errorf("sort=%q: unscanned domain must stay last, got nooit.nl before gescand.nl", sortKey)
+		}
+	}
+}
+
+// TestDutchPages_DeclareDutchLangAttribute covers run 05 task 5.3: a
+// page whose content is Dutch must declare <html lang="nl">, not the
+// "en" a screen reader would otherwise mispronounce it as.
+func TestDutchPages_DeclareDutchLangAttribute(t *testing.T) {
+	srv, st := newServer(t, "")
+	_, scanID := seed(t, st)
+	seedAssessment(t, st, scanID, "wand")
+	if _, err := st.AddFleetDomain(context.Background(), models.DefaultOrganisationID, "voorbeeld.nl"); err != nil {
+		t.Fatalf("AddFleetDomain: %v", err)
+	}
+
+	for _, path := range []string{
+		"/ui/",
+		"/ui/scans/" + scanID + "/answer",
+		"/ui/scans/" + scanID + "/assessment",
+		"/ui/orgs/default/fleet",
+	} {
+		resp, err := http.Get(srv.URL + path)
+		if err != nil {
+			t.Fatalf("%s: get: %v", path, err)
+		}
+		body, _ := io.ReadAll(resp.Body)
+		resp.Body.Close()
+		bodyStr := string(body)
+		if !strings.Contains(bodyStr, `<html lang="nl">`) {
+			t.Errorf("%s: expected <html lang=\"nl\"> for Dutch content; body:\n%s", path, bodyStr)
 		}
 	}
 }

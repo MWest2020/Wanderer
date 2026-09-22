@@ -12,6 +12,12 @@
 # nothing, but reads confusingly close to a permanent "onbekend" if
 # rendered through that copy — it hasn't failed, it just started.
 #
+# nee drops {flow} from the sentence on purpose: the deciding flow's
+# own Dutch verdict already names its subject ("De mail wordt buiten de
+# EER gerouteerd") — prefixing "Mail:" in front of it repeated the flow
+# name twice on the same line (run 05 task 4.6). {flow} stays available
+# to callers that want the label on its own (AnswerVerdict.DecidingFlow).
+#
 # This is the single Dutch string table for the headline (design
 # intent mirrors internal/assessor/wand/accountability_nl.yaml); no
 # answer copy lives in templates or Go code.
@@ -19,6 +25,6 @@
 outcomes:
   ja: "Ja — dit domein staat onder Nederlands of Europees recht."
   ja_unanswered: "Ja — dit domein staat onder Nederlands of Europees recht, al {clause}."
-  nee: "Nee — {flow}: {verdict}"
+  nee: "Nee — {verdict}"
   onbekend: "Dat weten we niet — {clause}."
   net_begonnen: "De scan is net begonnen — nog geen antwoord."

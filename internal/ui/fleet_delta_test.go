@@ -103,8 +103,8 @@ func TestBuildFleetDelta_MultipleFlipsKeepFixedOrder(t *testing.T) {
 		rationale("wand.juridisch.mx_vendor_jurisdiction", "mx hosts in US (outside EEA)", models.ScoreAfhankelijk),
 	)
 	got := BuildFleetDelta(true, prev, curr)
-	// SovereigntyFlows' fixed order puts Mail before Third parties.
-	want := []string{"Mail", "Third parties"}
+	// SovereigntyFlows' fixed order puts Mail before Derde partijen.
+	want := []string{"Mail", "Derde partijen"}
 	if !reflect.DeepEqual(got.FlippedFlows, want) {
 		t.Fatalf("FlippedFlows = %v, want %v", got.FlippedFlows, want)
 	}

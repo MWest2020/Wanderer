@@ -1,12 +1,12 @@
 ---
 status: draft
-last_reviewed: 2026-07-12
+last_reviewed: 2026-09-22
 ---
 
 # 0017 — UI information architecture: Tourist / Explorer / Farmer
 
-**Status:** Accepted, 2026-06-17. Implements
-`restructure-ui-tourist-farmer-explorer`.
+**Status:** Superseded by ADR-0018, 2026-09-22. Was accepted 2026-06-17,
+implementing `restructure-ui-tourist-farmer-explorer`.
 
 **Context.** The UI grew a three-tab nav — Dashboard / Analysis /
 Reporting — where each tab answered a different question but the

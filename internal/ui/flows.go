@@ -31,10 +31,10 @@ var flowRules = []struct {
 	{"wand.juridisch.apex_ip_eea", "Hosting", "Waar staat de hosting?"},
 	{"wand.juridisch.mx_vendor_jurisdiction", "Mail", "Waar loopt de mail?"},
 	{"wand.juridisch.ns_vendor_jurisdiction", "DNS", "Wie beheert de DNS?"},
-	{"wand.juridisch.cert_issuer_eea", "Certificate", "Waar is het certificaat uitgegeven?"},
-	{"wand.transit.eu_path", "Transit path", "Blijft het netwerkverkeer binnen de EER?"},
-	{"wand.technologie.no_us_hyperscaler", "CDN / hyperscaler", "Zit er een Amerikaanse hyperscaler tussen?"},
-	{"wand.technologie.third_parties_eea", "Third parties", "Zijn de derde partijen in de EER gevestigd?"},
+	{"wand.juridisch.cert_issuer_eea", "Certificaat", "Waar is het certificaat uitgegeven?"},
+	{"wand.transit.eu_path", "Netwerkpad", "Blijft het netwerkverkeer binnen de EER?"},
+	{"wand.technologie.no_us_hyperscaler", "Hyperscaler", "Zit er een Amerikaanse hyperscaler tussen?"},
+	{"wand.technologie.third_parties_eea", "Derde partijen", "Zijn de derde partijen in de EER gevestigd?"},
 }
 
 // isSovereigntyFlowRule reports whether ruleID is one of the seven

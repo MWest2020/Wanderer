@@ -4,7 +4,7 @@
 {{- $dashHref := "/ui/" -}}
 {{- if .OrgSlug -}}{{- $dashHref = printf "/ui/orgs/%s" .OrgSlug -}}{{- end -}}
 <nav class="nav-bar">
-  <a class="nav-link {{if eq .Active "dashboard"}}is-active{{end}}" href="{{$dashHref}}">Overview</a>
+  <a class="nav-link {{if eq .Active "dashboard"}}is-active{{end}}" href="{{$dashHref}}">Overzicht</a>
   {{if .OrgSlug}}<a class="nav-link {{if eq .Active "fleet"}}is-active{{end}}" href="/ui/orgs/{{.OrgSlug}}/fleet">Vloot</a>{{end}}
   {{if .HasReporting}}<a class="nav-link {{if eq .Active "trends"}}is-active{{end}}" href="/ui/trends{{$q}}">Trends</a>{{end}}
 </nav>
