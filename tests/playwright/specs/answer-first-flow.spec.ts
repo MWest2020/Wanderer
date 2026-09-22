@@ -1,8 +1,12 @@
-// Answer-first UI (openspec/changes/2026-09-20-answer-first-ui).
+// Answer-first UI (openspec/changes/2026-09-20-answer-first-ui), updated
+// for 2026-09-22-drie-lagen-ciso: /ui/ is now the fleet overview (the
+// vloot is the first layer), with the scan form as a page-bottom action
+// rather than the sole entry surface.
 //
 // Covers spec.md's four ADDED requirements end to end:
-//   - "The entry surface asks for a domain and answers it" — the
-//     door's input, no scan IDs / rule IDs on that surface.
+//   - "The entry surface asks for a domain and answers it" — now folded
+//     into the fleet overview: the score and domain list lead, the scan
+//     form is a lower-page action, no scan IDs / rule IDs shown loose.
 //   - "The answer is one sentence with its reason" — including
 //     "Unknown is not a yes": an onbekend flow must not round up to
 //     a plain "Ja".
@@ -42,25 +46,30 @@ async function conductionAnswerURL(page: Page): Promise<string> {
   return (href as string).replace(/\/ui\/scans\/([^/]+).*/, "/ui/scans/$1/answer");
 }
 
-test.describe("The door", () => {
-  test("the entry surface has one input and no scan IDs or rule IDs", async ({ page }) => {
+test.describe("Het vlootoverzicht", () => {
+  test("de vlootscore en domeinenlijst staan boven het scanformulier, zonder losse rule-ID's", async ({
+    page,
+  }) => {
     await page.goto("/ui/");
 
-    await expect(page.locator("form.door-form")).toBeVisible();
-    await expect(page.locator('form.door-form input[name="domain"]')).toBeVisible();
+    // De vloot is de eerste laag (specs/web-ui/spec.md "De vloot is de
+    // eerste laag", change 2026-09-22-drie-lagen-ciso): score en
+    // domeinenlijst vóór het scanformulier, niet een kale invoer zonder
+    // data (de fixture's baseline scenario seedt conduction.nl en
+    // acme.example.com met afgeronde assessments).
+    await expect(page.locator(".fleet-score-total")).toBeVisible();
+    const row = page.locator("table.targets tr", { hasText: "conduction.nl" });
+    await expect(row).toBeVisible();
 
-    // No fleet table, no matrix, no scan-ID/rule-ID surface on the
-    // door — that moved to /ui/trends (spec.md 2.1).
-    await expect(page.locator("table")).toHaveCount(0);
+    // Geen losse rule-ID's op de pagina zelf (enkel als href in de
+    // top-3 "kost de vloot de meeste punten").
     await expect(page.locator("body")).not.toContainText("wand.juridisch");
     await expect(page.locator("body")).not.toContainText("wand.transit");
 
-    // The recently-answered list reads as one-line verdicts, not a
-    // second scans table (the fixture's baseline scenario seeds
-    // conduction.nl and acme.example.com with completed assessments).
-    const recent = page.locator("li.answer-line", { hasText: "conduction.nl" });
-    await expect(recent).toBeVisible();
-    await expect(recent.locator(".badge")).toBeVisible();
+    // Het scanformulier blijft aanwezig, sinds run 02 onderaan de
+    // vlootpagina met class="scan-form" (niet meer "door-form").
+    await expect(page.locator("form.scan-form")).toBeVisible();
+    await expect(page.locator('form.scan-form input[name="domain"]')).toBeVisible();
   });
 });
 
@@ -69,7 +78,7 @@ test.describe("Domain in → answer vult zich", () => {
     await page.goto("/ui/");
 
     await page.locator("#scan-domain").fill("example.com");
-    await page.locator('form.door-form button[type="submit"]').click();
+    await page.locator('form.scan-form button[type="submit"]').click();
 
     // POST /ui/scan redirects to the scan-status bridge, which
     // meta-refreshes until the background scan's row exists, then

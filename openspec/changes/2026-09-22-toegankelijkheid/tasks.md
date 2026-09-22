@@ -17,8 +17,10 @@
 - [x] 2.3 Brede tabellen scrollen binnen hun eigen kader; geen
   horizontale paginascroll op 390px.
 - [x] 2.4 De lege tabelkop op trends krijgt een naam.
-- [ ] 2.5 De suite is groen. (kon niet zelf draaien — geen egress; zie
-  run-rapport)
+- [x] 2.5 De suite is groen. Nagemeten 2026-09-22 met echte Chromium:
+  45 geslaagd, 0 gefaald. De twee laatste rode specs waren geen
+  toegankelijkheidsfout maar zochten nog `form.door-form`, dat sinds
+  de vlootpagina `scan-form` heet.
 
 ## 3. Documentatie
 - [x] 3.1 Wat de gate wel en niet bewijst, in `docs/`; CHANGELOG.
