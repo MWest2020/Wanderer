@@ -232,14 +232,14 @@ func TestOrganisation_List_OrderedBySlug(t *testing.T) {
 
 func TestOrganisation_Rename_HappyPath(t *testing.T) {
 	st := newOrgTestStore(t)
-	if err := st.RenameOrganisation(context.Background(), "default", "conduction", "Conduction B.V."); err != nil {
+	if err := st.RenameOrganisation(context.Background(), "default", "voorbeeld", "Voorbeeld B.V."); err != nil {
 		t.Fatalf("rename: %v", err)
 	}
-	got, err := st.GetOrganisationBySlug(context.Background(), "conduction")
+	got, err := st.GetOrganisationBySlug(context.Background(), "voorbeeld")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got.Name != "Conduction B.V." {
+	if got.Name != "Voorbeeld B.V." {
 		t.Errorf("name = %q", got.Name)
 	}
 	// Old slug must be gone.

@@ -42,10 +42,10 @@ func TestBuildBaseline_PersistsTwoOrgsTwoTargets(t *testing.T) {
 	if err != nil {
 		t.Fatalf("list orgs: %v", err)
 	}
-	if len(orgs) < 3 { // default + conduction + acme
+	if len(orgs) < 3 { // default + voorbeeld + acme
 		t.Errorf("orgs = %d, want >= 3", len(orgs))
 	}
-	wantSlugs := map[string]bool{"conduction": false, "acme": false}
+	wantSlugs := map[string]bool{"voorbeeld": false, "acme": false}
 	for _, o := range orgs {
 		if _, ok := wantSlugs[o.Slug]; ok {
 			wantSlugs[o.Slug] = true
@@ -65,11 +65,11 @@ func TestBuildAgentHost_AlmaScanHasInventoryFindings(t *testing.T) {
 		t.Fatalf("build: %v", err)
 	}
 
-	cond, err := st.GetOrganisationBySlug(ctx, "conduction")
+	voorbeeld, err := st.GetOrganisationBySlug(ctx, "voorbeeld")
 	if err != nil {
-		t.Fatalf("get conduction: %v", err)
+		t.Fatalf("get voorbeeld: %v", err)
 	}
-	targets, err := st.ListTargetsByOrganisation(ctx, cond.ID)
+	targets, err := st.ListTargetsByOrganisation(ctx, voorbeeld.ID)
 	if err != nil {
 		t.Fatalf("list targets: %v", err)
 	}
@@ -81,7 +81,7 @@ func TestBuildAgentHost_AlmaScanHasInventoryFindings(t *testing.T) {
 		}
 	}
 	if alma == "" {
-		t.Fatal("alma host target not seeded under conduction")
+		t.Fatal("alma host target not seeded under voorbeeld")
 	}
 
 	// At least one inventory.packages.rpm Finding must mention

@@ -8,7 +8,7 @@ import (
 	"github.com/MWest2020/wanderer/pkg/models"
 )
 
-// BuildAgentHost layers on top of the baseline: the conduction
+// BuildAgentHost layers on top of the baseline: the voorbeeld
 // organisation gains an `alma` host target with a synthetic
 // agent scan that mirrors the shape `wanderer agent --once`
 // produces on a real Fedora-42 host, plus one US-telemetry hit
@@ -23,12 +23,12 @@ func BuildAgentHost(ctx context.Context, st *store.Store) error {
 		return fmt.Errorf("agent-host: base scenario: %w", err)
 	}
 
-	cond, err := st.GetOrganisationBySlug(ctx, "conduction")
+	voorbeeld, err := st.GetOrganisationBySlug(ctx, "voorbeeld")
 	if err != nil {
-		return fmt.Errorf("agent-host: lookup conduction: %w", err)
+		return fmt.Errorf("agent-host: lookup voorbeeld: %w", err)
 	}
 
-	host, err := upsertTarget(ctx, st, "alma", models.TargetKindHost, cond.ID)
+	host, err := upsertTarget(ctx, st, "alma", models.TargetKindHost, voorbeeld.ID)
 	if err != nil {
 		return err
 	}

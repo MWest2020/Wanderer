@@ -39,9 +39,9 @@ func TestZZVerifyVlootEnRegelsFixture(t *testing.T) {
 		return string(b)
 	}
 
-	fleet := get("/ui/orgs/conduction/fleet?sort=score")
+	fleet := get("/ui/orgs/voorbeeld/fleet?sort=score")
 	t.Logf("=== fleet sort=score ===\n%s", fleet)
-	fleetLastScan := get("/ui/orgs/conduction/fleet?sort=last_scan")
+	fleetLastScan := get("/ui/orgs/voorbeeld/fleet?sort=last_scan")
 	t.Logf("=== fleet sort=last_scan ===\n%s", fleetLastScan)
 
 	rule := get("/ui/reporting/wand/wand.operationeel.domain_expiry")

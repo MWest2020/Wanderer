@@ -31,11 +31,11 @@ soevereine (NL-uitgegeven TLS, NL-hosting) waar de vlootsortering en
 de regelpagina-spec op leunen. Alleen de naam verandert.
 
 ## Scope — ONLY this
-- [ ] 1.1 De fixture, inclusief de comments die het scenario
+- [x] 1.1 De fixture, inclusief de comments die het scenario
   beschrijven.
-- [ ] 1.2 `organisation_test.go`.
-- [ ] 1.3 De drie asserties in `dar.spec.ts`.
-- [ ] 1.4 Zoek de hele repo na op de oude naam (buiten `vendor/`,
+- [x] 1.2 `organisation_test.go`.
+- [x] 1.3 De drie asserties in `dar.spec.ts`.
+- [x] 1.4 Zoek de hele repo na op de oude naam (buiten `vendor/`,
   `openspec/changes/archive/` en historische CHANGELOG-regels — die
   beschrijven wat er toen gebeurde en blijven staan). Meld in je
   rapport wat je nog vond.
