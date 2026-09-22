@@ -1294,6 +1294,12 @@ type assessmentView struct {
 	Diagram      Diagram
 	FlowAnswers  []AccountabilityAnswer // the seven flows as answer-sheet rows
 	Frameworks   []frameworkCardView
+	// FrameworkRuleCount is the total number of rows (accountability
+	// answers + dimension rationales) rendered inside Frameworks — the
+	// count the collapsed-by-default <details> summary names, so
+	// "wat eronder zit" is legible before the reader clicks (run 05
+	// task 5.1).
+	FrameworkRuleCount int
 }
 
 type frameworkCardView struct {
@@ -1388,6 +1394,7 @@ func assessmentHandler(st *store.Store, tmpl *template.Template) http.HandlerFun
 			}
 			return a < b
 		})
+		ruleCount := 0
 		for _, a := range assessments {
 			fw := frameworkCardView{
 				Framework: a.Framework,
@@ -1398,12 +1405,14 @@ func assessmentHandler(st *store.Store, tmpl *template.Template) http.HandlerFun
 					// Answer sheet, not a rule dump (design.md "UI
 					// direction") — replaces the generic dimension card
 					// entirely for this dimension.
+					answers := BuildAccountabilityAnswers(d, findingsByID, subject)
 					fw.Accountability = &accountabilityDimensionView{
 						Score:           string(d.Score),
 						Completeness:    string(d.Completeness),
 						ScannerWarnings: DimensionScannerWarnings(d),
-						Answers:         BuildAccountabilityAnswers(d, findingsByID, subject),
+						Answers:         answers,
 					}
+					ruleCount += len(answers)
 					continue
 				}
 				card := dimensionCardView{
@@ -1439,10 +1448,12 @@ func assessmentHandler(st *store.Store, tmpl *template.Template) http.HandlerFun
 					}
 					card.Rationales = append(card.Rationales, row)
 				}
+				ruleCount += len(card.Rationales)
 				fw.Dimensions = append(fw.Dimensions, card)
 			}
 			view.Frameworks = append(view.Frameworks, fw)
 		}
+		view.FrameworkRuleCount = ruleCount
 		render(w, tmpl, "assessment.tmpl", view)
 	}
 }

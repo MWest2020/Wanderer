@@ -35,7 +35,7 @@
 {{end}}
 {{end}}
 {{define "assessment.tmpl"}}<!doctype html>
-<html lang="en">
+<html lang="nl">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -85,6 +85,8 @@
 </section>
 {{end}}
 {{if .Frameworks}}
+<details class="framework-details">
+<summary>Regels per framework — {{.FrameworkRuleCount}} regels in {{len .Frameworks}} frameworks</summary>
 <div class="frameworks">
 {{range .Frameworks}}
 <section class="framework">
@@ -164,6 +166,7 @@
 </section>
 {{end}}
 </div>
+</details>
 {{else}}
 <p class="empty-state">
   No assessment has been produced for this scan yet.<br>

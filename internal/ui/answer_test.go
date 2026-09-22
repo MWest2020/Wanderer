@@ -67,8 +67,15 @@ func TestBuildAnswerVerdict_AfhankelijkIsNeeNamingTheFlow(t *testing.T) {
 	if strings.Contains(v.Headline, "mx hosts") || strings.Contains(v.Headline, "EEA") {
 		t.Errorf("headline %q leaks the rule's raw English verdict", v.Headline)
 	}
-	if !strings.Contains(v.Headline, "Mail") || !strings.Contains(v.Headline, "US") {
+	if !strings.Contains(v.Headline, "mail") || !strings.Contains(v.Headline, "US") {
 		t.Errorf("headline %q does not name the deciding flow and its observed fact", v.Headline)
+	}
+	// The old headline pasted the flow label in front of a verdict that
+	// already names it ("Nee — Mail: De mail wordt buiten..."), reading
+	// as the stroomnaam twice (run 05 task 4.6). The label lives on
+	// DecidingFlow for callers that want it on its own.
+	if strings.Contains(v.Headline, "Mail:") {
+		t.Errorf("headline %q still prefixes the flow label in front of a verdict that names it again", v.Headline)
 	}
 	if !strings.HasPrefix(v.Headline, "Nee") {
 		t.Errorf("headline %q does not read Nee", v.Headline)

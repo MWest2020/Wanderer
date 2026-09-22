@@ -36,22 +36,25 @@
 
 ## 4b. Wat er ná run 04b nog Engels is (live gezien op de
 ## antwoordpagina, 2026-09-22)
-- [ ] 4.4 De stroomlabels zijn nog Engels: "Certificate", "Transit
+- [x] 4.4 De stroomlabels zijn nog Engels: "Certificate", "Transit
   path", "Third parties", "CDN / hyperscaler". Ze staan in
   `flowRules` (`internal/ui/flows.go`). De oordelen eronder zijn
   Nederlands, dus de regel leest nu half om.
-- [ ] 4.5 De navigatie mengt talen: "Overview · Vloot · Trends".
-- [ ] 4.6 De kopzin dubbelt: "Nee — Hosting: De hosting staat buiten de
+- [x] 4.5 De navigatie mengt talen: "Overview · Vloot · Trends".
+- [x] 4.6 De kopzin dubbelt: "Nee — Hosting: De hosting staat buiten de
   EER — apex-adressen in CA". De stroomnaam staat er twee keer in.
   Kies één vorm.
-- [ ] 4.7 Een ja-regel begint met kleine letter ("Ja — de mail wordt
+- [x] 4.7 Een ja-regel begint met kleine letter ("Ja — de mail wordt
   binnen de EER gerouteerd"), een nee-regel met een hoofdletter ("De
   hosting staat buiten de EER"). Eén vorm kiezen.
 
 ## 5. Techniek naar achteren — run 05
-- [ ] 5.1 De onderbouwing opent met de zeven vragen; de twee
+- [x] 5.1 De onderbouwing opent met de zeven vragen; de twee
   frameworktabellen achter één klik.
-- [ ] 5.2 Opvolger van ADR-0017 met de nieuwe rolverdeling.
+- [x] 5.2 Opvolger van ADR-0017 met de nieuwe rolverdeling.
+- [x] 5.3 `assessment.tmpl` opent met `<html lang="en">` terwijl de
+  pagina Nederlands is; op `nl` gezet waar de inhoud Nederlands is, de
+  overige templates gecontroleerd op hetzelfde.
 
 ## 6. Bewijs
 - [x] 6.0 Twee specs uit `answer-first-flow.spec.ts` zoeken
