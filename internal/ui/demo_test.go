@@ -114,6 +114,86 @@ func TestDemoHandler_CompletedScanShowsVerdictAndDate(t *testing.T) {
 	if !strings.Contains(string(body), "het certificaat is uitgegeven binnen de EER") {
 		t.Errorf("expected the Dutch flow onderbouwing; body:\n%s", string(body))
 	}
+	// docs/tasks/2026-09-22-demo-score.md 1.1: the demo page shows the
+	// same x/n the answer page does (seedCompleteScan's single
+	// Certificate rationale scores soeverein, so BuildFleetScore's
+	// x/n is 1/1).
+	if !strings.Contains(string(body), "1/1 —") {
+		t.Errorf("expected the 1/1 score ahead of the headline; body:\n%s", string(body))
+	}
+}
+
+// seedAfhankelijkScan mirrors seedCompleteScan but scores its single
+// rationale afhankelijk (Hosting, "buiten de EER") instead of
+// soeverein, so BuildAnswerVerdict returns "nee" — the live bug
+// docs/tasks/2026-09-22-demo-score.md describes ("Nee — Hosting: De
+// hosting staat buiten de EER ...").
+func seedAfhankelijkScan(t *testing.T, st *store.Store, domain string) {
+	t.Helper()
+	ctx := context.Background()
+	tgt := &models.Target{Domain: domain}
+	if err := st.UpsertTarget(ctx, tgt); err != nil {
+		t.Fatalf("upsert: %v", err)
+	}
+	sc, err := st.CreateScan(ctx, tgt.ID)
+	if err != nil {
+		t.Fatalf("scan: %v", err)
+	}
+	if err := st.FinishScan(ctx, sc.ID, models.ScanStatusComplete, ""); err != nil {
+		t.Fatalf("finish: %v", err)
+	}
+	a := &models.Assessment{
+		ScanID:    sc.ID,
+		Framework: "wand",
+		Dimensions: []models.DimensionScore{{
+			Dimension:    models.DimensionJuridisch,
+			Score:        models.ScoreAfhankelijk,
+			Completeness: models.CompletenessComplete,
+			Rationale: []models.Rationale{{
+				CriteriumID: "wand.juridisch.apex_ip_eea",
+				Verdict:     "apex resolves outside the EEA",
+				Score:       models.ScoreAfhankelijk,
+			}},
+		}},
+	}
+	if err := st.CreateAssessment(ctx, a); err != nil {
+		t.Fatalf("assessment: %v", err)
+	}
+}
+
+// TestDemoHandler_HeadlineLeadsWithScore is the test docs/tasks/2026-09-22-demo-score.md
+// 1.3 asks for: a Go test on the handler, not a Playwright spec —
+// DemoHandler is plain net/http wired to an in-memory store (see
+// newDemoServer/seedAfhankelijkScan above), so an httptest.Server
+// round-trip exercises the exact HasScan/BuildFleetScore/
+// composeDemoHeadline path a browser would hit, without needing a
+// running `wanderer serve` binary or a browser the way the
+// Playwright projects in tests/playwright/playwright.config.ts do.
+// It asserts the headline leads with the x/n score rather than a bare
+// "Nee —" (1.2), using the same live-bug shape ("Nee — Hosting: De
+// hosting staat buiten de EER.") the task doc measured.
+func TestDemoHandler_HeadlineLeadsWithScore(t *testing.T) {
+	st := newTestStore(t)
+	seedAfhankelijkScan(t, st, "westerweel.work")
+	srv := newDemoServer(t, st, "westerweel.work")
+	resp, err := http.Get(srv.URL + "/demo")
+	if err != nil {
+		t.Fatalf("get: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("status = %d", resp.StatusCode)
+	}
+	body, _ := io.ReadAll(resp.Body)
+	if !strings.Contains(string(body), "0/1 — Nee — Hosting") {
+		t.Errorf("expected the score to lead the headline ahead of the verdict; body:\n%s", string(body))
+	}
+	if idx := strings.Index(string(body), "Nee —"); idx >= 0 {
+		scoreIdx := strings.Index(string(body), "0/1")
+		if scoreIdx < 0 || scoreIdx > idx {
+			t.Errorf("expected the score before the bare 'Nee —' headline; body:\n%s", string(body))
+		}
+	}
 }
 
 func TestDemoHandler_NeverMentionsAnotherTarget(t *testing.T) {
