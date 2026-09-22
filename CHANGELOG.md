@@ -9,6 +9,21 @@ once a first release is cut. Until then every entry lives under
 
 ## [Unreleased]
 
+## [0.8.2] - 2026-09-22
+
+### Fixed
+
+- **Een scan zonder beoordeling maakte de demopagina leeg.** Gevonden
+  door het live te doen: `POST /scans` op de draaiende instantie
+  beoordeelt niet (dat is met opzet een aparte route), maar
+  `latestCompletedScan` koos de nieuwste voltooide scan zonder te
+  kijken of er een beoordeling bij hoorde. De publieke pagina zei
+  daarna "nog geen meting voor dit domein" terwijl de hele
+  geschiedenis er stond. Hij loopt nu de kandidaten van nieuw naar oud
+  af en slaat een scan zonder beoordeling over. `POST /scans` is
+  bewust níét gaan beoordelen: de pagina hoort tegen een half
+  afgemaakte keten te kunnen.
+
 ## [0.8.1] - 2026-09-22
 
 ### Changed
@@ -1129,7 +1144,8 @@ ExApp) can pin a reproducible version instead of `@main`.
   deferred (see `docs/observability.md`).
   (`openspec/changes/archive/2026-04-24-init-mvp-scanners`)
 
-[Unreleased]: https://github.com/MWest2020/wanderer/compare/v0.8.1...main
+[Unreleased]: https://github.com/MWest2020/wanderer/compare/v0.8.2...main
+[0.8.2]: https://github.com/MWest2020/wanderer/compare/v0.8.1...v0.8.2
 [0.8.1]: https://github.com/MWest2020/wanderer/compare/v0.8.0...v0.8.1
 [0.8.0]: https://github.com/MWest2020/wanderer/compare/v0.7.0...v0.8.0
 [0.7.0]: https://github.com/MWest2020/wanderer/compare/v0.6.0...v0.7.0
