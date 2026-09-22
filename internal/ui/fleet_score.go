@@ -27,9 +27,14 @@ type FleetScore struct {
 // of nee"). It reuses classifyFlows — the same classification
 // BuildAnswerVerdict builds its headline from — instead of re-deriving
 // a second count of what's answered, unanswered, or heaviest, so the
-// two views can't diverge on the same scan.
-func BuildFleetScore(assessments []models.Assessment) FleetScore {
-	flows := SovereigntyFlows(assessments)
+// two views can't diverge on the same scan. findingsByID resolves the
+// worst flow's Evidence so WorstVerdict can name the observed fact;
+// nil when no findings are available (e.g. BuildFleetSummary's
+// cross-target rollup, which only has each target's Rationale, not its
+// Findings) — WorstVerdict then still reads Dutch, just without the
+// specific fact.
+func BuildFleetScore(assessments []models.Assessment, findingsByID map[string]models.Finding) FleetScore {
+	flows := SovereigntyFlows(assessments, findingsByID)
 	afhankelijk, unanswered, answered := classifyFlows(flows)
 
 	score := FleetScore{
@@ -102,7 +107,7 @@ func BuildFleetSummary(snaps []TargetSnapshot, ruleLookup func(framework, criter
 		for _, a := range s.Assessments {
 			assessments = append(assessments, a)
 		}
-		fs := BuildFleetScore(assessments)
+		fs := BuildFleetScore(assessments, nil)
 		out.X += fs.X
 		out.N += fs.N
 		out.Unanswered += fs.Unanswered

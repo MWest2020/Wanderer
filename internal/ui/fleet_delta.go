@@ -41,15 +41,15 @@ func BuildFleetDelta(hasPrevious bool, prev, curr []models.Assessment) FleetDelt
 	if !hasPrevious {
 		return FleetDelta{}
 	}
-	prevScore := BuildFleetScore(prev)
-	currScore := BuildFleetScore(curr)
+	prevScore := BuildFleetScore(prev, nil)
+	currScore := BuildFleetScore(curr, nil)
 
 	prevByLabel := make(map[string]models.Score, len(prev))
-	for _, f := range SovereigntyFlows(prev) {
+	for _, f := range SovereigntyFlows(prev, nil) {
 		prevByLabel[f.Label] = models.Score(f.Score)
 	}
 	var flipped []string
-	for _, f := range SovereigntyFlows(curr) {
+	for _, f := range SovereigntyFlows(curr, nil) {
 		was, ok := prevByLabel[f.Label]
 		now := models.Score(f.Score)
 		if !ok || was == now {

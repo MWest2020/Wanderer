@@ -240,7 +240,7 @@ func buildDoorDomains(snaps []TargetSnapshot) []doorDomainView {
 		for _, a := range s.Assessments {
 			assessments = append(assessments, a)
 		}
-		fs := BuildFleetScore(assessments)
+		fs := BuildFleetScore(assessments, nil)
 		row.HasScore = true
 		row.X, row.N, row.Unanswered = fs.X, fs.N, fs.Unanswered
 		row.WorstFlow, row.WorstVerdict = fs.WorstFlow, fs.WorstVerdict
@@ -737,7 +737,7 @@ func fleetHandler(st *store.Store, tmpl *template.Template, allowEdit bool, sche
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
 			}
-			row.score = BuildFleetScore(assessments)
+			row.score = BuildFleetScore(assessments, nil)
 			switch prevScan, perr := st.PreviousScanForTarget(ctx, t.ID, last.StartedAt); {
 			case perr == nil:
 				prevAssessments, aerr := st.ListAssessmentsForScan(ctx, prevScan.ID)
@@ -1218,14 +1218,18 @@ func answerHandler(st *store.Store, tmpl *template.Template) http.HandlerFunc {
 				Framework:  "wand",
 				Dimensions: assessor.Assess(scan.Findings, wand.DefaultRules()),
 			}}
-			v := BuildAnswerVerdict(assessments)
+			findingsByID := make(map[string]models.Finding, len(scan.Findings))
+			for _, f := range scan.Findings {
+				findingsByID[f.ID] = f
+			}
+			v := BuildAnswerVerdict(assessments, findingsByID)
 			view.Verdict = v.Verdict
 			view.Headline = v.Headline
-			fs := BuildFleetScore(assessments)
+			fs := BuildFleetScore(assessments, findingsByID)
 			view.X = fs.X
 			view.N = fs.N
 			view.Unanswered = fs.Unanswered
-			view.Flows = BuildFlowStates(assessments, done, subject)
+			view.Flows = BuildFlowStates(assessments, done, subject, findingsByID)
 		}
 		render(w, tmpl, "answer.tmpl", view)
 	}
@@ -1352,7 +1356,11 @@ func assessmentHandler(st *store.Store, tmpl *template.Template) http.HandlerFun
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		flows := SovereigntyFlows(assessments)
+		findingsByID := make(map[string]models.Finding, len(scan.Findings))
+		for _, f := range scan.Findings {
+			findingsByID[f.ID] = f
+		}
+		flows := SovereigntyFlows(assessments, findingsByID)
 		subject := scan.ID
 		if t, terr := st.GetTarget(r.Context(), scan.TargetID); terr == nil && t != nil && t.Domain != "" {
 			subject = t.Domain
@@ -1367,10 +1375,6 @@ func assessmentHandler(st *store.Store, tmpl *template.Template) http.HandlerFun
 			AnswerURL:    "/ui/scans/" + scan.ID + "/answer",
 			Flows:        flows,
 			Diagram:      SovereigntyDiagram(subject, flows),
-		}
-		findingsByID := make(map[string]models.Finding, len(scan.Findings))
-		for _, f := range scan.Findings {
-			findingsByID[f.ID] = f
 		}
 		view.FlowAnswers = BuildFlowAnswers(assessments, findingsByID, subject)
 		// Stable framework order: dictu first, then alphabetical.

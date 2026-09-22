@@ -30,9 +30,12 @@ type AnswerVerdict struct {
 // absent from that list — a rule that never fired because the scan
 // predates the dimension — contributes neither a verdict nor an
 // unanswered count: it was never asked, so it can't count as "nee"
-// or as unanswered.
-func BuildAnswerVerdict(assessments []models.Assessment) AnswerVerdict {
-	flows := SovereigntyFlows(assessments)
+// or as unanswered. findingsByID resolves a deciding flow's Evidence
+// so the "nee" headline can name the observed fact alongside the
+// Dutch verdict (SovereigntyFlows' dutchFlowVerdict); nil is fine when
+// no findings are available.
+func BuildAnswerVerdict(assessments []models.Assessment, findingsByID map[string]models.Finding) AnswerVerdict {
+	flows := SovereigntyFlows(assessments, findingsByID)
 	afhankelijk, unanswered, answered := classifyFlows(flows)
 	haveAnswered := answered > 0
 

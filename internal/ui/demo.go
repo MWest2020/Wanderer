@@ -68,11 +68,11 @@ func DemoHandler(st *store.Store, tmpl *template.Template, target string) http.H
 			render(w, tmpl, "demo.tmpl", view)
 			return
 		}
-		v := BuildAnswerVerdict(assessments)
 		findingsByID := make(map[string]models.Finding, len(scan.Findings))
 		for _, f := range scan.Findings {
 			findingsByID[f.ID] = f
 		}
+		v := BuildAnswerVerdict(assessments, findingsByID)
 		view.HasScan = true
 		view.ScannedAt = startedAt.UTC().Format(time.RFC3339)
 		view.Verdict = v.Verdict

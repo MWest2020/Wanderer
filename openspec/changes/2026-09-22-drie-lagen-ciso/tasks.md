@@ -30,9 +30,9 @@
 - [x] 3.2 Per niet-soeverein punt de handeling uit de tekstentabel.
 
 ## 4. Taal — run 04
-- [ ] 4.1 De oordelen van de wand-regels in het Nederlands, uit de
+- [x] 4.1 De oordelen van de wand-regels in het Nederlands, uit de
   bestaande tabel; Engels alleen nog in het bewijs.
-- [ ] 4.2 Een test die een Engelstalig oordeel buiten het bewijs vangt.
+- [x] 4.2 Een test die een Engelstalig oordeel buiten het bewijs vangt.
 
 ## 5. Techniek naar achteren — run 05
 - [ ] 5.1 De onderbouwing opent met de zeven vragen; de twee
