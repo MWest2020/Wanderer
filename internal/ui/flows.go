@@ -1,6 +1,9 @@
 package ui
 
-import "github.com/MWest2020/wanderer/pkg/models"
+import (
+	"github.com/MWest2020/wanderer/internal/assessor/wand"
+	"github.com/MWest2020/wanderer/pkg/models"
+)
 
 // Flow is one row of the Sovereignty overview — a single "what goes
 // where" statement synthesised from an already-scored rule. Label is
@@ -112,12 +115,19 @@ type FlowState struct {
 	State   string // "bezig" | "beantwoord" | "niet_gemeten"
 	Verdict string
 	Score   string
+	// Remediation is the handeling for this flow, set only when Score
+	// is "afhankelijk" — read straight from wand.HandelingFor with its
+	// {domein} placeholder filled in, the same table BuildFlowAnswers
+	// (flow_answers.go) and BuildAccountabilityAnswers use, so the
+	// answer page names the same action the onderbouwing page does.
+	Remediation string
 }
 
 // BuildFlowStates renders per-flow progress from a scan's assessments
 // (typically computed on the fly from the findings persisted so far —
 // see answerHandler). done is the scan's completion state: false while
-// it is still running, true once no more findings will land.
+// it is still running, true once no more findings will land. domain
+// fills the {domein} placeholder in a niet-soeverein flow's handeling.
 //
 // A rule that has already run against the current findings always
 // produces a Rationale entry, evidenced or not (assessor.Assess emits
@@ -125,7 +135,7 @@ type FlowState struct {
 // on" and "the rule has not been reached yet" look identical in the
 // Rationale — the only way to tell them apart is whether the scan
 // could still produce more findings.
-func BuildFlowStates(assessments []models.Assessment, done bool) []FlowState {
+func BuildFlowStates(assessments []models.Assessment, done bool, domain string) []FlowState {
 	type rv struct {
 		verdict   string
 		score     models.Score
@@ -144,7 +154,13 @@ func BuildFlowStates(assessments []models.Assessment, done bool) []FlowState {
 		r, ok := byRule[fr.id]
 		switch {
 		case ok && r.evidenced:
-			out = append(out, FlowState{Label: fr.label, State: "beantwoord", Verdict: r.verdict, Score: string(r.score)})
+			fs := FlowState{Label: fr.label, State: "beantwoord", Verdict: r.verdict, Score: string(r.score)}
+			if r.score == models.ScoreAfhankelijk {
+				if h, ok := wand.HandelingFor(fr.id); ok {
+					fs.Remediation = fillParams(h, map[string]string{"domein": domain})
+				}
+			}
+			out = append(out, fs)
 		case done:
 			out = append(out, FlowState{Label: fr.label, State: "niet_gemeten"})
 		default:
