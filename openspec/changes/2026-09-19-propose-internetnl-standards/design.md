@@ -269,3 +269,28 @@ dimensie kan maken.
 De RPKI-regel ziet hier 10 tests; met de voorvoegselregel uit
 bevinding 3 waren dat er 4 geweest, en dan was het oordeel nog steeds
 "soeverein" — even groen, op minder dan de helft van het bewijs.
+
+## Gemeten eindresultaat (2026-09-22)
+
+De hele keten op een verse database, via de gedocumenteerde route
+(`import internetnl` × 2, daarna `assess` op een gewone perimeter-scan):
+
+| regel                          | oordeel     | bewijs                                   |
+| ------------------------------ | ----------- | ---------------------------------------- |
+| `wand.standards.dnssec`        | soeverein   | alle 6 getoetste tests geslaagd          |
+| `wand.standards.mail_auth`     | soeverein   | alle 5 geslaagd                          |
+| `wand.standards.rpki`          | soeverein   | alle 10 geslaagd                         |
+| `wand.standards.ipv6`          | voldoende   | 8 van 9; `mail_ipv6_mx_reach` faalt      |
+| `wand.standards.tls_config`    | voldoende   | 15 van 20 getoetst                       |
+| `wand.standards.starttls_dane` | onbekend    | 18 van 19 niet getoetst, 1 meetfout      |
+
+Dit komt exact overeen met de aantallen die vooraf uit de fixtures
+waren uitgerekend (zie de tabel hierboven). Drie dingen die onderweg
+misgingen en alleen door dít te draaien zichtbaar werden:
+
+1. De regels scoorden per scan in plaats van per doel, waardoor `ipv6`
+   soeverein was op de web-import en voldoende op de mail-import.
+2. Na de reparatie gebruikte de CLI de correlatie nog niet — en dat is
+   net de stap uit de how-to.
+3. `starttls_dane` is het geval waar het om gaat: niets geslaagd,
+   achttien niet uitgevoerd, één mislukt. Onbekend, niet soeverein.
