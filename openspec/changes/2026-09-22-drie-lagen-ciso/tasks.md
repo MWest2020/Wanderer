@@ -34,6 +34,20 @@
   bestaande tabel; Engels alleen nog in het bewijs.
 - [x] 4.2 Een test die een Engelstalig oordeel buiten het bewijs vangt.
 
+## 4b. Wat er ná run 04b nog Engels is (live gezien op de
+## antwoordpagina, 2026-09-22)
+- [ ] 4.4 De stroomlabels zijn nog Engels: "Certificate", "Transit
+  path", "Third parties", "CDN / hyperscaler". Ze staan in
+  `flowRules` (`internal/ui/flows.go`). De oordelen eronder zijn
+  Nederlands, dus de regel leest nu half om.
+- [ ] 4.5 De navigatie mengt talen: "Overview · Vloot · Trends".
+- [ ] 4.6 De kopzin dubbelt: "Nee — Hosting: De hosting staat buiten de
+  EER — apex-adressen in CA". De stroomnaam staat er twee keer in.
+  Kies één vorm.
+- [ ] 4.7 Een ja-regel begint met kleine letter ("Ja — de mail wordt
+  binnen de EER gerouteerd"), een nee-regel met een hoofdletter ("De
+  hosting staat buiten de EER"). Eén vorm kiezen.
+
 ## 5. Techniek naar achteren — run 05
 - [ ] 5.1 De onderbouwing opent met de zeven vragen; de twee
   frameworktabellen achter één klik.
