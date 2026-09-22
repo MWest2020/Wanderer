@@ -9,7 +9,22 @@ once a first release is cut. Until then every entry lives under
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-09-22
+
 ### Fixed
+
+- **DNS-transactie-ID's kwamen uit `math/rand`**
+  (`internal/probe/dns/resolver.go`, `internal/probe/soa/resolver.go`).
+  Dat ID is de enige bescherming tegen een vervalst DNS-antwoord (RFC
+  5452): wie het kan voorspellen, kan de resolver een ander antwoord
+  voeren dan de nameserver gaf — en die antwoorden komen als bewijs in
+  het rapport terecht. Beide resolvers trekken het ID nu uit
+  `crypto/rand`.
+- **De docker-regel in de README startte de server in plaats van de
+  CLI.** `docker run ... wanderer-exapp:latest wanderer version` kwam
+  nooit terug: het image heeft `ENTRYPOINT ["/start.sh",
+  "/usr/local/bin/wanderer-exapp"]`, dus de argumenten gingen naar de
+  ExApp-server. De regel overschrijft nu de entrypoint.
 
 - **Eén keer is één keer: replayed findings-batches werden dubbel
   opgeslagen** (`2026-09-20-agent-enrollment`, run 03). Elke batch
@@ -1096,7 +1111,8 @@ ExApp) can pin a reproducible version instead of `@main`.
   deferred (see `docs/observability.md`).
   (`openspec/changes/archive/2026-04-24-init-mvp-scanners`)
 
-[Unreleased]: https://github.com/MWest2020/wanderer/compare/v0.7.0...main
+[Unreleased]: https://github.com/MWest2020/wanderer/compare/v0.8.0...main
+[0.8.0]: https://github.com/MWest2020/wanderer/compare/v0.7.0...v0.8.0
 [0.7.0]: https://github.com/MWest2020/wanderer/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/MWest2020/wanderer/compare/v0.5.1...v0.6.0
 [0.5.1]: https://github.com/MWest2020/wanderer/compare/v0.5.0...v0.5.1
