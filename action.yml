@@ -1,0 +1,69 @@
+name: 'Wanderer sovereignty scan'
+description: >-
+  Scans a domain's externally visible digital footprint with Wanderer and
+  writes the sovereignty verdict to the job summary. Runs entirely on this
+  runner: it talks to the scanned domain and to this repository's releases,
+  and to nothing of ours.
+author: 'Conduction'
+
+branding:
+  icon: 'compass'
+  color: 'blue'
+
+inputs:
+  domain:
+    description: 'Domain to scan.'
+    required: true
+  fail-on:
+    description: >-
+      Verdict that should fail this step: "afhankelijk" or "onbekend".
+      Empty (the default) never fails the step — a sovereignty verdict is
+      not a build error unless you opt in.
+    required: false
+    default: ''
+  geoip:
+    description: >-
+      Optional path to a GeoLite2 (or compatible) mmdb file for IP/ASN
+      jurisdiction lookups. Without it, jurisdiction-dependent answers
+      score "onbekend" — this action does not download one for you.
+    required: false
+    default: ''
+  version:
+    description: >-
+      Wanderer release tag to install, e.g. "v0.7.0". Defaults to the
+      latest release.
+    required: false
+    default: ''
+
+outputs:
+  score:
+    description: 'Questions answered with evidence vs. total, e.g. "12/18".'
+    value: ${{ steps.report.outputs.score }}
+  verdict:
+    description: 'Overall verdict: soeverein | voldoende | afhankelijk | onbekend.'
+    value: ${{ steps.report.outputs.verdict }}
+  report-path:
+    description: 'Path to the full JSON assessment report on the runner.'
+    value: ${{ steps.report.outputs.report-path }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Wanderer ophalen en checksum controleren
+      id: fetch
+      shell: bash
+      env:
+        WANDERER_VERSION: ${{ inputs.version }}
+      run: ${{ github.action_path }}/scripts/action-fetch.sh
+
+    - name: Domein scannen, beoordelen en samenvatten
+      id: report
+      shell: bash
+      env:
+        WANDERER_BIN: ${{ steps.fetch.outputs.wanderer-bin }}
+        WANDERER_DOMAIN: ${{ inputs.domain }}
+        WANDERER_FAIL_ON: ${{ inputs.fail-on }}
+        WANDERER_GEOIP: ${{ inputs.geoip }}
+        WANDERER_JQ_FILTER: ${{ github.action_path }}/scripts/action-report.jq
+        WANDERER_HANDELINGEN_FILE: ${{ github.action_path }}/internal/assessor/wand/accountability_nl.yaml
+      run: ${{ github.action_path }}/scripts/action-report.sh

@@ -1,0 +1,40 @@
+# Example workflow for the Wanderer GitHub Action — see
+# docs/how-to/action.md. This file lives in docs/ on purpose: it is
+# something you copy into *your own* repository's .github/workflows/,
+# not a workflow this repository runs itself.
+#
+# Copy this to .github/workflows/wanderer.yml in the repository whose
+# domain you want to keep an eye on, and adjust `domain` below.
+name: Wanderer sovereignty scan
+
+on:
+  pull_request:
+  schedule:
+    - cron: "0 6 * * 1" # every Monday at 06:00 UTC
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Scan onze.gemeente.nl
+        id: wanderer
+        uses: MWest2020/wanderer@v0.7.0
+        with:
+          domain: onze.gemeente.nl
+          # Optional: point at a GeoLite2 (or compatible) mmdb checked
+          # into the repo or restored from cache, so IP/ASN
+          # jurisdiction questions get answered instead of "onbekend".
+          # geoip: ./GeoLite2-ASN.mmdb
+          #
+          # Left empty on purpose: a sovereignty verdict is not a build
+          # error by default. Uncomment to make "afhankelijk" fail the
+          # step once you've decided that should block merges here.
+          # fail-on: afhankelijk
+
+      - name: Print the verdict
+        run: |
+          echo "score:   ${{ steps.wanderer.outputs.score }}"
+          echo "verdict: ${{ steps.wanderer.outputs.verdict }}"
+          echo "report:  ${{ steps.wanderer.outputs.report-path }}"

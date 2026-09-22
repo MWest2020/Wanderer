@@ -29,6 +29,8 @@ merits.
   `wanderer serve`, schedules file format, SIGHUP semantics.
 - [**Releasing**](how-to/releasing.md) — cut a release and keep the
   downstream ExApp in sync.
+- [**Wanderer in your pipeline**](how-to/action.md) — the GitHub Action
+  (`action.yml`): inputs, outputs, and what it deliberately doesn't do.
 
 ## Reference
 
