@@ -9,12 +9,14 @@
   categorienamen dragen een `web_`-voorvoegsel, `measured_at` bestaat
   alleen per batch, en de rapport-URL is ondoorzichtig (zelf-gehost).
   Het antwoord ligt als fixture in `fixtures/`.
-- [ ] 1.1b Het gecorrigeerde contract in de internetnl-cli-repo
-  landen, met gouden fixtures (web + mail).
-- [ ] 1.2 netnl: `--format findings` exporter + determinisme-test +
-  niet-nul exit bij een onvolledige batch. Bevestig éérst met één
-  echte MAIL-batch of die dezelfde platte `{status, verdict}`-vorm
-  heeft als web; de web-meting is gedaan, mail niet.
+- [x] 1.1b Het gecorrigeerde contract staat als
+  `docs/netnl-findings-v1.md` in de internetnl-cli-repo, met de gouden
+  fixtures voor web én mail uit echte metingen.
+- [x] 1.2 netnl: `internetnl results <id> --format findings` bestaat,
+  met determinisme-test en niet-nul exit bij een onvolledige batch
+  (change `2026-09-22-findings-export` in die repo, runs 01–04, 676
+  tests groen). De mail-batch is gedaan en bevestigde dezelfde platte
+  vorm; beide fixtures staan aan weerszijden byte-identiek.
 - [x] 1.3 Copy fixtures into Wanderer's testdata (same bytes) — done
   2026-09-22, `internal/scanner/testdata/findings-v1-{web,mail}-20260922.json`,
   sha256-verified identical to the change's `fixtures/` copies.
