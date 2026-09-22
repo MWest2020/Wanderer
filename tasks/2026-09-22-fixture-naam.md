@@ -1,3 +1,6 @@
+> Uitgevoerd 2026-09-22. De naam zelf staat hier niet meer in; zie
+> commit b28dbaf en voorgangers voor wat er verving.
+
 # Habitat run — de naam van de vorige eigenaar uit de testdata
 
 Mark, 2026-09-22: die naam moet overal weg. De
@@ -8,9 +11,8 @@ Playwright-specs verwachten de naam letterlijk op het scherm.
 
 ## Waar het staat
 
-- `internal/fixtures/baseline.go`: organisatie-slug `conduction`,
-  naam `Conduction B.V.`, doel `conduction.nl`, plus een
-  `whois.registrant`-finding met `organisation: "Conduction B.V."`,
+- `internal/fixtures/baseline.go`: de organisatie-slug, naam en het doeldomein van de vorige
+  eigenaar, plus een `whois.registrant`-finding met diezelfde naam,
   en drie comments bovenin die het scenario beschrijven.
 - `internal/store/organisation_test.go`: twee keer als hernoemdoel.
 - `tests/playwright/specs/dar.spec.ts`: drie asserties op de naam in
