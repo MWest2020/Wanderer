@@ -9,9 +9,7 @@ run checks off only the tasks of its own cluster.
   reuse; privacy-proxy / registry-redaction YAML location;
   expected_registrant config shape. → outcome in design.md "Design
   gate outcome".
-- [ ] 1.2 Decide attribution wording (README + docs/explanation) for
-  the idea lineage (Stegink) — same pattern as the DICTU credit.
-  Needed before run 08.
+- [x] 1.2 Vervallen: geen naamsvermelding. Mark, 2026-09-22.
 
 ## 2. Foundation — run 01
 - [x] 2.1 `models.DimensionHint`: add `accountability`; `Valid()`
@@ -134,5 +132,5 @@ run checks off only the tasks of its own cluster.
 - [x] 9.2 docs/explanation note: RDAP fields we wish existed
   (actor/escalation), the `.nl` passive ceiling, why both are out of
   scope.
-- [ ] 9.3 Attribution text from 1.2.
-- [ ] 9.4 Archive the change.
+- [x] 9.3 Vervallen met 1.2.
+- [x] 9.4 Archive the change.

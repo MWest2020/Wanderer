@@ -26,13 +26,9 @@ probe reads headers but never `/.well-known/security.txt`; nothing
 reads SOA RNAME; NS host jurisdiction is scored but NS *holder*
 transparency is not.
 
-**Attribution.** The rule set consolidates ideas argued publicly by
-Jan Willem Stegink (janwillemstegink.nl / hostingtool.org):
-registrant identifiability, direct-registrar relationships, RFC 2142
-RNAME compliance, nameserver-holder transparency, and per-variant
-reachability. Wanderer contributes the structured, evidence-backed,
-continuously-scanning implementation. Credited in docs; independent
-implementation, same pattern as the DICTU attribution (ADR-0011).
+**Attribution.** None. The rules rest on public standards — RDAP
+(RFC 9083), RFC 2142 role mailboxes, RFC 9116 `security.txt` — and the
+implementation is Wanderer's own. Decision: Mark, 2026-09-22.
 
 ## DICTU dimension(s)
 
