@@ -28,6 +28,7 @@
 
 import { test, expect } from "@playwright/test";
 import type { Page } from "@playwright/test";
+import { checkAccessibility } from "../support/axe";
 
 async function conductionAnswerURL(page: Page): Promise<string> {
   await page.goto("/ui/targets");
@@ -115,6 +116,7 @@ test.describe("Onbekend is geen ja", () => {
     // with nothing else, which is what a rounded-up lie would read.
     await expect(verdict.locator(".badge")).toHaveText("ja");
     await expect(verdict).toContainText(/kon(den)? niet worden beantwoord/);
+    await checkAccessibility(page, "antwoord");
   });
 
   test("the reasoning page renders the onbekend flow distinctly, with the rule ID collapsed", async ({

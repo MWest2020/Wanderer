@@ -6,6 +6,7 @@
 // keeps the slimness + org-scope-threading scenarios.
 
 import { test, expect } from "@playwright/test";
+import { checkAccessibility } from "../support/axe";
 
 test.describe("Overview slimness", () => {
   test("The door at /ui/ stays slim; the fleet + verdict pills moved to /ui/trends (answer-first-ui)", async ({ page }) => {
@@ -18,6 +19,7 @@ test.describe("Overview slimness", () => {
     await expect(page.locator("text=Top concerns")).toHaveCount(0);
     await expect(page.locator("text=Recent activity")).toHaveCount(0);
     await expect(page.locator("table.reporting-rules")).toHaveCount(0);
+    await checkAccessibility(page, "vloot (/ui/)");
 
     // That content did not disappear — it moved to Trends.
     await page.goto("/ui/trends");
@@ -25,6 +27,7 @@ test.describe("Overview slimness", () => {
     await expect(page.locator("p.meta .muted")).toContainText("all organisations");
     await expect(page.locator("section.targets-fleet")).toBeVisible();
     await expect(page.getByRole("heading", { name: /^Verdict\b/i })).toBeVisible();
+    await checkAccessibility(page, "trends");
   });
 });
 

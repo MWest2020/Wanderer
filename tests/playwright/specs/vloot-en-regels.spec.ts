@@ -26,6 +26,7 @@
 // threshold.
 
 import { test, expect } from "@playwright/test";
+import { checkAccessibility } from "../support/axe";
 
 test.describe("Domein toevoegen aan de vloot", () => {
   test("een nieuw domein verschijnt zonder te scannen", async ({ page }) => {
@@ -92,5 +93,6 @@ test.describe("De regelpagina toont een grens en een handeling", () => {
     await expect(row.locator(".answer-remediation")).toContainText(
       "Verleng de domeinregistratie van acme.example.com",
     );
+    await checkAccessibility(page, "regelpagina");
   });
 });
