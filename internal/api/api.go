@@ -98,11 +98,16 @@ func RouterWithSecrets(st *store.Store, sc *scanner.Scanner, logger *slog.Logger
 			writeError(w, http.StatusInternalServerError, "store_error", err.Error())
 			return
 		}
+		findings, err := st.FindingsForAssessment(r.Context(), scan)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "store_error", err.Error())
+			return
+		}
 		rules := wand.DefaultRules()
 		a := &models.Assessment{
 			ScanID:     scan.ID,
 			Framework:  "wand",
-			Dimensions: assessor.Assess(scan.Findings, rules),
+			Dimensions: assessor.Assess(findings, rules),
 		}
 		var buf strBuf
 		subject := subjectForScan(r.Context(), st, scan)

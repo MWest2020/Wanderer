@@ -350,10 +350,15 @@ func scanTriggerHandler(st *store.Store, sc ScanTrigger) http.HandlerFunc {
 			}
 			// Assess with the wand pack so the Sovereignty overview +
 			// diagram populate on the page the status poller lands on.
+			findings, ferr := st.FindingsForAssessment(ctx, scan)
+			if ferr != nil {
+				slog.Error("ui.scan.assess_failed", "scan_id", scan.ID, "err", ferr)
+				return
+			}
 			a := &models.Assessment{
 				ScanID:     scan.ID,
 				Framework:  "wand",
-				Dimensions: assessor.Assess(scan.Findings, wand.DefaultRules()),
+				Dimensions: assessor.Assess(findings, wand.DefaultRules()),
 			}
 			if err := st.CreateAssessment(ctx, a); err != nil {
 				slog.Error("ui.scan.assess_failed", "scan_id", scan.ID, "err", err)
@@ -1214,12 +1219,17 @@ func answerHandler(st *store.Store, tmpl *template.Template) http.HandlerFunc {
 			view.JustStarted = true
 			view.Headline = renderAnswerCopy("net_begonnen", nil)
 		} else {
+			findings, ferr := st.FindingsForAssessment(r.Context(), scan)
+			if ferr != nil {
+				http.Error(w, ferr.Error(), http.StatusInternalServerError)
+				return
+			}
 			assessments := []models.Assessment{{
 				Framework:  "wand",
-				Dimensions: assessor.Assess(scan.Findings, wand.DefaultRules()),
+				Dimensions: assessor.Assess(findings, wand.DefaultRules()),
 			}}
-			findingsByID := make(map[string]models.Finding, len(scan.Findings))
-			for _, f := range scan.Findings {
+			findingsByID := make(map[string]models.Finding, len(findings))
+			for _, f := range findings {
 				findingsByID[f.ID] = f
 			}
 			v := BuildAnswerVerdict(assessments, findingsByID)

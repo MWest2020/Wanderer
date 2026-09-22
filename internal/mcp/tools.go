@@ -132,11 +132,15 @@ func assessScanTool(d Deps) Tool {
 			if err != nil {
 				return ToolResult{}, err
 			}
+			findings, err := d.Store.FindingsForAssessment(ctx, scan)
+			if err != nil {
+				return ToolResult{}, err
+			}
 			rules := wand.DefaultRules()
 			a := &models.Assessment{
 				ScanID:     scan.ID,
 				Framework:  "wand",
-				Dimensions: assessor.Assess(scan.Findings, rules),
+				Dimensions: assessor.Assess(findings, rules),
 			}
 			if err := d.Store.CreateAssessment(ctx, a); err != nil {
 				return ToolResult{}, err

@@ -19,6 +19,7 @@ var assessFrameworks = []models.Framework{models.FrameworkWand, models.Framework
 // exercise the "assessment fails" path without a real store failure.
 type assessmentPersister interface {
 	CreateAssessment(ctx context.Context, a *models.Assessment) error
+	FindingsForAssessment(ctx context.Context, scan *models.Scan) ([]models.Finding, error)
 }
 
 // assessScan judges scan against every framework in assessFrameworks
@@ -30,12 +31,16 @@ type assessmentPersister interface {
 // caller decides whether that should stop the scan from being kept
 // (it should not — see internal/scheduler/scheduler.go).
 func assessScan(ctx context.Context, st assessmentPersister, scan *models.Scan, subject string) error {
+	findings, err := st.FindingsForAssessment(ctx, scan)
+	if err != nil {
+		return fmt.Errorf("gather findings for assessment: %w", err)
+	}
 	for _, fw := range assessFrameworks {
 		rules := rulesForFramework(fw)
 		a := &models.Assessment{
 			ScanID:     scan.ID,
 			Framework:  string(fw),
-			Dimensions: assessor.Assess(scan.Findings, rules),
+			Dimensions: assessor.Assess(findings, rules),
 		}
 		var buf strBuf
 		if err := assessor.RenderMarkdown(&buf, a, assessor.Rules(rules), subject); err != nil {

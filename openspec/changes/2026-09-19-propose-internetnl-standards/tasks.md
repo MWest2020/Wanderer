@@ -35,12 +35,50 @@
   so creating the target afterwards and re-importing silently did
   nothing. The key is now **(file hash, domain)**: see
   `runs/02b-import-zonder-doel.md`.
-- [ ] 2.2 Store: import-kind scans coexist with perimeter scans;
-  assessor reads newest per kind — done 2026-09-22. Findings.SourceModus
-  gained `import` (no new Scan.Kind column, per design decision);
-  `Store.LatestScanByModus` gives a future assessor its "newest scan
-  for this modus" primitive without this run reaching into
-  assessor/rules territory.
+- [x] 2.2 Store: import-kind scans coexist with perimeter scans;
+  assessor reads newest per kind — reopened by habitat run 03b
+  (2026-09-22): `Store.LatestScanByModus` (run 03) only gave a
+  primitive, and no caller used it, so every `assessor.Assess` call
+  site scored `scan.Findings` alone — a perimeter scan saw zero
+  `internetnl.*` evidence, and each import scan saw only its own
+  type (web or mail), scoring some `standards` rules (dnssec, ipv6,
+  rpki, which have tests on both sides) on half the evidence.
+  **Fixed 2026-09-22:** `Store.LatestImportFindings` (new,
+  `internal/store/netnlimport.go`) groups a target's import-modus
+  Findings by their `type` attribute (web/mail) and keeps only the
+  Findings from each type's most-recently-started scan, so a fresh
+  import of one type supersedes only that type. `Store.
+  FindingsForAssessment(ctx, scan)` combines that with `scan`'s own
+  non-import Findings (perimeter/inventory/egress/drift pass through
+  unchanged — only `standards`-feeding import Findings are
+  correlated) and replaces every `scan.Findings` argument to
+  `assessor.Assess` across the six call sites (`internal/api/api.go`,
+  `internal/mcp/tools.go`, `internal/scheduler/assess.go` +
+  `assessmentPersister` interface, `internal/ui/ui.go` ×2). No change
+  to any standards rule itself — `scoreStandardsCategory` already
+  worked correctly given the right findings, it just never received
+  them. `internal/fixtures/seed.go` untouched: it seeds no netnl
+  import scenario.
+- [x] 2.3 Tests pinning the corrected behaviour (habitat run 03b) —
+  `internal/store/standards_correlation_test.go`:
+  `TestFindingsForAssessment_CorrelatesWebAndMailAcrossScans` persists
+  a perimeter scan plus separate web- and mail-import scans (both
+  golden fixtures) and asserts `wand.standards.ipv6` sees all 9 tests
+  (voldoende) and `wand.standards.rpki` all 10 (soeverein) regardless
+  of which of the three scans is assessed — including the perimeter
+  scan, previously blind to import evidence entirely.
+  `TestFindingsForAssessment_FreshMailImportReplacesOnlyMail` imports
+  web once, mail twice (the second with every `mail_ipv6` test
+  flipped to passed), and asserts `wand.standards.ipv6` moves to
+  soeverein without doubling its evidence count, while
+  `wand.standards.dnssec` (untouched by mail) still sees all 6 tests
+  unchanged — the fresh import replaces only its own type. Verified
+  with the reparatie eruit: temporarily reverting
+  `FindingsForAssessment` to `return scan.Findings, nil` fails both
+  new tests exactly as expected (perimeter: 0 evidence for
+  ipv6/rpki; web/mail scans: half the evidence each; the fresh-mail
+  test: old and new mail_ipv6 results co-existing instead of the old
+  being replaced) — restored before committing.
 
 ## 3. Assessor
 - [x] 3.1 `standards` dimension registration + six rules (verdict

@@ -116,6 +116,10 @@ func (f failingPersister) CreateAssessment(_ context.Context, _ *models.Assessme
 	return f.err
 }
 
+func (f failingPersister) FindingsForAssessment(_ context.Context, scan *models.Scan) ([]models.Finding, error) {
+	return scan.Findings, nil
+}
+
 // 1.4 / 1.2: een falende beoordeling laat de scan staan.
 func TestAssessScan_FailureLeavesScanInPlace(t *testing.T) {
 	st, err := store.Open(context.Background(), "file::memory:?cache=shared")
