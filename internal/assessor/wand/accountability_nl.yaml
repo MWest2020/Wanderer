@@ -82,6 +82,67 @@ rules:
       afhankelijk: "Verleng de domeinregistratie direct en zet automatische verlenging aan bij de registrar."
       onbekend: "Probeer de RDAP-opvraging later opnieuw of controleer de vervaldatum handmatig bij het register."
 
+  # The seven sovereignty-flow rules (internal/ui/flows.go's flowRules)
+  # score dynamic, data-rich English verdicts (country lists, observed
+  # operator names — see internal/assessor/wand/rules.go, ns_rules.go,
+  # transit_rules.go). Reproducing that same richness in Dutch would mean
+  # re-deriving each rule's correlation logic a second time in the UI
+  # layer (run 04 task 4.1 considered this and rejected it as needless
+  # duplication risk). Instead each flow rule gets one fixed Dutch
+  # sentence per outcome (soeverein/voldoende/afhankelijk/onbekend), with
+  # no named parameters — looked up by rule ID + score only (see
+  # internal/ui/flows.go's dutchFlowVerdict). The English detail (which
+  # country, which operator) stays reachable in the evidence's raw
+  # finding attributes, which is where probe output belongs.
+  wand.juridisch.apex_ip_eea:
+    verdicts:
+      soeverein: "De hosting staat in de EER."
+      voldoende: "De hosting is verdeeld over landen binnen en buiten de EER."
+      afhankelijk: "De hosting staat buiten de EER."
+      onbekend: "De locatie van de hosting kon niet worden vastgesteld."
+
+  wand.juridisch.mx_vendor_jurisdiction:
+    verdicts:
+      soeverein: "De mail loopt via servers in de EER."
+      voldoende: "De mail loopt deels via servers buiten de EER."
+      afhankelijk: "De mail loopt via servers buiten de EER."
+      onbekend: "Waar de mail loopt kon niet worden vastgesteld."
+
+  wand.juridisch.ns_vendor_jurisdiction:
+    verdicts:
+      soeverein: "De nameservers staan in de EER."
+      voldoende: "De nameservers zijn verdeeld over landen binnen en buiten de EER."
+      afhankelijk: "De nameservers staan buiten de EER."
+      onbekend: "Waar de nameservers staan kon niet worden vastgesteld."
+
+  wand.juridisch.cert_issuer_eea:
+    verdicts:
+      soeverein: "Het certificaat is uitgegeven door een certificaatautoriteit in de EER."
+      voldoende: "De certificaatketen doorkruist zowel EER- als niet-EER-landen."
+      afhankelijk: "Het certificaat is uitgegeven buiten de EER."
+      onbekend: "De uitgever van het certificaat kon niet worden vastgesteld."
+
+  wand.transit.eu_path:
+    verdicts:
+      soeverein: "Het doel wordt gehost binnen de EER."
+      voldoende: "Het doel wordt gehost binnen de EER, met transit door een niet-EER-land."
+      afhankelijk: "Het doel wordt gehost buiten de EER."
+      onbekend: "Er kon geen netwerkpad met landgegevens worden vastgesteld."
+
+  wand.technologie.no_us_hyperscaler:
+    verdicts:
+      soeverein: "Er is geen bekende Amerikaanse hyperscaler gevonden in het pad."
+      voldoende: "Er is geen bekende Amerikaanse hyperscaler gevonden in het pad."
+      afhankelijk: "Het verkeer loopt via een Amerikaanse hyperscaler."
+      onbekend: "Er kon geen IP-naar-AS-koppeling worden vastgesteld."
+
+  wand.technologie.third_parties_eea:
+    verdicts:
+      soeverein: "Alle onderzochte derde partijen zijn gevestigd in de EER."
+      voldoende: "Een deel van de derde partijen is gevestigd buiten de EER."
+      afhankelijk: "De derde partijen zijn gevestigd buiten de EER."
+      onbekend: "De locatie van de derde partijen kon niet worden vastgesteld."
+
   wand.operationeel.variant_convergence:
     question: "Komen alle toegangswegen tot de website uit op hetzelfde, beveiligde adres?"
     verdicts:

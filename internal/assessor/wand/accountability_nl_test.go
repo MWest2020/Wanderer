@@ -20,6 +20,47 @@ var accountabilityRuleParams = map[string][]string{
 	"wand.operationeel.variant_convergence":        {"count", "total", "path"},
 }
 
+// flowVerdictRuleIDs are the seven sovereignty-flow rules (run 04 task
+// 4.1): unlike accountabilityRuleParams' rules, they carry no Question
+// or Remediation in this table (the question lives in
+// internal/ui/flows.go's flowRules, the remediation in this file's
+// handelingen map) — just a fixed, parameter-free Dutch verdict per
+// score, checked by TestAccountabilityNL_FlowVerdictsComplete.
+var flowVerdictRuleIDs = []string{
+	"wand.juridisch.apex_ip_eea",
+	"wand.juridisch.mx_vendor_jurisdiction",
+	"wand.juridisch.ns_vendor_jurisdiction",
+	"wand.juridisch.cert_issuer_eea",
+	"wand.transit.eu_path",
+	"wand.technologie.no_us_hyperscaler",
+	"wand.technologie.third_parties_eea",
+}
+
+// TestAccountabilityNL_FlowVerdictsComplete pins that every flow rule
+// has a non-empty, parameter-free verdict for all four base outcomes —
+// dutchFlowVerdict (internal/ui/flows.go) looks these up by rule ID +
+// score alone, so a missing outcome would silently render a blank
+// verdict line instead of failing loudly.
+func TestAccountabilityNL_FlowVerdictsComplete(t *testing.T) {
+	for _, ruleID := range flowVerdictRuleIDs {
+		ruleID := ruleID
+		t.Run(ruleID, func(t *testing.T) {
+			entry, ok := AccountabilityCopyFor(ruleID)
+			if !ok {
+				t.Fatalf("no accountability_nl.yaml entry for %s", ruleID)
+			}
+			for _, outcome := range baseOutcomes {
+				text, ok := entry.Verdicts[outcome]
+				if !ok || text == "" {
+					t.Errorf("%s: missing verdict text for outcome %q", ruleID, outcome)
+					continue
+				}
+				checkParams(t, ruleID, "verdicts["+outcome+"]", text, nil)
+			}
+		})
+	}
+}
+
 // baseOutcomes are the four models.Score values every rule entry must
 // carry verdict text for, regardless of whether every branch of the
 // rule's own Go logic currently reaches that outcome — the copy table
@@ -88,10 +129,18 @@ func TestAccountabilityNL_NoOrphanEntries(t *testing.T) {
 	if err != nil {
 		t.Fatalf("load accountability_nl.yaml: %v", err)
 	}
+	flowIDs := map[string]bool{}
+	for _, id := range flowVerdictRuleIDs {
+		flowIDs[id] = true
+	}
 	for ruleID := range m {
-		if _, ok := accountabilityRuleParams[ruleID]; !ok {
-			t.Errorf("accountability_nl.yaml has an entry for unknown rule %q", ruleID)
+		if _, ok := accountabilityRuleParams[ruleID]; ok {
+			continue
 		}
+		if flowIDs[ruleID] {
+			continue
+		}
+		t.Errorf("accountability_nl.yaml has an entry for unknown rule %q", ruleID)
 	}
 }
 

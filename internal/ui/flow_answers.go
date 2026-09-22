@@ -2,11 +2,13 @@
 // answer-sheet rows — the same AccountabilityAnswer shape and the same
 // "answer-rows" template partial the accountability section already
 // uses (design.md "UI direction"; run 04 task 4.1: "Hergebruik wat de
-// accountability-sectie al doet; bouw geen tweede weergave"). Unlike
-// accountability's per-outcome Dutch verdict copy, a flow's Verdict is
-// the rule's own observed-fact sentence (Rationale.Verdict) — this run
-// adds no new observation or scoring (proposal.md "Out: the assessor,
-// the rules, the probes").
+// accountability-sectie al doet; bouw geen tweede weergave"). The
+// visible Verdict is the Dutch sentence from accountability_nl.yaml
+// (dutchFlowVerdict, flows.go), keyed by rule ID + score; the rule's own
+// English observed-fact sentence (Rationale.Verdict) stays only in
+// NoEvidenceNote, inside the collapsed evidence (spec.md "Eén taal per
+// laag"). This run adds no new observation or scoring (proposal.md
+// "Out: the assessor, the rules, the probes").
 package ui
 
 import (
@@ -41,7 +43,7 @@ func BuildFlowAnswers(assessments []models.Assessment, findingsByID map[string]m
 			Question:    fr.question,
 			AnswerLabel: label,
 			AnswerClass: class,
-			Verdict:     rat.Verdict,
+			Verdict:     dutchFlowVerdict(fr.id, rat.Score),
 		}
 		if rule, ok := lookupRule("wand", fr.id); ok {
 			row.RuleDescription = rule.Description

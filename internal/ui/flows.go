@@ -51,6 +51,26 @@ func isSovereigntyFlowRule(ruleID string) bool {
 	return false
 }
 
+// dutchFlowVerdict returns the Dutch verdict sentence for a flow rule's
+// outcome, read from accountability_nl.yaml's rules table (spec.md "Eén
+// taal per laag": the vloot-, antwoord- en onderbouwingspagina's
+// oordelen SHALL be Dutch, sourced from the existing text table — not a
+// second one). Unlike accountability's per-outcome copy, there are no
+// named parameters: the flow rules' English verdicts carry dynamic,
+// rule-specific detail (country lists, observed operator names) that
+// would have to be re-derived from findings a second time to
+// parametrise safely; that detail stays reachable, in English, in the
+// evidence's raw finding attributes. Empty when the table has no entry
+// for this rule/score combination — should not happen for a flowRules
+// entry (TestFlowVerdictsCoverEveryReachableOutcome pins this).
+func dutchFlowVerdict(ruleID string, score models.Score) string {
+	copyEntry, ok := wand.AccountabilityCopyFor(ruleID)
+	if !ok {
+		return ""
+	}
+	return copyEntry.Verdicts[string(score)]
+}
+
 // SovereigntyFlows synthesises the overview from a scan's assessments.
 // It reads the per-rule rationales (which already carry the observed
 // verdict + score) and emits one Flow per known flow rule, in a fixed
@@ -58,28 +78,24 @@ func isSovereigntyFlowRule(ruleID string) bool {
 // logic lives here — the flows mirror what the rule pack already scored.
 func SovereigntyFlows(assessments []models.Assessment) []Flow {
 	// Index the latest rationale per rule ID across all frameworks.
-	type rv struct {
-		verdict string
-		score   models.Score
-	}
-	byRule := map[string]rv{}
+	byRule := map[string]models.Score{}
 	for _, a := range assessments {
 		for _, d := range a.Dimensions {
 			for _, r := range d.Rationale {
-				byRule[r.CriteriumID] = rv{verdict: r.Verdict, score: r.Score}
+				byRule[r.CriteriumID] = r.Score
 			}
 		}
 	}
 	var flows []Flow
 	for _, fr := range flowRules {
-		r, ok := byRule[fr.id]
+		score, ok := byRule[fr.id]
 		if !ok {
 			continue
 		}
 		flows = append(flows, Flow{
 			Label:   fr.label,
-			Verdict: r.verdict,
-			Score:   string(r.score),
+			Verdict: dutchFlowVerdict(fr.id, score),
+			Score:   string(score),
 		})
 	}
 	return flows
@@ -137,7 +153,6 @@ type FlowState struct {
 // could still produce more findings.
 func BuildFlowStates(assessments []models.Assessment, done bool, domain string) []FlowState {
 	type rv struct {
-		verdict   string
 		score     models.Score
 		evidenced bool
 	}
@@ -145,7 +160,7 @@ func BuildFlowStates(assessments []models.Assessment, done bool, domain string) 
 	for _, a := range assessments {
 		for _, d := range a.Dimensions {
 			for _, r := range d.Rationale {
-				byRule[r.CriteriumID] = rv{verdict: r.Verdict, score: r.Score, evidenced: len(r.Evidence) > 0}
+				byRule[r.CriteriumID] = rv{score: r.Score, evidenced: len(r.Evidence) > 0}
 			}
 		}
 	}
@@ -154,7 +169,7 @@ func BuildFlowStates(assessments []models.Assessment, done bool, domain string) 
 		r, ok := byRule[fr.id]
 		switch {
 		case ok && r.evidenced:
-			fs := FlowState{Label: fr.label, State: "beantwoord", Verdict: r.verdict, Score: string(r.score)}
+			fs := FlowState{Label: fr.label, State: "beantwoord", Verdict: dutchFlowVerdict(fr.id, r.score), Score: string(r.score)}
 			if r.score == models.ScoreAfhankelijk {
 				if h, ok := wand.HandelingFor(fr.id); ok {
 					fs.Remediation = fillParams(h, map[string]string{"domein": domain})
