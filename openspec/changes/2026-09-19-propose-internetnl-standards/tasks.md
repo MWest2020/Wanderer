@@ -58,7 +58,20 @@
   to any standards rule itself — `scoreStandardsCategory` already
   worked correctly given the right findings, it just never received
   them. `internal/fixtures/seed.go` untouched: it seeds no netnl
-  import scenario.
+  import scenario. **Gap found and fixed 2026-09-22 (task-ref
+  `tasks/2026-09-22-cli-assess-correlatie.md`):** the enumeration
+  above missed a sixth caller, `cmd/wanderer/assess.go` — the CLI's
+  `wanderer assess` command, which is the documented route for this
+  whole feature (`internetnl results` → `wanderer import internetnl`
+  → `wanderer assess`). It still scored `scan.Findings` directly, so
+  a perimeter scan assessed via the CLI reported every `standards`
+  rule as "not measured" even with both imports present in the same
+  database. Now calls `st.FindingsForAssessment(ctx, scan)` once per
+  scan, same as the other five call sites.
+  `internal/fixtures/seed.go`'s direct use of `assessor.Assess`
+  (`persisted`, not `FindingsForAssessment`) was checked too: it
+  seeds single-scan demo data with no separate import scans to
+  correlate against, so it's unaffected and correctly left as is.
 - [x] 2.3 Tests pinning the corrected behaviour (habitat run 03b) —
   `internal/store/standards_correlation_test.go`:
   `TestFindingsForAssessment_CorrelatesWebAndMailAcrossScans` persists
@@ -78,7 +91,17 @@
   new tests exactly as expected (perimeter: 0 evidence for
   ipv6/rpki; web/mail scans: half the evidence each; the fresh-mail
   test: old and new mail_ipv6 results co-existing instead of the old
-  being replaced) — restored before committing.
+  being replaced) — restored before committing. **Extended 2026-09-22**
+  with a CLI-level test for the sixth caller found above:
+  `cmd/wanderer/assess_correlation_test.go`
+  `TestRunAssess_CorrelatesImportedStandardsFindings` imports web and
+  mail via `runImportInternetnl`, assesses a perimeter scan via
+  `runAssess`, and asserts the persisted assessment shows
+  `wand.standards.rpki` at 10 tests and `wand.standards.ipv6` at 9.
+  Verified with the reparatie eruit (temporarily reverting
+  `assess.go` to `scan.Findings`): fails exactly as expected (0
+  evidence for both rules, "not measured" rendered) — restored before
+  committing.
 
 ## 3. Assessor
 - [x] 3.1 `standards` dimension registration + six rules (verdict

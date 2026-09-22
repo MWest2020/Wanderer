@@ -63,13 +63,19 @@ func runAssess(args []string) int {
 		return 1
 	}
 
+	findings, err := st.FindingsForAssessment(ctx, scan)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "wanderer: findings: %v\n", err)
+		return 1
+	}
+
 	subject := subjectOfScan(ctx, scan, st)
 	for _, fw := range frameworks {
 		rules := rulesForFramework(fw)
 		a := &models.Assessment{
 			ScanID:     scan.ID,
 			Framework:  string(fw),
-			Dimensions: assessor.Assess(scan.Findings, rules),
+			Dimensions: assessor.Assess(findings, rules),
 		}
 		reportBuf := &strBuf{}
 		if err := assessor.RenderMarkdown(reportBuf, a, rules, subject); err != nil {
