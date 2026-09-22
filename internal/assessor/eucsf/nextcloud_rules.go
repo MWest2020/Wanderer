@@ -29,7 +29,16 @@ func nextcloudSupplyChain() assessor.Rule {
 		Match: func(findings []models.Finding) assessor.RuleResult {
 			var inspectedStore, inspectedOIDC []models.Finding
 			var nonEEAStore, nonEEAOIDC []models.Finding
+			var unreadable models.Finding
 			for _, f := range findings {
+				if f.ProbeID == "inventory.nextcloud.system_config.unreadable" {
+					// occ config:list system output could not be
+					// parsed — a scanner-side read failure, not a
+					// statement that nothing is configured. Note it
+					// even though it fails IsEvidenceLike below.
+					unreadable = f
+					continue
+				}
 				if !assessor.IsEvidenceLike(f) {
 					continue
 				}
@@ -49,6 +58,14 @@ func nextcloudSupplyChain() assessor.Rule {
 				}
 			}
 			if len(inspectedStore)+len(inspectedOIDC) == 0 {
+				if unreadable.ProbeID != "" {
+					reason, _ := unreadable.Attributes["reason"].(string)
+					return assessor.RuleResult{
+						Score:   models.ScoreOnbekend,
+						Verdict: "Nextcloud inspector could not read occ config:list system output — " + reason,
+						Reason:  assessor.ReasonScannerUnreadableOutput,
+					}
+				}
 				return assessor.RuleResult{
 					Score:   models.ScoreOnbekend,
 					Verdict: "no inventory.nextcloud.objectstore / .oidc_provider findings — Nextcloud inspector did not run or no relevant configuration",

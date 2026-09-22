@@ -4,6 +4,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/MWest2020/wanderer/internal/assessor"
 	"github.com/MWest2020/wanderer/pkg/models"
 )
 
@@ -56,5 +57,30 @@ func TestNextcloudSupplyChain_NoFindingsIsOnbekend(t *testing.T) {
 	got := r.Match(nil)
 	if got.Score != models.ScoreOnbekend {
 		t.Errorf("no findings: score = %s, want onbekend", got.Score)
+	}
+	if got.Reason != "" {
+		t.Errorf("no findings: reason = %q, want empty (this is 'not configured', not 'unreadable')", got.Reason)
+	}
+}
+
+func TestNextcloudSupplyChain_UnreadableSystemConfig(t *testing.T) {
+	r := ruleByID(t, "eucsf.sov6.nextcloud_supply_chain")
+	got := r.Match([]models.Finding{
+		ncFinding("u1", "inventory.nextcloud.system_config.unreadable", "config:list system", map[string]any{
+			"unavailable": true,
+			"reason":      "occ config:list system --output=json unreadable: invalid character 'D' looking for beginning of value (58 bytes)",
+		}),
+	})
+	if got.Score != models.ScoreOnbekend {
+		t.Errorf("unreadable output: score = %s, want onbekend", got.Score)
+	}
+	if got.Reason != assessor.ReasonScannerUnreadableOutput {
+		t.Errorf("unreadable output: reason = %q, want %q", got.Reason, assessor.ReasonScannerUnreadableOutput)
+	}
+	if strings.Contains(got.Verdict, "no relevant configuration") {
+		t.Errorf("verdict = %q must not read as 'nothing configured'", got.Verdict)
+	}
+	if !strings.Contains(got.Verdict, "could not read") {
+		t.Errorf("verdict = %q must say the scanner could not read the output", got.Verdict)
 	}
 }
