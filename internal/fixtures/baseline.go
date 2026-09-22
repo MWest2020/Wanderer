@@ -10,18 +10,18 @@ import (
 )
 
 // BuildBaseline writes the minimal happy-path scenario: two
-// organisations (conduction + acme), conduction carrying two
+// organisations (voorbeeld + acme), voorbeeld carrying two
 // perimeter domains and acme one, one scored scan each. Every
 // existing perimeter rule that the demo Playwright suite exercises
 // has at least one non-onbekend row after the seed runs.
 //
 // Score shape on purpose:
 //
-//   - conduction.nl is fully soeverein (NL-issued TLS, NL-hosted
+//   - voorbeeld.nl is fully soeverein (NL-issued TLS, NL-hosted
 //     IP, NL-hosted mail) so the dashboard pill is green
-//   - tweede.nl is conduction's second fleet domain: afhankelijk on
+//   - tweede.nl is voorbeeld's second fleet domain: afhankelijk on
 //     the certificate dimension, scanned two days before
-//     conduction.nl, so the vloot-en-regels Playwright spec (run 06)
+//     voorbeeld.nl, so the vloot-en-regels Playwright spec (run 06)
 //     can prove "sort by score" and "sort by last scan" produce
 //     different orders within one organisation's fleet
 //   - acme.example.com is afhankelijk on the certificate dimension
@@ -31,7 +31,7 @@ import (
 //     wand.operationeel.domain_expiry has a target on the
 //     "afhankelijk" side of its threshold for the regelpagina spec
 func BuildBaseline(ctx context.Context, st *store.Store) error {
-	cond, err := upsertOrg(ctx, st, "conduction", "Conduction B.V.")
+	voorbeeld, err := upsertOrg(ctx, st, "voorbeeld", "Voorbeeld B.V.")
 	if err != nil {
 		return err
 	}
@@ -40,11 +40,11 @@ func BuildBaseline(ctx context.Context, st *store.Store) error {
 		return err
 	}
 
-	condTarget, err := upsertTarget(ctx, st, "conduction.nl", models.TargetKindDomain, cond.ID)
+	voorbeeldTarget, err := upsertTarget(ctx, st, "voorbeeld.nl", models.TargetKindDomain, voorbeeld.ID)
 	if err != nil {
 		return err
 	}
-	condSecondTarget, err := upsertTarget(ctx, st, "tweede.nl", models.TargetKindDomain, cond.ID)
+	voorbeeldSecondTarget, err := upsertTarget(ctx, st, "tweede.nl", models.TargetKindDomain, voorbeeld.ID)
 	if err != nil {
 		return err
 	}
@@ -53,11 +53,11 @@ func BuildBaseline(ctx context.Context, st *store.Store) error {
 		return err
 	}
 
-	if _, err := addCompletedScan(ctx, st, condTarget, baseTime, baselineSovereignFindings("conduction.nl")); err != nil {
-		return fmt.Errorf("baseline: conduction scan: %w", err)
+	if _, err := addCompletedScan(ctx, st, voorbeeldTarget, baseTime, baselineSovereignFindings("voorbeeld.nl")); err != nil {
+		return fmt.Errorf("baseline: voorbeeld scan: %w", err)
 	}
-	if _, err := addCompletedScan(ctx, st, condSecondTarget, baseTime.Add(-48*time.Hour), baselineDependentFindings("tweede.nl")); err != nil {
-		return fmt.Errorf("baseline: conduction second-domain scan: %w", err)
+	if _, err := addCompletedScan(ctx, st, voorbeeldSecondTarget, baseTime.Add(-48*time.Hour), baselineDependentFindings("tweede.nl")); err != nil {
+		return fmt.Errorf("baseline: voorbeeld second-domain scan: %w", err)
 	}
 	if _, err := addCompletedScan(ctx, st, acmeTarget, baseTime, baselineExpiringDependentFindings("acme.example.com")); err != nil {
 		return fmt.Errorf("baseline: acme scan: %w", err)
@@ -104,7 +104,7 @@ func baselineSovereignFindings(domain string) []models.Finding {
 		}),
 		mkFinding("whois.registrant", domain, models.DimensionJuridisch, map[string]any{
 			"country":      "NL",
-			"organisation": "Conduction B.V.",
+			"organisation": "Voorbeeld B.V.",
 		}),
 		mkFinding("http.third_party", domain, models.DimensionTechnologie, map[string]any{
 			"source_domain": domain,
@@ -119,7 +119,7 @@ func baselineSovereignFindings(domain string) []models.Finding {
 		// baseline scans so each scan's answer sheet demonstrates all
 		// four answer states on its own. config.expected_registrant
 		// resolves accountabilityDomain() so registrant_identifiable
-		// can tell conduction.nl's ".nl" TLD (registry-redacted, n.v.t.)
+		// can tell voorbeeld.nl's ".nl" TLD (registry-redacted, n.v.t.)
 		// apart from acme.example.com's ".com" (no whois.registrant_identity
 		// finding here, so it reads onbekend/probe_unavailable) — see
 		// internal/assessor/wand/accountability_rules.go.
@@ -161,7 +161,7 @@ func baselineDependentFindings(domain string) []models.Finding {
 // inside wand.operationeel.domain_expiry's 30-day urgent window on
 // top of baselineDependentFindings, so the rule scores afhankelijk
 // instead of its default onbekend (no registry publishes an expiry
-// event for conduction.nl's ".nl" TLD, so that domain stays onbekend
+// event for voorbeeld.nl's ".nl" TLD, so that domain stays onbekend
 // on purpose — see accountability_rules.go's domainExpiry doc
 // comment). The vloot-en-regels regelpagina spec (run 06) needs one
 // target on the "afhankelijk" side of a rule that carries an

@@ -34,7 +34,7 @@ test.describe("Overview slimness", () => {
 test.describe("Organisation scope persistence", () => {
   test("Per-org Overview threads slug into the two nav tabs", async ({ page }) => {
     await page.goto("/ui/orgs/conduction");
-    await expect(page.locator("h1")).toContainText("Conduction B.V.");
+    await expect(page.locator("h1")).toContainText("Voorbeeld B.V.");
 
     const nav = page.locator(".nav-bar");
     await expect(nav.locator("a", { hasText: "Overview" })).toHaveAttribute("href", "/ui/orgs/conduction");
@@ -46,7 +46,7 @@ test.describe("Organisation scope persistence", () => {
 
   test("Trends with ?org= renders the scope pill", async ({ page }) => {
     await page.goto("/ui/trends?org=conduction");
-    await expect(page.locator(".scope-pill")).toContainText("Conduction");
+    await expect(page.locator(".scope-pill")).toContainText("Voorbeeld");
     await expect(page.locator(".scope-pill a")).toHaveAttribute("href", "/ui/orgs/conduction");
   });
 
@@ -57,7 +57,7 @@ test.describe("Organisation scope persistence", () => {
 
   test("Targets page filters by ?org=", async ({ page }) => {
     await page.goto("/ui/targets?org=conduction");
-    await expect(page.locator(".scope-pill")).toContainText("Conduction");
+    await expect(page.locator(".scope-pill")).toContainText("Voorbeeld");
     await expect(page.locator("text=example.nl")).toHaveCount(0);
   });
 });
