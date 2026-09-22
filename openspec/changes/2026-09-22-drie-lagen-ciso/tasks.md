@@ -13,6 +13,18 @@
 - [x] 2.3 De oude "recent beantwoord"-lijst verdwijnt of gaat op in de
   vlootlijst; geen twee overzichten naast elkaar.
 
+- [ ] 2.4 De lijst "kost de vloot de meeste punten" toont nu de
+  `Description` van de regel, en die is geformuleerd als de gewenste
+  eindtoestand ("The domain has a direct registrar relationship, with no
+  reseller layer. — 3 domeinen"). Daardoor leest een falende regel als
+  een geslaagde. Toon het probleem, niet het doel: "faalt op 3 van 3
+  domeinen" met de probleemzin uit de regel. De telling zelf klopt
+  (TopConcerns telt alleen `afhankelijk`).
+- [ ] 2.5 Twee frameworks leveren dezelfde bevinding dubbel in die top 3
+  ("TLS certificate issued by a CA registered in the EU" naast "issued
+  by an authority in the EEA"). Ontdubbel op stroom/onderwerp, of toon
+  één regel per onderwerp met de frameworks erbij.
+
 ## 3. Het domein — run 03
 - [ ] 3.1 x/n naast de oordeelzin op de antwoordpagina.
 - [ ] 3.2 Per niet-soeverein punt de handeling uit de tekstentabel.
