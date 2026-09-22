@@ -194,7 +194,8 @@ func TestBuildFleetSummary(t *testing.T) {
 		{
 			name: "everything onbekend is 0/0 without dividing by zero",
 			snaps: []TargetSnapshot{
-				fleetSnap("t1", "a.example", "complete",
+				fleetSnap(
+					"t1", "a.example", "complete",
 					rationale("wand.juridisch.apex_ip_eea", "probe failed", models.ScoreOnbekend),
 					rationale("wand.juridisch.mx_vendor_jurisdiction", "probe failed", models.ScoreOnbekend),
 				),

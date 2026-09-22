@@ -515,9 +515,9 @@ func TestNoMutatingHandlersInPackage(t *testing.T) {
 	//     of the fleet; scans/oordelen stay queryable, only the
 	//     overview listing changes (same run)
 	sanctioned := map[string]bool{
-		"/scan": true,
-		"/orgs/{slug}/fleet/domains":                  true,
-		"/orgs/{slug}/fleet/domains/{domain}/remove":  true,
+		"/scan":                      true,
+		"/orgs/{slug}/fleet/domains": true,
+		"/orgs/{slug}/fleet/domains/{domain}/remove": true,
 	}
 	posts := regexp.MustCompile(`r\.Post\("([^"]*)"`).FindAllStringSubmatch(string(src), -1)
 	for _, m := range posts {
@@ -1214,7 +1214,8 @@ func TestFleetPage_ShowsScoreAndWorstFinding(t *testing.T) {
 	if err != nil {
 		t.Fatalf("AddFleetDomain: %v", err)
 	}
-	seedFleetScan(t, st, tgt.ID,
+	seedFleetScan(
+		t, st, tgt.ID,
 		models.Rationale{CriteriumID: "wand.juridisch.apex_ip_eea", Verdict: "apex in NL", Score: models.ScoreSoeverein},
 		models.Rationale{CriteriumID: "wand.juridisch.mx_vendor_jurisdiction", Verdict: "mx hosts in US (outside EEA)", Score: models.ScoreAfhankelijk},
 	)
@@ -1240,7 +1241,8 @@ func TestFleetPage_ShowsUnansweredCount(t *testing.T) {
 	if err != nil {
 		t.Fatalf("AddFleetDomain: %v", err)
 	}
-	seedFleetScan(t, st, tgt.ID,
+	seedFleetScan(
+		t, st, tgt.ID,
 		models.Rationale{CriteriumID: "wand.juridisch.apex_ip_eea", Verdict: "apex in NL", Score: models.ScoreSoeverein},
 		models.Rationale{CriteriumID: "wand.juridisch.mx_vendor_jurisdiction", Verdict: "probe failed", Score: models.ScoreOnbekend},
 	)
@@ -1264,11 +1266,13 @@ func TestFleetPage_ShowsDeltaAndFlippedFlow(t *testing.T) {
 	if err != nil {
 		t.Fatalf("AddFleetDomain: %v", err)
 	}
-	seedFleetScan(t, st, tgt.ID,
+	seedFleetScan(
+		t, st, tgt.ID,
 		models.Rationale{CriteriumID: "wand.juridisch.mx_vendor_jurisdiction", Verdict: "mx in NL", Score: models.ScoreSoeverein},
 	)
 	time.Sleep(5 * time.Millisecond)
-	seedFleetScan(t, st, tgt.ID,
+	seedFleetScan(
+		t, st, tgt.ID,
 		models.Rationale{CriteriumID: "wand.juridisch.mx_vendor_jurisdiction", Verdict: "mx hosts in US (outside EEA)", Score: models.ScoreAfhankelijk},
 	)
 	resp, err := http.Get(srv.URL + "/ui/orgs/default/fleet")
@@ -1291,7 +1295,8 @@ func TestFleetPage_FirstScanHasNoDelta(t *testing.T) {
 	if err != nil {
 		t.Fatalf("AddFleetDomain: %v", err)
 	}
-	seedFleetScan(t, st, tgt.ID,
+	seedFleetScan(
+		t, st, tgt.ID,
 		models.Rationale{CriteriumID: "wand.juridisch.apex_ip_eea", Verdict: "apex in NL", Score: models.ScoreSoeverein},
 	)
 	resp, err := http.Get(srv.URL + "/ui/orgs/default/fleet")
@@ -1315,10 +1320,12 @@ func TestFleetPage_SortByScorePutsWorstFirst(t *testing.T) {
 	if err != nil {
 		t.Fatalf("AddFleetDomain: %v", err)
 	}
-	seedFleetScan(t, st, good.ID,
+	seedFleetScan(
+		t, st, good.ID,
 		models.Rationale{CriteriumID: "wand.juridisch.apex_ip_eea", Verdict: "apex in NL", Score: models.ScoreSoeverein},
 	)
-	seedFleetScan(t, st, bad.ID,
+	seedFleetScan(
+		t, st, bad.ID,
 		models.Rationale{CriteriumID: "wand.juridisch.apex_ip_eea", Verdict: "apex in US", Score: models.ScoreAfhankelijk},
 	)
 	resp, err := http.Get(srv.URL + "/ui/orgs/default/fleet?sort=score")
@@ -1353,7 +1360,8 @@ func TestFleetPage_UnscannedDomainStaysLastRegardlessOfSort(t *testing.T) {
 	// A poor score for the scanned domain: sorting naively by a 0-valued
 	// score for "nooit.nl" could otherwise put it ahead of a genuinely
 	// bad, but scanned, domain.
-	seedFleetScan(t, st, scanned.ID,
+	seedFleetScan(
+		t, st, scanned.ID,
 		models.Rationale{CriteriumID: "wand.juridisch.apex_ip_eea", Verdict: "apex in US", Score: models.ScoreAfhankelijk},
 	)
 	for _, sortKey := range []string{"", "score", "change", "last_scan"} {

@@ -312,7 +312,7 @@ func TestLookupRegistrantStatus(t *testing.T) {
 		want string
 	}{
 		{"present", string(resellerFixture), "present"}, // registrant fn "Gemeente Voorbeeld"
-		{"no_fn_is_proxied", sampleRDAP, "proxied"},      // registrant entity present, no fn at all
+		{"no_fn_is_proxied", sampleRDAP, "proxied"},     // registrant entity present, no fn at all
 		{"proxied", redactedRDAP, "proxied"},
 		{"absent", `{"ldhName":"example.nl"}`, "absent"},
 	}

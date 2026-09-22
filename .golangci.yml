@@ -16,6 +16,21 @@ linters:
     - gosec
 
 linters-settings:
+  misspell:
+    # misspell kent alleen Engels. Een paar Nederlandse woorden in deze
+    # code zijn geen typefouten maar de juiste term: "Stichting" is een
+    # rechtsvorm (hij stelt "Stitching" voor) en "certificaat" staat in
+    # de Nederlandse UI-teksten (hij stelt "certificate" voor).
+    #
+    # De linter blijft verder aan staan, want de rest van de code is
+    # Engels en daar hoort hij typefouten te vinden. Groeit deze lijst
+    # met gewone Nederlandse woorden, dan is dat een teken dat er
+    # Nederlands in de code lekt waar het niet hoort — niet dat de
+    # lijst langer moet.
+    ignore-words:
+      - stichting
+      - certificaat
+
   gosec:
     excludes:
       - G304 # file-path from variable is fine for CLI flags

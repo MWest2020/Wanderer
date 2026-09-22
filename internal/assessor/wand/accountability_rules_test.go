@@ -759,12 +759,12 @@ func TestVariantConvergence(t *testing.T) {
 func TestDefaultRules_RegistersAccountabilityRules(t *testing.T) {
 	want := map[string]models.DimensionHint{
 		"wand.accountability.registrant_identifiable": models.DimensionAccountability,
-		"wand.accountability.no_reseller":              models.DimensionAccountability,
-		"wand.accountability.soa_rname":                models.DimensionAccountability,
-		"wand.accountability.securitytxt":              models.DimensionAccountability,
-		"wand.accountability.ns_holder_transparent":    models.DimensionAccountability,
-		"wand.operationeel.domain_expiry":              models.DimensionOperationeel,
-		"wand.operationeel.variant_convergence":        models.DimensionOperationeel,
+		"wand.accountability.no_reseller":             models.DimensionAccountability,
+		"wand.accountability.soa_rname":               models.DimensionAccountability,
+		"wand.accountability.securitytxt":             models.DimensionAccountability,
+		"wand.accountability.ns_holder_transparent":   models.DimensionAccountability,
+		"wand.operationeel.domain_expiry":             models.DimensionOperationeel,
+		"wand.operationeel.variant_convergence":       models.DimensionOperationeel,
 	}
 	seen := map[string]bool{}
 	for _, r := range DefaultRules() {

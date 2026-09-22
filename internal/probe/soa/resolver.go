@@ -121,7 +121,7 @@ func encodeSOAQuery(domain string) ([]byte, uint16, error) {
 	header := make([]byte, 12)
 	binary.BigEndian.PutUint16(header[0:2], id)
 	binary.BigEndian.PutUint16(header[2:4], 0x0100) // RD=1, standard query
-	binary.BigEndian.PutUint16(header[4:6], 1)       // QDCOUNT=1
+	binary.BigEndian.PutUint16(header[4:6], 1)      // QDCOUNT=1
 	buf.Write(header)
 
 	name, err := encodeName(domain)

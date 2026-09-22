@@ -167,8 +167,8 @@ func verifyAgainst(creds map[string]string, user, pass string) bool {
 // van de pagina zijn").
 type doorView struct {
 	GeneratedAt        string
-	HasReporting       bool                  // controls whether the Trends nav link renders
-	ScopedOrganisation *organisationLinkView // populated only on /ui/orgs/{slug}
+	HasReporting       bool                   // controls whether the Trends nav link renders
+	ScopedOrganisation *organisationLinkView  // populated only on /ui/orgs/{slug}
 	OrganisationsList  []organisationLinkView // populated only when unscoped, so a multi-org instance can still reach a single vloot
 	OrgSlug            string                 // active org for nav-link scope persistence
 	AllowScan          bool                   // signed-in user: render the door's scan input
@@ -264,13 +264,13 @@ func buildDoorDomains(snaps []TargetSnapshot) []doorDomainView {
 // headline sovereignty verdict, linking straight to that scan's
 // report.
 type dashboardTargetRow struct {
-	Domain            string
-	Kind              string
-	LastScanAt        string
-	LastStatus        string
-	Verdict           string // worst score across the preferred assessment; "" when not yet assessed
-	VerdictDimensions string // comma-joined dimensions the worst score was computed over; "" when Verdict is ""
-	ReportURL         string // /ui/scans/{id}/assessment
+	Domain              string
+	Kind                string
+	LastScanAt          string
+	LastStatus          string
+	Verdict             string // worst score across the preferred assessment; "" when not yet assessed
+	VerdictDimensions   string // comma-joined dimensions the worst score was computed over; "" when Verdict is ""
+	ReportURL           string // /ui/scans/{id}/assessment
 	AccountabilityLabel string
 	AccountabilityClass string
 	AccountabilityLink  string // ReportURL + "#wand-accountability"; "" when there is no report yet

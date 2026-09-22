@@ -12,12 +12,12 @@ import (
 // does not supply".
 var accountabilityRuleParams = map[string][]string{
 	"wand.accountability.registrant_identifiable": {"registrant", "proxy", "registry", "tld"},
-	"wand.accountability.no_reseller":              {"reseller"},
-	"wand.accountability.soa_rname":                {"mailbox"},
-	"wand.accountability.securitytxt":              {"date"},
-	"wand.accountability.ns_holder_transparent":    {"count", "total", "domains"},
-	"wand.operationeel.domain_expiry":              {"date"},
-	"wand.operationeel.variant_convergence":        {"count", "total", "path"},
+	"wand.accountability.no_reseller":             {"reseller"},
+	"wand.accountability.soa_rname":               {"mailbox"},
+	"wand.accountability.securitytxt":             {"date"},
+	"wand.accountability.ns_holder_transparent":   {"count", "total", "domains"},
+	"wand.operationeel.domain_expiry":             {"date"},
+	"wand.operationeel.variant_convergence":       {"count", "total", "path"},
 }
 
 // baseOutcomes are the four models.Score values every rule entry must

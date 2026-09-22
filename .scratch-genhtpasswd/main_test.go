@@ -12,7 +12,7 @@ func TestGenerate(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile("/work/repo/.scratch-genhtpasswd/out.txt", h, 0644); err != nil {
+	if err := os.WriteFile("/work/repo/.scratch-genhtpasswd/out.txt", h, 0o644); err != nil {
 		t.Fatal(err)
 	}
 }

@@ -120,7 +120,7 @@ type concernRuleRef struct{ framework, criteriumID string }
 // nothing — it keeps its own row, keyed by its own (framework, id).
 var concernTopics = map[concernRuleRef]string{
 	{"wand", "wand.juridisch.cert_issuer_eea"}: "cert_issuer_jurisdiction",
-	{"eucsf", "eucsf.sov2.cert_issuer_eu"}:      "cert_issuer_jurisdiction",
+	{"eucsf", "eucsf.sov2.cert_issuer_eu"}:     "cert_issuer_jurisdiction",
 }
 
 // concernTopic returns the merge key for ref: the shared topic from
