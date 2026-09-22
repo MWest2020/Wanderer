@@ -85,6 +85,15 @@ type RuleResult struct {
 	// reasonRegistry (see reason.go) — an unregistered code is a bug
 	// in the rule, not a runtime possibility.
 	Reason string
+	// Handeling is the rule pack's ready remediation sentence for this
+	// rule (e.g. wand's HandelingFor(r.ID)), with its {domein}
+	// placeholder still unfilled. Rule packs SHOULD set it
+	// unconditionally on every result — the engine, not the rule,
+	// decides whether the final score warrants exposing it on the
+	// Rationale (task 3.1: every non-soeverein, non-structural
+	// verdict). Empty when the rule pack has no remediation copy for
+	// this rule.
+	Handeling string
 }
 
 // IsEvidenceLike reports whether a Finding looks like positive evidence

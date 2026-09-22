@@ -594,6 +594,29 @@ func TestEveryRuleHasHandeling(t *testing.T) {
 	}
 }
 
+// TestDefaultRules_MatchCarriesHandeling pins task 3.1: DefaultRules()
+// wraps every rule's Match so its RuleResult carries the rule's own
+// handelingen-table sentence (still {domein}-templated — Match has no
+// domain to substitute), regardless of which score that particular
+// call happens to produce. The assessor engine (see engine_test.go)
+// is what decides whether a given Rationale exposes it.
+func TestDefaultRules_MatchCarriesHandeling(t *testing.T) {
+	r := ruleByID(t, "wand.juridisch.registrar_jurisdiction")
+	res := r.Match([]models.Finding{
+		f("whois1", "whois.registrant", map[string]any{"_subject": "acme.example", "country": "US"}),
+	})
+	if res.Score != models.ScoreAfhankelijk {
+		t.Fatalf("test setup: want afhankelijk, got %s", res.Score)
+	}
+	if !strings.Contains(res.Handeling, "{domein}") {
+		t.Errorf("want RuleResult.Handeling templated with {domein}, got %q", res.Handeling)
+	}
+	wantSubstr := "registrar die in de EER is gevestigd"
+	if !strings.Contains(res.Handeling, wantSubstr) {
+		t.Errorf("want handelingen-table text %q in Handeling, got %q", wantSubstr, res.Handeling)
+	}
+}
+
 // TestEveryThresholdIsWellFormed checks that any Threshold a rule
 // declares carries a name, unit, and plain-language explanation — a
 // Threshold with a bare number and no meaning is as useless to a

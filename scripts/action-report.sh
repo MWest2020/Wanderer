@@ -11,7 +11,6 @@ domain="${WANDERER_DOMAIN:?WANDERER_DOMAIN (action input 'domain') is required}"
 geoip="${WANDERER_GEOIP:-}"
 fail_on="${WANDERER_FAIL_ON:-}"
 jq_filter="${WANDERER_JQ_FILTER:-$(dirname "${BASH_SOURCE[0]}")/action-report.jq}"
-handelingen_file="${WANDERER_HANDELINGEN_FILE:-}"
 
 case "$fail_on" in
 "" | "afhankelijk" | "onbekend") ;;
@@ -50,27 +49,6 @@ total="$(jq -r '.total' <<<"$summary_json")"
 scored_dimensions="$(jq -r '.scored_dimensions' <<<"$summary_json")"
 total_dimensions="$(jq -r '.total_dimensions' <<<"$summary_json")"
 
-# handeling_for looks up the generic {domein}-parametrised remediation
-# sentence for one wand rule ID from the same accountability_nl.yaml
-# the wanderer binary embeds (internal/assessor/wand.HandelingFor) —
-# this action's checkout carries a copy of that file at the pinned
-# action version, so the sentence shown here is the same one the
-# product's own reasoning page shows for the same rule.
-handeling_for() {
-	local rule_id="$1"
-	if [[ -z "$handelingen_file" || ! -f "$handelingen_file" ]]; then
-		return 1
-	fi
-	local line
-	line="$(grep -m1 "^  ${rule_id}: \"" "$handelingen_file" || true)"
-	if [[ -z "$line" ]]; then
-		return 1
-	fi
-	line="${line#*\"}"
-	line="${line%\"}"
-	echo "${line//\{domein\}/$domain}"
-}
-
 {
 	echo "## Wanderer — soevereiniteitsscan van \`$domain\`"
 	echo
@@ -105,7 +83,12 @@ handeling_for() {
 		while IFS= read -r row; do
 			dim="$(jq -r '.dimension' <<<"$row")"
 			crit="$(jq -r '.criterium_id' <<<"$row")"
-			handeling="$(handeling_for "$crit" || echo "Geen kant-en-klare handeling beschikbaar voor deze regel — zie het volledige rapport.")"
+			handeling="$(jq -r '.handeling // ""' <<<"$row")"
+			if [[ -n "$handeling" ]]; then
+				handeling="${handeling//\{domein\}/$domain}"
+			else
+				handeling="Geen kant-en-klare handeling beschikbaar voor deze regel — zie het volledige rapport."
+			fi
 			echo "- **\`$crit\`** ($dim): $handeling"
 		done < <(jq -c '.failing[]' <<<"$summary_json")
 	fi

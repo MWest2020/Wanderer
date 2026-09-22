@@ -93,6 +93,16 @@ type Rationale struct {
 	// omitted from JSON when empty, so assessments persisted before
 	// this field existed still load unchanged.
 	Reason string `json:"reason,omitempty"`
+	// Handeling is the ready remediation sentence for this rule,
+	// carried over from the rule pack's own Dutch copy table (see
+	// wand.HandelingFor) whenever Score is not soeverein and the
+	// verdict is not structural (n.v.t.). It still has its {domein}
+	// placeholder unfilled — a machine reader that knows the scanned
+	// domain substitutes it; the UI does this itself already, reading
+	// the table directly rather than this field. Additive: omitted
+	// from JSON when empty, so assessments persisted before this
+	// field existed still load unchanged.
+	Handeling string `json:"handeling,omitempty"`
 }
 
 // DimensionScore is the aggregate verdict for one DICTU dimension.
