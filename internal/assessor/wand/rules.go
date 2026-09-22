@@ -133,7 +133,33 @@ func DefaultRules() []assessor.Rule {
 		nsVendorJurisdiction(),
 		httpExposure(),
 	}
-	return append(rules, accountabilityRules()...)
+	rules = append(rules, accountabilityRules()...)
+	for i := range rules {
+		rules[i] = withHandeling(rules[i])
+	}
+	return rules
+}
+
+// withHandeling wraps r.Match so every RuleResult it returns carries
+// the rule's ready remediation sentence from accountability_nl.yaml's
+// handelingen table (task 3.1) — {domein} still unfilled, since Match
+// only sees findings, never the scanned domain. It is set
+// unconditionally; the assessor engine, not the rule, decides whether
+// the final score warrants exposing it on the Rationale. A rule with
+// no handelingen entry is returned unchanged (TestEveryRuleHasHandeling
+// pins that this never actually happens for a registered rule).
+func withHandeling(r assessor.Rule) assessor.Rule {
+	h, ok := HandelingFor(r.ID)
+	if !ok {
+		return r
+	}
+	match := r.Match
+	r.Match = func(findings []models.Finding) assessor.RuleResult {
+		res := match(findings)
+		res.Handeling = h
+		return res
+	}
+	return r
 }
 
 // registrarJurisdiction scores the registrar / registrant country

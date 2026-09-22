@@ -98,6 +98,9 @@ func scoreDimension(dim models.DimensionHint, rules []Rule, findings []models.Fi
 			if rat.Verdict == "" {
 				rat.Verdict = "no evidence — rule did not match"
 			}
+			if rat.Score != models.ScoreSoeverein {
+				rat.Handeling = res.Handeling
+			}
 			ds.Rationale = append(ds.Rationale, rat)
 			continue
 		}
@@ -105,6 +108,9 @@ func scoreDimension(dim models.DimensionHint, rules []Rule, findings []models.Fi
 		// Track the worst (lowest rank) evidence-backed score.
 		if worst == "" || res.Score.Rank() < worst.Rank() {
 			worst = res.Score
+		}
+		if rat.Score != models.ScoreSoeverein {
+			rat.Handeling = res.Handeling
 		}
 		ds.Rationale = append(ds.Rationale, rat)
 	}

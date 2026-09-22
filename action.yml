@@ -65,5 +65,4 @@ runs:
         WANDERER_FAIL_ON: ${{ inputs.fail-on }}
         WANDERER_GEOIP: ${{ inputs.geoip }}
         WANDERER_JQ_FILTER: ${{ github.action_path }}/scripts/action-report.jq
-        WANDERER_HANDELINGEN_FILE: ${{ github.action_path }}/internal/assessor/wand/accountability_nl.yaml
       run: ${{ github.action_path }}/scripts/action-report.sh

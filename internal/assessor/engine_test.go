@@ -294,6 +294,61 @@ func TestAssess_Deterministic(t *testing.T) {
 	}
 }
 
+// TestScoreDimension_HandelingExposedForNonSoevereinOnly pins task 3.1:
+// the engine copies RuleResult.Handeling onto the Rationale whenever
+// the final score is not soeverein, and drops it (leaves it empty)
+// when the rule scored soeverein — even if the rule itself set
+// Handeling on the result, e.g. because a rule pack sets it
+// unconditionally (see wand.withHandeling) and leaves the decision to
+// the engine.
+func TestScoreDimension_HandelingExposedForNonSoevereinOnly(t *testing.T) {
+	rules := []Rule{
+		ruleAlways("j.fails", models.DimensionJuridisch, RuleResult{
+			Score: models.ScoreAfhankelijk, Verdict: "v1", Evidence: []string{"f1"},
+			Handeling: "doe iets aan {domein}",
+		}),
+		ruleAlways("j.ok", models.DimensionJuridisch, RuleResult{
+			Score: models.ScoreSoeverein, Verdict: "v2", Evidence: []string{"f2"},
+			Handeling: "doe iets aan {domein}",
+		}),
+	}
+	got := Assess(nil, rules)
+	jur := findDim(t, got, models.DimensionJuridisch)
+	if len(jur.Rationale) != 2 {
+		t.Fatalf("want 2 rationale, got %d", len(jur.Rationale))
+	}
+	byID := map[string]models.Rationale{}
+	for _, r := range jur.Rationale {
+		byID[r.CriteriumID] = r
+	}
+	if byID["j.fails"].Handeling == "" {
+		t.Errorf("j.fails: want Handeling carried over for a non-soeverein score, got empty")
+	}
+	if byID["j.ok"].Handeling != "" {
+		t.Errorf("j.ok: want Handeling empty for a soeverein score, got %q", byID["j.ok"].Handeling)
+	}
+}
+
+// TestScoreDimension_HandelingOmittedForNoEvidence pins that a rule
+// with no evidence (forced to onbekend) still surfaces its Handeling —
+// "niet soeverein" covers onbekend too, per task 3.1.
+func TestScoreDimension_HandelingOmittedForNoEvidence(t *testing.T) {
+	rules := []Rule{
+		ruleAlways("o.gap", models.DimensionOperationeel, RuleResult{
+			Score: models.ScoreVoldoende, Verdict: "no evidence though",
+			Handeling: "doe iets aan {domein}",
+		}),
+	}
+	got := Assess(nil, rules)
+	op := findDim(t, got, models.DimensionOperationeel)
+	if op.Rationale[0].Score != models.ScoreOnbekend {
+		t.Fatalf("want score forced to onbekend, got %s", op.Rationale[0].Score)
+	}
+	if op.Rationale[0].Handeling == "" {
+		t.Errorf("want Handeling carried over for the forced-onbekend no-evidence case")
+	}
+}
+
 func findDim(t *testing.T, out []models.DimensionScore, dim models.DimensionHint) models.DimensionScore {
 	t.Helper()
 	for _, d := range out {

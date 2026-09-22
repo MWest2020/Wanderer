@@ -35,7 +35,7 @@ def score_rank: {"afhankelijk": 1, "voldoende": 2, "soeverein": 3}[.] // null;
     failing: [
       $dims[] | .dimension as $dimension | .rationale[]?
       | select(.score == "afhankelijk")
-      | {dimension: $dimension, criterium_id: .criterium_id, verdict: .verdict}
+      | {dimension: $dimension, criterium_id: .criterium_id, verdict: .verdict, handeling: (.handeling // null)}
     ],
     dimensions: [
       $dims[] | {dimension: .dimension, score: .score, completeness: .completeness, not_applicable: (.not_applicable // false)}
