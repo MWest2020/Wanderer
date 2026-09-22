@@ -10,11 +10,13 @@ curl -sSL "https://github.com/MWest2020/wanderer/releases/latest/download/wander
 ```
 
 Or with Docker — the existing [ExApp image][exapp-image] ships the binary at
-`/usr/local/bin/wanderer`, no separate CLI image needed:
+`/usr/local/bin/wanderer`, no separate CLI image needed. The image's own
+entrypoint starts the Nextcloud ExApp server, so override it to reach the
+CLI:
 
 <!-- quickstart:docker -->
 ```sh
-docker run --rm ghcr.io/mwest2020/wanderer-exapp:latest wanderer version
+docker run --rm --entrypoint /usr/local/bin/wanderer ghcr.io/mwest2020/wanderer-exapp:latest version
 ```
 
 [exapp-image]: https://github.com/MWest2020/wanderer-exapp

@@ -11,6 +11,7 @@ permissions:
 jobs:
   test:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-go@v6
@@ -22,6 +23,7 @@ jobs:
 
   lint:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-go@v6
@@ -43,6 +45,13 @@ jobs:
     # gebruiker. Draait hij niet meer, dan hoort de bouw te falen — niet
     # de eerste persoon die het probeert.
     runs-on: ubuntu-latest
+    # Zonder deze grens blijft een hangend quickstart-commando zes uur
+    # een runner bezet (de standaard), en dat is precies wat er op
+    # 2026-09-22 gebeurde: de docker-regel uit de README startte de
+    # ExApp-server in plaats van de CLI en kwam nooit terug. Zeven runs
+    # stapelden zich op en de hele CI-wachtrij liep vast. Een hang hoort
+    # te falen, niet te wachten.
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v5
       - name: README-quickstart draaien
