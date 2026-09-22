@@ -1,7 +1,9 @@
 package nextcloud_test
 
 import (
+	"bytes"
 	"context"
+	"log/slog"
 	"strings"
 	"testing"
 
@@ -79,7 +81,10 @@ func TestParseStatus_EmptyVersionString(t *testing.T) {
 
 func TestParseSystemConfig_TrustedDomains(t *testing.T) {
 	raw := `{"system":{"trusted_domains":["cloud.example.nl","cloud.example.com"]}}`
-	trusted, _ := nextcloud.ParseSystemConfig(raw)
+	trusted, _, err := nextcloud.ParseSystemConfig(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if len(trusted) != 2 {
 		t.Fatalf("trusted = %d, want 2", len(trusted))
 	}
@@ -92,7 +97,10 @@ func TestParseSystemConfig_TrustedDomains(t *testing.T) {
 
 func TestParseSystemConfig_ObjectstoreWithEndpoint(t *testing.T) {
 	raw := `{"system":{"objectstore":{"class":"OC\\Files\\ObjectStore\\S3","arguments":{"bucket":"nextcloud-data","region":"us-east-1","hostname":"s3.amazonaws.com"}}}}`
-	_, stores := nextcloud.ParseSystemConfig(raw)
+	_, stores, err := nextcloud.ParseSystemConfig(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if len(stores) != 1 {
 		t.Fatalf("stores = %d, want 1", len(stores))
 	}
@@ -112,12 +120,44 @@ func TestParseSystemConfig_ObjectstoreEndpointURL(t *testing.T) {
 	// Some installs put the full URL in `endpoint` rather than
 	// splitting into hostname.
 	raw := `{"system":{"objectstore":{"class":"OC\\Files\\ObjectStore\\S3","arguments":{"bucket":"data","endpoint":"https://s3.eu-central-1.amazonaws.com"}}}}`
-	_, stores := nextcloud.ParseSystemConfig(raw)
+	_, stores, err := nextcloud.ParseSystemConfig(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if len(stores) != 1 {
 		t.Fatalf("stores = %d", len(stores))
 	}
 	if stores[0].Attributes["endpoint_host"] != "s3.eu-central-1.amazonaws.com" {
 		t.Errorf("endpoint_host = %v", stores[0].Attributes["endpoint_host"])
+	}
+}
+
+// TestParseSystemConfig_Unreadable covers the failure modes that
+// used to be swallowed into (nil, nil): valid JSON keeps working
+// unchanged, a stray line before the JSON (the occ deprecation
+// warning some Nextcloud versions print), truncated JSON, and
+// completely empty output all now surface as an error instead of
+// silently reporting "nothing configured".
+func TestParseSystemConfig_Unreadable(t *testing.T) {
+	cases := []struct {
+		name string
+		raw  string
+	}{
+		{"line before JSON", "Deprecated: implode(): Passing glue string after array is deprecated\n" +
+			`{"system":{"trusted_domains":["cloud.example.nl"]}}`},
+		{"truncated JSON", `{"system":{"trusted_domains":["cloud.example.nl"`},
+		{"empty output", ""},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			trusted, stores, err := nextcloud.ParseSystemConfig(c.raw)
+			if err == nil {
+				t.Fatal("want error for unreadable input, got nil")
+			}
+			if trusted != nil || stores != nil {
+				t.Errorf("want nil slices on error, got trusted=%v stores=%v", trusted, stores)
+			}
+		})
 	}
 }
 
@@ -241,5 +281,95 @@ func TestInspect_OIDCUnavailable_WithAlternativeAppHint(t *testing.T) {
 type sentinelErr string
 
 func (e sentinelErr) Error() string { return string(e) }
+
+func TestInspect_SystemConfigUnreadable_WarnsAndReportsFinding(t *testing.T) {
+	var buf bytes.Buffer
+	n := nextcloud.Nextcloud{
+		Logger: slog.New(slog.NewTextHandler(&buf, nil)),
+		QueryFunc: func(context.Context) (string, error) {
+			return `{"enabled":{},"disabled":{}}`, nil
+		},
+		StatusFunc: func(context.Context) (string, error) {
+			return `{"versionstring":"28.0.5","version":"28.0.5.1"}`, nil
+		},
+		ConfigSystemFunc: func(context.Context) (string, error) {
+			// A deprecation line printed before the JSON — valid
+			// for the shell, unreadable for us.
+			return "Deprecated: implode(): Passing glue string after array is deprecated\n" +
+				`{"system":{"trusted_domains":["cloud.example.nl"]}}`, nil
+		},
+		OIDCProviderFunc: func(context.Context) (string, error) {
+			return "", errOIDCMissing
+		},
+	}
+
+	findings, err := n.Inspect(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var sawUnreadable bool
+	for _, f := range findings {
+		if f.ProbeID == "inventory.nextcloud.trusted_domain" || f.ProbeID == "inventory.nextcloud.objectstore" {
+			t.Errorf("unreadable config:list system output must not still produce %s findings", f.ProbeID)
+		}
+		if f.ProbeID == "inventory.nextcloud.system_config.unreadable" {
+			sawUnreadable = true
+			if f.Attributes["unavailable"] != true {
+				t.Errorf("unavailable = %v, want true", f.Attributes["unavailable"])
+			}
+			reason, _ := f.Attributes["reason"].(string)
+			if reason == "" {
+				t.Error("reason must not be empty")
+			}
+		}
+	}
+	if !sawUnreadable {
+		t.Error("expected inventory.nextcloud.system_config.unreadable finding when config:list system output cannot be parsed")
+	}
+	if !strings.Contains(buf.String(), "nextcloud.system_config_unreadable") {
+		t.Errorf("unreadable config:list system output should produce a warn log; got %s", buf.String())
+	}
+}
+
+func TestInspect_StatusUnreadable_WarnsAndReportsFinding(t *testing.T) {
+	var buf bytes.Buffer
+	n := nextcloud.Nextcloud{
+		Logger: slog.New(slog.NewTextHandler(&buf, nil)),
+		QueryFunc: func(context.Context) (string, error) {
+			return `{"enabled":{},"disabled":{}}`, nil
+		},
+		StatusFunc: func(context.Context) (string, error) {
+			return `{"versionstring":"28.0.5"`, nil // truncated
+		},
+		ConfigSystemFunc: func(context.Context) (string, error) {
+			return `{"system":{}}`, nil
+		},
+		OIDCProviderFunc: func(context.Context) (string, error) {
+			return "", errOIDCMissing
+		},
+	}
+
+	findings, err := n.Inspect(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var sawUnreadable bool
+	for _, f := range findings {
+		if f.ProbeID == "inventory.nextcloud.version" {
+			t.Error("truncated status output must not still produce an inventory.nextcloud.version finding")
+		}
+		if f.ProbeID == "inventory.nextcloud.version.unreadable" {
+			sawUnreadable = true
+		}
+	}
+	if !sawUnreadable {
+		t.Error("expected inventory.nextcloud.version.unreadable finding when status output cannot be parsed")
+	}
+	if !strings.Contains(buf.String(), "nextcloud.status_unreadable") {
+		t.Errorf("unreadable status output should produce a warn log; got %s", buf.String())
+	}
+}
 
 const errOIDCMissing = sentinelErr("occ command missing: user_oidc:provider")

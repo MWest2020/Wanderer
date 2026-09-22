@@ -172,6 +172,18 @@ func TestDimensionScannerWarnings_ScannerSubjectOnly(t *testing.T) {
 	}
 }
 
+func TestDimensionScannerWarnings_UnreadableOutput(t *testing.T) {
+	dim := models.DimensionScore{
+		Rationale: []models.Rationale{
+			{CriteriumID: "eucsf.sov6.nextcloud_supply_chain", Score: models.ScoreOnbekend, Reason: assessor.ReasonScannerUnreadableOutput},
+		},
+	}
+	warnings := DimensionScannerWarnings(dim)
+	if len(warnings) != 1 || warnings[0] == "" {
+		t.Fatalf("warnings = %v, want exactly one scanner warning", warnings)
+	}
+}
+
 func TestPostureCounts_BucketsByFrameworkAndScore(t *testing.T) {
 	snaps := []TargetSnapshot{
 		{TargetID: "t1", Assessments: map[string]models.Assessment{

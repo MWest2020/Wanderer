@@ -198,7 +198,8 @@ type AccountabilityPillView struct {
 // of the target). One entry today; a future scanner-subject reason
 // code needs an entry here or it renders with no banner.
 var scannerReasonWarnings = map[string]string{
-	assessor.ReasonScannerNoIPv6: "scanner heeft geen IPv6 — v6-paden niet gemeten",
+	assessor.ReasonScannerNoIPv6:           "scanner heeft geen IPv6 — v6-paden niet gemeten",
+	assessor.ReasonScannerUnreadableOutput: "scanner kon inspector-uitvoer niet lezen — meting overgeslagen",
 }
 
 // DimensionScannerWarnings returns the distinct operator-environment

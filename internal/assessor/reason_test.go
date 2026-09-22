@@ -12,6 +12,7 @@ func TestReasonInfo_SeededCodes(t *testing.T) {
 		{ReasonNotPublishedByRegistry, ReasonStructural, ReasonSubjectTarget},
 		{ReasonScannerNoIPv6, ReasonStructural, ReasonSubjectScanner},
 		{ReasonProbeUnavailable, ReasonGap, ReasonSubjectTarget},
+		{ReasonScannerUnreadableOutput, ReasonGap, ReasonSubjectScanner},
 	}
 	for _, c := range cases {
 		t.Run(c.code, func(t *testing.T) {

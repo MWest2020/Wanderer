@@ -31,19 +31,19 @@ Regel 110–111 heeft dezelfde vorm: de fout van `ParseStatus` wordt
 weggegooid.
 
 ## Scope
-- [ ] 1.1 Beide plekken loggen op WARN wat er misging, met genoeg
+- [x] 1.1 Beide plekken loggen op WARN wat er misging, met genoeg
   context om het terug te vinden (welk commando, welke fout, hoeveel
   bytes). Volg `internal/scanner/amass.go` (`amass.malformed_line`).
-- [ ] 1.2 Onleesbare uitvoer levert een bevinding met een reden die
+- [x] 1.2 Onleesbare uitvoer levert een bevinding met een reden die
   zegt dat de scanner het niet kon lezen — niet stilte. Het mechanisme
   bestaat al: `internal/assessor/reason.go` kent
   `ReasonSubjectScanner`, en zo'n reden rendert als
   operatorwaarschuwing in plaats van als antwoord over het doel.
   Voeg een code toe in de stijl van `scanner_no_ipv6`, bijvoorbeeld
   `scanner_unreadable_output`.
-- [ ] 1.3 De eucsf-regel onderscheidt dan "niets gevonden" van "niet
+- [x] 1.3 De eucsf-regel onderscheidt dan "niets gevonden" van "niet
   te lezen". Splits de verdict-tekst; de score blijft onbekend.
-- [ ] 1.4 Tests: geldige JSON (ongewijzigd gedrag), JSON met een regel
+- [x] 1.4 Tests: geldige JSON (ongewijzigd gedrag), JSON met een regel
   ervoor, afgekapte JSON, lege uitvoer. Controleer er één mét de
   reparatie eruit en zeg in je rapport dat je dat deed.
 

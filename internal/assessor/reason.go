@@ -38,6 +38,13 @@ const (
 	ReasonNotPublishedByRegistry = "not_published_by_registry"
 	ReasonScannerNoIPv6          = "scanner_no_ipv6"
 	ReasonProbeUnavailable       = "probe_unavailable"
+	// ReasonScannerUnreadableOutput means an inspector's own output
+	// could not be parsed (malformed / truncated / prefixed with
+	// noise) — a hole in our measurement, not a statement about the
+	// target. Seeded by the Nextcloud inspector
+	// (internal/probe/inventory/nextcloud/nextcloud.go) but generic
+	// across inspectors.
+	ReasonScannerUnreadableOutput = "scanner_unreadable_output"
 	// ReasonNotMeasured means no relevant external measurement was
 	// ever performed (no import, or the measurement's own tests came
 	// back not_tested/error) — seeded by the standards dimension
@@ -58,12 +65,13 @@ type reasonInfo struct {
 // a Rule may emit, across every dimension and pack. A code absent
 // here is a bug in the rule that emitted it — see ReasonInfo.
 var reasonRegistry = map[string]reasonInfo{
-	ReasonRegistryRedacted:       {class: ReasonStructural, subject: ReasonSubjectTarget},
-	ReasonNotPublishedByRegistry: {class: ReasonStructural, subject: ReasonSubjectTarget},
-	ReasonScannerNoIPv6:          {class: ReasonStructural, subject: ReasonSubjectScanner},
-	ReasonProbeUnavailable:       {class: ReasonGap, subject: ReasonSubjectTarget},
-	ReasonNotMeasured:            {class: ReasonGap, subject: ReasonSubjectTarget},
-	ReasonMeasurementStale:       {class: ReasonGap, subject: ReasonSubjectTarget},
+	ReasonRegistryRedacted:        {class: ReasonStructural, subject: ReasonSubjectTarget},
+	ReasonNotPublishedByRegistry:  {class: ReasonStructural, subject: ReasonSubjectTarget},
+	ReasonScannerNoIPv6:           {class: ReasonStructural, subject: ReasonSubjectScanner},
+	ReasonProbeUnavailable:        {class: ReasonGap, subject: ReasonSubjectTarget},
+	ReasonScannerUnreadableOutput: {class: ReasonGap, subject: ReasonSubjectScanner},
+	ReasonNotMeasured:             {class: ReasonGap, subject: ReasonSubjectTarget},
+	ReasonMeasurementStale:        {class: ReasonGap, subject: ReasonSubjectTarget},
 }
 
 // ReasonInfo looks up the class and subject registered for code. It

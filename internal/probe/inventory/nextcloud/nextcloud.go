@@ -15,6 +15,12 @@
 //     `occ user_oidc:provider list`
 //   - inventory.nextcloud.oidc.unavailable — emitted instead when
 //     user_oidc is absent
+//   - inventory.nextcloud.version.unreadable — emitted instead of
+//     inventory.nextcloud.version when `occ status` output cannot
+//     be parsed
+//   - inventory.nextcloud.system_config.unreadable — emitted
+//     instead of trusted_domain / objectstore when
+//     `occ config:list system` output cannot be parsed
 //
 // On hosts without `occ` (or without a configured path) every
 // query returns an error and the inspector reports unavailable
@@ -26,6 +32,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/url"
 	"os/exec"
 	"sort"
@@ -71,6 +78,17 @@ type Nextcloud struct {
 	ConfigSystemFunc func(ctx context.Context) (string, error)
 	OIDCProviderFunc func(ctx context.Context) (string, error)
 	OIDCAppListFunc  func(ctx context.Context) (string, error)
+
+	// Logger receives WARN-level diagnostics when `occ` output
+	// cannot be parsed. Nil defaults to slog.Default().
+	Logger *slog.Logger
+}
+
+func (n Nextcloud) logger() *slog.Logger {
+	if n.Logger != nil {
+		return n.Logger
+	}
+	return slog.Default()
 }
 
 func (Nextcloud) ID() string { return "nextcloud" }
@@ -105,20 +123,40 @@ func (n Nextcloud) Inspect(ctx context.Context) ([]models.Finding, error) {
 	out = append(out, apps...)
 
 	// 2. Version. Best-effort: a parse error here downgrades to
-	// an inventory.nextcloud.version.error meta-finding so the
-	// rest of the inspector still reports.
+	// an inventory.nextcloud.version.unreadable meta-finding so
+	// the rest of the inspector still reports, and the failure is
+	// visible instead of silent.
 	if raw, err := n.runStatus(ctx); err == nil {
 		if v, err := ParseStatus(raw); err == nil {
 			out = append(out, v)
+		} else {
+			n.logger().Warn("nextcloud.status_unreadable",
+				"command", "occ status --output=json",
+				"err", err.Error(),
+				"bytes", len(raw),
+			)
+			out = append(out, statusUnreadable(err, len(raw)))
 		}
 	}
 
 	// 3. Trusted domains + objectstore — both come from the same
-	// `occ config:list system` payload.
+	// `occ config:list system` payload. A parse error here
+	// downgrades to an inventory.nextcloud.system_config.unreadable
+	// meta-finding rather than silently reporting zero findings —
+	// zero findings would otherwise read as "nothing configured".
 	if raw, err := n.runConfigSystem(ctx); err == nil {
-		td, store := ParseSystemConfig(raw)
-		out = append(out, td...)
-		out = append(out, n.annotateObjectstore(store)...)
+		td, store, err := ParseSystemConfig(raw)
+		if err != nil {
+			n.logger().Warn("nextcloud.system_config_unreadable",
+				"command", "occ config:list system --output=json",
+				"err", err.Error(),
+				"bytes", len(raw),
+			)
+			out = append(out, systemConfigUnreadable(err, len(raw)))
+		} else {
+			out = append(out, td...)
+			out = append(out, n.annotateObjectstore(store)...)
+		}
 	}
 
 	// 4. OIDC providers. Falls back to the alternative-app
@@ -237,6 +275,45 @@ func oidcUnavailable(reason, alternativeApp string) models.Finding {
 		SourceModus:   models.SourceModusInventory,
 		DimensionHint: models.DimensionTechnologie,
 		Attributes:    attrs,
+	}
+}
+
+// statusUnreadable reports that `occ status` output could not be
+// parsed into an inventory.nextcloud.version Finding. Carries
+// `unavailable: true` so assessor.IsEvidenceLike treats it as a
+// non-evidence meta-finding, same as oidcUnavailable.
+func statusUnreadable(err error, bytes int) models.Finding {
+	return models.Finding{
+		ProbeID:       "inventory.nextcloud.version.unreadable",
+		Subject:       "status",
+		Severity:      models.SeverityInfo,
+		SourceModus:   models.SourceModusInventory,
+		DimensionHint: models.DimensionTechnologie,
+		Attributes: map[string]any{
+			"unavailable": true,
+			"reason":      fmt.Sprintf("occ status --output=json unreadable: %s (%d bytes)", err.Error(), bytes),
+		},
+	}
+}
+
+// systemConfigUnreadable reports that `occ config:list system`
+// output could not be parsed into trusted_domain / objectstore
+// Findings. Carries `unavailable: true` so assessor.IsEvidenceLike
+// treats it as a non-evidence meta-finding, same as oidcUnavailable.
+// Downstream rules (e.g. eucsf.sov6.nextcloud_supply_chain) look
+// for this ProbeID to distinguish "we could not read the output"
+// from "nothing is configured".
+func systemConfigUnreadable(err error, bytes int) models.Finding {
+	return models.Finding{
+		ProbeID:       "inventory.nextcloud.system_config.unreadable",
+		Subject:       "config:list system",
+		Severity:      models.SeverityInfo,
+		SourceModus:   models.SourceModusInventory,
+		DimensionHint: models.DimensionTechnologie,
+		Attributes: map[string]any{
+			"unavailable": true,
+			"reason":      fmt.Sprintf("occ config:list system --output=json unreadable: %s (%d bytes)", err.Error(), bytes),
+		},
 	}
 }
 
@@ -376,10 +453,15 @@ type occSystemConfigJSON struct {
 //   - one inventory.nextcloud.trusted_domain Finding per entry
 //   - one inventory.nextcloud.objectstore Finding per backend
 //     (zero or one in practice, but Nextcloud supports multi)
-func ParseSystemConfig(raw string) ([]models.Finding, []models.Finding) {
+//
+// A non-nil error means the raw payload could not be parsed at all
+// (e.g. a deprecation line printed before the JSON, or a truncated
+// response) — distinct from valid JSON that simply configures
+// nothing, which returns two nil slices and a nil error.
+func ParseSystemConfig(raw string) ([]models.Finding, []models.Finding, error) {
 	var doc occSystemConfigJSON
 	if err := json.Unmarshal([]byte(raw), &doc); err != nil {
-		return nil, nil
+		return nil, nil, fmt.Errorf("nextcloud parse system config: %w", err)
 	}
 
 	var trusted, stores []models.Finding
@@ -411,7 +493,7 @@ func ParseSystemConfig(raw string) ([]models.Finding, []models.Finding) {
 		stores = append(stores, parseObjectstoreEntry(raw, "")...)
 	}
 
-	return trusted, stores
+	return trusted, stores, nil
 }
 
 func parseObjectstoreEntry(raw any, label string) []models.Finding {
