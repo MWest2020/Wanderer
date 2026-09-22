@@ -156,7 +156,21 @@
   (`internal/ui/linkify.go`) applied to `.Verdict` in both templates —
   finds `http(s)://` substrings, validates scheme+host before
   linking, HTML-escapes everything else; unsafe/non-http(s) matches
-  stay plain text. No assessor/engine changes.
+  stay plain text. No assessor/engine changes. **Evidence added
+  2026-09-22 (task-ref `tasks/2026-09-22-linkify-xss-bewijs.md`):**
+  `golangci-lint`'s gosec G203 finding on `linkify.go`'s
+  `template.HTML` return was correct to flag and, on inspection, safe
+  — but only a comment said so. `TestLinkifyVerdict_EscapesBreakoutAttempts`
+  in `internal/ui/linkify_test.go` now pins four breakout attempts
+  (quote-out-of-attribute, script-tag injection, `javascript:` scheme,
+  closing-anchor-plus-raw-`<img`), asserting on the absence of each
+  dangerous unescaped form rather than the exact output string.
+  Verified with the href escaping reverted to the raw value
+  (`template.HTMLEscapeString(raw)` → `raw`): 3 of the 4 subtests fail
+  as expected (the `javascript:` case is independent of href escaping
+  and correctly still passes); restored before committing. The
+  `.golangci.yml` suppression itself is out of builder scope per the
+  task-ref.
 - [x] 4.2 docs/reference (assessor, findings) + how-to "Feed
   Internet.nl results from CI"; note the permanent non-goals list in
   docs/explanation — done 2026-09-22. Added "The `standards`

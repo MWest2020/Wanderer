@@ -20,7 +20,7 @@ zonder test eronder is een belofte: de volgende lezer stopt met kijken.
 Deze run levert het bewijs.
 
 ## Scope — ONLY this
-- [ ] 1.1 Eén test in `internal/ui/linkify_test.go` die de vier
+- [x] 1.1 Eén test in `internal/ui/linkify_test.go` die de vier
   uitbraakpogingen afdekt, elk met een eigen verwachting:
   - `https://evil.example/"onmouseover="alert(1)` — het aanhalingsteken
     staat geëscaped in de href, dus er ontstaat geen extra attribuut;
@@ -32,9 +32,18 @@ Deze run levert het bewijs.
   Assert op de afwezigheid van de gevaarlijke vorm, niet op de exacte
   uitvoerstring — anders breekt de test op elke cosmetische wijziging
   en wordt hij weggeklikt.
-- [ ] 1.2 Controleer de test één keer mét de escaping eruit (vervang
+  Done: `TestLinkifyVerdict_EscapesBreakoutAttempts` in
+  `internal/ui/linkify_test.go`, vier subtests, elk met assert op
+  afwezigheid van de gevaarlijke vorm.
+- [x] 1.2 Controleer de test één keer mét de escaping eruit (vervang
   `template.HTMLEscapeString(raw)` in de href tijdelijk door `raw`) en
   bevestig in je rapport dat hij dan faalt. Zet de code daarna terug.
+  Done: met `raw` in plaats van `template.HTMLEscapeString(raw)`
+  falen 3 van de 4 subtests (quote-uitbraak, script-tag, `<img`);
+  de `javascript:`-subtest slaagt nog steeds, want die hangt niet af
+  van href-escaping — hij test dat het schema nooit in een `<a href>`
+  terechtkomt. Code teruggezet naar
+  `template.HTMLEscapeString(raw)` vóór commit.
 
 ## Niet doen
 `.golangci.yml` aanpassen — dat doe ik, CI-config valt buiten de

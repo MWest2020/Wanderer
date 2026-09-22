@@ -71,3 +71,47 @@ func TestLinkifyVerdict_NonHTTPSchemeNeverLinked(t *testing.T) {
 		t.Fatalf("linkifyVerdict(%q) = %q, expected no link for a hostless URL", in, got)
 	}
 }
+
+// TestLinkifyVerdict_EscapesBreakoutAttempts defends the gosec G203
+// suppression on linkifyVerdict's template.HTML return: the report URL
+// is carried verbatim from an imported file (design.md "Design gate
+// outcome" #5), so a hostile value must never let an attacker break out
+// of the href attribute, inject a script tag, invoke a javascript: URI,
+// or smuggle raw markup past the link's closing tag.
+func TestLinkifyVerdict_EscapesBreakoutAttempts(t *testing.T) {
+	cases := []struct {
+		name string
+		in   string
+		bad  string
+	}{
+		{
+			name: "quote breaks out of href attribute",
+			in:   `see https://evil.example/"onmouseover="alert(1)`,
+			bad:  `onmouseover="alert(1)`,
+		},
+		{
+			name: "closing quote and angle bracket inject a script tag",
+			in:   `see https://evil.example/'><script>alert(1)</script>`,
+			bad:  `<script>`,
+		},
+		{
+			name: "javascript scheme is never linked",
+			in:   `see javascript:alert(1)`,
+			bad:  `<a `,
+		},
+		{
+			name: "closing anchor tag smuggles a raw img",
+			in:   `see https://evil.example/</a><img src=x onerror=alert(1)>`,
+			bad:  `<img`,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := string(linkifyVerdict(tc.in))
+			if strings.Contains(got, tc.bad) {
+				t.Fatalf("linkifyVerdict(%q) = %q, contains dangerous unescaped form %q", tc.in, got, tc.bad)
+			}
+		})
+	}
+}
