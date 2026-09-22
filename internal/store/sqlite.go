@@ -185,6 +185,66 @@ func (s *Store) AppendFindings(ctx context.Context, scanID string, findings []mo
 		return fmt.Errorf("store: begin tx: %w", err)
 	}
 	defer func() { _ = tx.Rollback() }()
+	if err := insertFindings(ctx, tx, scanID, findings); err != nil {
+		return err
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("store: commit: %w", err)
+	}
+	return nil
+}
+
+// AppendBatch persists findings for a scan exactly once per batchID.
+// The findings ingest route calls this instead of AppendFindings so a
+// batch the agent's outbox resent — after a send that looked like it
+// failed but had in fact already been stored, or a delivery replayed
+// after a restart — is recognised and not stored twice. duplicate is
+// true when batchID was already recorded, in which case findings are
+// not touched and received is 0. See specs/scanner/spec.md, "A
+// replayed batch is stored once".
+//
+// The single sql.DB connection (Store.Open caps MaxOpenConns at 1,
+// since SQLite allows only one writer) serialises every call to this
+// method, so the existence check and the insert below cannot race
+// against a concurrent AppendBatch for the same batchID.
+func (s *Store) AppendBatch(ctx context.Context, scanID, batchID string, findings []models.Finding) (received int, duplicate bool, err error) {
+	if batchID == "" {
+		return 0, false, errors.New("store: batchID required")
+	}
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return 0, false, fmt.Errorf("store: begin tx: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	var exists bool
+	if err := tx.QueryRowContext(ctx,
+		`SELECT EXISTS(SELECT 1 FROM finding_batches WHERE id = ?)`, batchID).Scan(&exists); err != nil {
+		return 0, false, fmt.Errorf("store: check batch: %w", err)
+	}
+	if exists {
+		return 0, true, nil
+	}
+	if _, err := tx.ExecContext(ctx,
+		`INSERT INTO finding_batches (id, scan_id, received_at) VALUES (?,?,?)`,
+		batchID, scanID, time.Now().UTC()); err != nil {
+		return 0, false, fmt.Errorf("store: insert batch: %w", err)
+	}
+	if len(findings) > 0 {
+		if err := insertFindings(ctx, tx, scanID, findings); err != nil {
+			return 0, false, err
+		}
+	}
+	if err := tx.Commit(); err != nil {
+		return 0, false, fmt.Errorf("store: commit: %w", err)
+	}
+	return len(findings), false, nil
+}
+
+// insertFindings runs the actual per-finding INSERT loop shared by
+// AppendFindings and AppendBatch, assigning IDs and timestamps in
+// place.
+func insertFindings(ctx context.Context, tx *sql.Tx, scanID string, findings []models.Finding) error {
 	stmt, err := tx.PrepareContext(ctx,
 		`INSERT INTO findings (id, scan_id, probe_id, source_modus, dimension_hint, criterium_hint, subject, severity, attributes, evidence, created_at)
 		 VALUES (?,?,?,?,?,?,?,?,?,?,?)`)
@@ -219,9 +279,6 @@ func (s *Store) AppendFindings(ctx context.Context, scanID string, findings []mo
 		if err != nil {
 			return fmt.Errorf("store: insert finding: %w", err)
 		}
-	}
-	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("store: commit: %w", err)
 	}
 	return nil
 }

@@ -71,6 +71,7 @@ func TestStoreAgentSecrets_EnrolledAgentDelivers(t *testing.T) {
 	req.Header.Set(agent.HeaderHostname, "webapp-01")
 	req.Header.Set(agent.HeaderTimestamp, ts)
 	req.Header.Set(agent.HeaderSignature, sig)
+	req.Header.Set(agent.HeaderBatchID, "batch-1")
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		t.Fatalf("post: %v", err)
@@ -125,6 +126,7 @@ func TestStoreAgentSecrets_RevokedAgentRefusedOtherUnaffected(t *testing.T) {
 		req.Header.Set(agent.HeaderHostname, hostname)
 		req.Header.Set(agent.HeaderTimestamp, ts)
 		req.Header.Set(agent.HeaderSignature, sig)
+		req.Header.Set(agent.HeaderBatchID, "batch-"+hostname)
 		resp, err := http.DefaultClient.Do(req)
 		if err != nil {
 			t.Fatalf("post as %s: %v", hostname, err)

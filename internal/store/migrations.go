@@ -230,6 +230,24 @@ CREATE TABLE enrolment_tokens (
 ALTER TABLE targets ADD COLUMN removed_at DATETIME;
 `,
 	},
+	{
+		Version: 10,
+		Name:    "add_finding_batches",
+		Up: `-- agent-enrollment run 03: the outbox retries a batch whenever a
+-- send looked like it failed, and that includes a response that was
+-- lost in transit after the core had already stored the batch.
+-- Without an identifier that retry double-counts every finding in
+-- it. id is the identifier the agent mints once per batch (see
+-- internal/agent.HeaderBatchID) and resends unchanged on every
+-- attempt; a second POST carrying an id already in this table is a
+-- replay, answered as already received, with nothing stored again.
+CREATE TABLE finding_batches (
+  id          TEXT PRIMARY KEY,
+  scan_id     TEXT NOT NULL REFERENCES scans(id),
+  received_at DATETIME NOT NULL
+);
+`,
+	},
 }
 
 // runMigrations applies every migration whose Version is not already

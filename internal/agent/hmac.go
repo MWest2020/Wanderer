@@ -22,6 +22,14 @@ const HeaderTimestamp = "X-Wanderer-Timestamp"
 // `<timestamp> + "\n" + <body>`.
 const HeaderSignature = "X-Wanderer-Signature"
 
+// HeaderBatchID identifies one batch of findings across retries and
+// outbox replays. The agent mints it once per batch (NewBatchID) and
+// resends the same value on every attempt — live retries and a
+// post-restart outbox drain alike — so the core can store the batch
+// exactly once. See specs/scanner/spec.md, "A replayed batch is
+// stored once".
+const HeaderBatchID = "X-Wanderer-Batch-Id"
+
 // MaxClockSkew bounds how far apart agent and core clocks may drift
 // before a signed request is rejected.
 const MaxClockSkew = 5 * time.Minute

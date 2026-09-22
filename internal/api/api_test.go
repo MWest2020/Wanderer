@@ -262,6 +262,7 @@ func TestFindingsIngest_HappyPath(t *testing.T) {
 	req.Header.Set(agent.HeaderHostname, "webapp-01")
 	req.Header.Set(agent.HeaderTimestamp, ts)
 	req.Header.Set(agent.HeaderSignature, sig)
+	req.Header.Set(agent.HeaderBatchID, "batch-1")
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		t.Fatalf("post: %v", err)
@@ -279,6 +280,82 @@ func TestFindingsIngest_HappyPath(t *testing.T) {
 	}
 	if scan.Findings[0].SourceModus != models.SourceModusInventory {
 		t.Errorf("source_modus = %s, want inventory", scan.Findings[0].SourceModus)
+	}
+}
+
+// TestFindingsIngest_MissingBatchID pins that the batch identifier is
+// mandatory, not merely used opportunistically: a signed request with
+// no X-Wanderer-Batch-Id is rejected before it can reach the store.
+func TestFindingsIngest_MissingBatchID(t *testing.T) {
+	srv, st, secret := findingsIngestServer(t)
+	scanID := seedScan(t, st)
+	body := []byte(`{"findings":[]}`)
+	ts, sig := agent.Sign(secret, body, time.Now().UTC())
+	req, _ := http.NewRequest(http.MethodPost, srv.URL+"/scans/"+scanID+"/findings", bytes.NewReader(body))
+	req.Header.Set(agent.HeaderHostname, "webapp-01")
+	req.Header.Set(agent.HeaderTimestamp, ts)
+	req.Header.Set(agent.HeaderSignature, sig)
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("post: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Errorf("status = %d, want 400", resp.StatusCode)
+	}
+}
+
+// TestFindingsIngest_DuplicateBatchStoredOnce pins the "A replayed
+// batch is stored once" requirement: the same batch ID posted twice
+// stores the findings only once, and the replay is answered as
+// already received rather than as a new delivery.
+func TestFindingsIngest_DuplicateBatchStoredOnce(t *testing.T) {
+	srv, st, secret := findingsIngestServer(t)
+	scanID := seedScan(t, st)
+	body := []byte(`{"findings":[{"probe_id":"inventory.systemd.service","subject":"sshd.service","severity":"info","attributes":{"active_state":"active"}}]}`)
+
+	post := func() *http.Response {
+		ts, sig := agent.Sign(secret, body, time.Now().UTC())
+		req, _ := http.NewRequest(http.MethodPost, srv.URL+"/scans/"+scanID+"/findings", bytes.NewReader(body))
+		req.Header.Set(agent.HeaderHostname, "webapp-01")
+		req.Header.Set(agent.HeaderTimestamp, ts)
+		req.Header.Set(agent.HeaderSignature, sig)
+		req.Header.Set(agent.HeaderBatchID, "batch-replay")
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			t.Fatalf("post: %v", err)
+		}
+		return resp
+	}
+
+	first := post()
+	defer first.Body.Close()
+	if first.StatusCode != http.StatusCreated {
+		t.Fatalf("first post status = %d, want 201", first.StatusCode)
+	}
+
+	second := post()
+	defer second.Body.Close()
+	if second.StatusCode != http.StatusOK {
+		t.Fatalf("replay status = %d, want 200", second.StatusCode)
+	}
+	var payload struct {
+		Received  int  `json:"received"`
+		Duplicate bool `json:"duplicate"`
+	}
+	if err := json.NewDecoder(second.Body).Decode(&payload); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if !payload.Duplicate || payload.Received != 0 {
+		t.Errorf("replay payload = %+v, want duplicate=true received=0", payload)
+	}
+
+	scan, err := st.GetScan(context.Background(), scanID)
+	if err != nil {
+		t.Fatalf("get scan: %v", err)
+	}
+	if len(scan.Findings) != 1 {
+		t.Fatalf("want 1 persisted finding after replay, got %d", len(scan.Findings))
 	}
 }
 
