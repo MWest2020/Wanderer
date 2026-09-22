@@ -9,6 +9,22 @@ once a first release is cut. Until then every entry lives under
 
 ## [Unreleased]
 
+### Fixed
+
+- **Toegankelijkheid: contrast, kleur-als-enige-onderscheid, brede
+  tabellen, lege tabelkop** (`2026-09-22-toegankelijkheid`, run 02).
+  Alle oordeelkleuren (`ja`/`nee`/`onbekend`/`n.v.t.`,
+  `soeverein`/`voldoende`/`afhankelijk`/`onbekend`) halen nu ten minste
+  4,5:1 contrast bij hun werkelijke tekstgrootte (13,6px) — gecontroleerd
+  met de WCAG 2.1-formule, niet geschat. De trends- en
+  onderbouwingstabellen scrollen nu binnen hun eigen kader in plaats van
+  de hele pagina horizontaal mee te trekken op 390px. De lege tabelkop
+  op trends ("Report →") heeft nu een naam. Oordeelslogica is
+  ongewijzigd — dit is uitsluitend een visuele/leesbaarheidsfix bovenop
+  de axe-gate uit run 01. Zie [`docs/reference/accessibility.md`](docs/reference/accessibility.md):
+  **een groene run betekent "geen geautomatiseerd te vinden fouten van
+  dit type", niet "toegankelijk".**
+
 ### Added
 
 - **GitHub Action** (`2026-09-21-distributie`, run 02). `action.yml` at

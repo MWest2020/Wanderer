@@ -50,9 +50,10 @@
 {{if .Targets}}
 <section class="dashboard-section targets-fleet">
   <h2>Targets <span class="scope-label">your fleet, last scan &amp; verdict</span></h2>
+  <div class="table-scroll">
   <table class="targets">
     <thead>
-      <tr><th>Target</th><th>Verdict</th><th>Last scan</th><th></th></tr>
+      <tr><th>Target</th><th>Verdict</th><th>Last scan</th><th>Report</th></tr>
     </thead>
     <tbody>
       {{range .Targets}}
@@ -71,6 +72,7 @@
       {{end}}
     </tbody>
   </table>
+  </div>
 </section>
 {{end}}
 
@@ -102,6 +104,7 @@
 {{if .FlowRollup}}
 <section class="dashboard-section sovereignty-rollup">
   <h2>Sovereignty by flow <span class="scope-label">what goes where</span></h2>
+  <div class="table-scroll">
   <table class="flows">
     <tbody>
     {{range .FlowRollup}}
@@ -115,12 +118,14 @@
     {{end}}
     </tbody>
   </table>
+  </div>
 </section>
 {{end}}
 
 {{if .OrganisationsList}}
 <section class="dashboard-section">
   <h2>Organisations</h2>
+  <div class="table-scroll">
   <table class="organisations">
     <thead>
       <tr><th>Slug</th><th>Name</th><th class="num">Targets</th></tr>
@@ -135,12 +140,14 @@
       {{end}}
     </tbody>
   </table>
+  </div>
 </section>
 {{end}}
 
 <section class="dashboard-section">
   <h2>Rule catalogue <span class="scope-label">what we measure &amp; how it scores</span></h2>
   {{if .Catalogue}}
+  <div class="table-scroll">
   <table class="rule-catalogue">
     <thead>
       <tr>
@@ -173,6 +180,7 @@
       {{end}}
     </tbody>
   </table>
+  </div>
   {{else}}
   <p class="empty-state">No rules registered.</p>
   {{end}}
@@ -181,6 +189,7 @@
 <section class="dashboard-section">
   <h2>Score matrix <span class="scope-label">per-rule, across targets</span></h2>
   {{if .Matrix}}
+  <div class="table-scroll">
   <table class="reporting-rules">
     <thead>
       <tr>
@@ -208,6 +217,7 @@
       {{end}}
     </tbody>
   </table>
+  </div>
   {{else}}
   <p class="empty-state">
     No rules have produced rationales yet. Run

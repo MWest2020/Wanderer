@@ -12,12 +12,13 @@
   te lezen zijn.
 
 ## 2. De reparatie — run 02
-- [ ] 2.1 Oordeelkleuren op ten minste 4,5:1 bij hun werkelijke grootte.
-- [ ] 2.2 Kleur nooit als enige onderscheid.
-- [ ] 2.3 Brede tabellen scrollen binnen hun eigen kader; geen
+- [x] 2.1 Oordeelkleuren op ten minste 4,5:1 bij hun werkelijke grootte.
+- [x] 2.2 Kleur nooit als enige onderscheid.
+- [x] 2.3 Brede tabellen scrollen binnen hun eigen kader; geen
   horizontale paginascroll op 390px.
-- [ ] 2.4 De lege tabelkop op trends krijgt een naam.
-- [ ] 2.5 De suite is groen.
+- [x] 2.4 De lege tabelkop op trends krijgt een naam.
+- [ ] 2.5 De suite is groen. (kon niet zelf draaien — geen egress; zie
+  run-rapport)
 
 ## 3. Documentatie
-- [ ] 3.1 Wat de gate wel en niet bewijst, in `docs/`; CHANGELOG.
+- [x] 3.1 Wat de gate wel en niet bewijst, in `docs/`; CHANGELOG.

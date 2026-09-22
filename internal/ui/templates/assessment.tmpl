@@ -121,6 +121,7 @@
     <p class="scanner-warning">⚠ {{.}}</p>
     {{end}}
     {{if .Rationales}}
+    <div class="table-scroll">
     <table class="rationales">
       <thead>
         <tr>
@@ -154,6 +155,7 @@
         {{end}}
       </tbody>
     </table>
+    </div>
     {{else}}
     <p class="muted">No rationales for this dimension.</p>
     {{end}}

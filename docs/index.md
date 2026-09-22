@@ -50,6 +50,8 @@ merits.
   misses, the redaction guarantee, classifier rules.
 - [**Observability**](reference/observability.md) — logs, Prometheus
   metrics, OpenTelemetry (deferred).
+- [**Accessibility gate**](reference/accessibility.md) — what the
+  axe-core check in the Playwright suite proves, and what it doesn't.
 
 ## Explanation
 
