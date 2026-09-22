@@ -170,8 +170,11 @@ func seedAfhankelijkScan(t *testing.T, st *store.Store, domain string) {
 // running `wanderer serve` binary or a browser the way the
 // Playwright projects in tests/playwright/playwright.config.ts do.
 // It asserts the headline leads with the x/n score rather than a bare
-// "Nee —" (1.2), using the same live-bug shape ("Nee — Hosting: De
-// hosting staat buiten de EER.") the task doc measured.
+// "Nee —" (1.2). De vorm die de taakomschrijving noemde was "Nee —
+// Hosting: De hosting staat buiten de EER."; run 05 haalde daarna de
+// dubbele stroomnaam eruit (taak 4.6), dus de zin luidt nu "Nee — De
+// hosting staat buiten de EER." Wat deze test bewaakt is onveranderd:
+// de score staat vooraan, vóór het oordeel.
 func TestDemoHandler_HeadlineLeadsWithScore(t *testing.T) {
 	st := newTestStore(t)
 	seedAfhankelijkScan(t, st, "westerweel.work")
@@ -185,7 +188,7 @@ func TestDemoHandler_HeadlineLeadsWithScore(t *testing.T) {
 		t.Fatalf("status = %d", resp.StatusCode)
 	}
 	body, _ := io.ReadAll(resp.Body)
-	if !strings.Contains(string(body), "0/1 — Nee — Hosting") {
+	if !strings.Contains(string(body), "0/1 — Nee — ") {
 		t.Errorf("expected the score to lead the headline ahead of the verdict; body:\n%s", string(body))
 	}
 	if idx := strings.Index(string(body), "Nee —"); idx >= 0 {
