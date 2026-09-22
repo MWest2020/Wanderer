@@ -1,11 +1,11 @@
 # Tasks: drie-lagen-ciso
 
 ## 1. De vlootscore — run 01
-- [ ] 1.1 Eén functie die een organisatie omzet in een vlootscore:
+- [x] 1.1 Eén functie die een organisatie omzet in een vlootscore:
   som(x)/som(n), onbeantwoorde vragen apart, aantal domeinen niet
   soeverein, en de verdeling per stroom. Bouw op `BuildFleetScore`.
-- [ ] 1.2 De drie regels die over de vloot de meeste punten kosten.
-- [ ] 1.3 Tests incl. de valkuil: negen goede domeinen en één slecht.
+- [x] 1.2 De drie regels die over de vloot de meeste punten kosten.
+- [x] 1.3 Tests incl. de valkuil: negen goede domeinen en één slecht.
 
 ## 2. `/ui/` wordt de vloot — run 02
 - [ ] 2.1 De vlootscore, de verdeling en de lijst (slechtste eerst).
