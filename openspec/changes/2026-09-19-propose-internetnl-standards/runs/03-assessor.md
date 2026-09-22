@@ -42,6 +42,28 @@ Contact/Expires-velden als bewijs) en de header-subtests. Dat is de
 eis "never double-score first-party ground" uit de spec. Zet een test
 die faalt als er ooit een regel bijkomt die op `web_appsecpriv` scoort.
 
+## Hoeveel tests elke regel hoort te zien
+
+Geteld uit de echte metadata-hiërarchie en de twee fixtures
+(westerweel.work, 2026-09-22). Beide testsoorten samen:
+
+| regel                          | tests | waarvan                     |
+| ------------------------------ | ----- | --------------------------- |
+| `wand.standards.tls_config`    | 22    | web_https                   |
+| `wand.standards.starttls_dane` | 19    | mail_starttls               |
+| `wand.standards.rpki`          | 10    | 4 web + 6 mail              |
+| `wand.standards.ipv6`          | 9     | 5 web + 4 mail              |
+| `wand.standards.dnssec`        | 6     | 2 web + 4 mail              |
+| `wand.standards.mail_auth`     | 5     | mail_auth                   |
+| (niet gescoord)                | 5     | web_appsecpriv              |
+
+Samen 76 van de 76 gemeten tests; nul zonder categorie. Schrijf per
+regel een test die dit aantal vastlegt tegen de fixture. Een regel die
+er minder ziet, scoort op onvolledige gegevens en zegt toch iets
+stelligs — dat is het gat dat groen oogt. De RPKI-regel is het
+scherpste geval: hij hoort ook `web_ns_rpki_*`, `mail_ns_rpki_*` en
+`mail_mx_ns_rpki_*` te zien, die niet op hun categorienaam lijken.
+
 ## Scope — ONLY these tasks
 - [ ] 3.1 De `standards`-dimensie registreren en de zes regels
   bouwen. Alleen verdictmapping: alle relevante tests `passed` →
