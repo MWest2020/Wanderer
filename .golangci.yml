@@ -62,6 +62,20 @@ issues:
     - path: _test\.go
       linters: [gosec]
       text: "G115"
+    # linkifyVerdict maakt de internet.nl-rapport-URL aanklikbaar en
+    # geeft daarom template.HTML terug — G203 vuurt op elke linkifier.
+    # De URL komt uit een geïmporteerd bestand en is dus beïnvloedbaar,
+    # dus dit is geen aanname: de functie eist schema http/https én een
+    # host, en escapet zowel de href als de linktekst.
+    #
+    # Het bewijs staat eronder, niet in deze comment:
+    # TestLinkifyVerdict_EscapesBreakoutAttempts dekt vier pogingen
+    # (aanhalingsteken uit het href-attribuut, <script>, javascript:,
+    # en een gesmokkelde <img>). Nagemeten 2026-09-22: haal de escaping
+    # uit de href en drie van de vier subtests vallen om.
+    - path: internal/ui/linkify\.go
+      linters: [gosec]
+      text: "G203"
     # scripts/action_report_test.go starts jq with a path built from
     # filepath.Join(".", "action-report.jq") — a fixed, test-local
     # path, not external input.
