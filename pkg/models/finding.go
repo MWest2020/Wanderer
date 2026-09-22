@@ -80,13 +80,19 @@ const (
 	SourceModusInventory SourceModus = "inventory"
 	SourceModusEgress    SourceModus = "egress"
 	SourceModusDrift     SourceModus = "drift"
+	// SourceModusImport tags Findings brought in from an external
+	// measurement tool rather than produced by a Wanderer probe — e.g.
+	// `wanderer import internetnl`. These findings coexist with
+	// perimeter/inventory/egress findings for the same target; the
+	// assessor reads the newest scan per modus independently.
+	SourceModusImport SourceModus = "import"
 )
 
 // Valid reports whether m is one of the defined source modi. The
 // empty value is also accepted: it means "default to perimeter".
 func (m SourceModus) Valid() bool {
 	switch m {
-	case "", SourceModusPerimeter, SourceModusInventory, SourceModusEgress, SourceModusDrift:
+	case "", SourceModusPerimeter, SourceModusInventory, SourceModusEgress, SourceModusDrift, SourceModusImport:
 		return true
 	}
 	return false

@@ -248,6 +248,22 @@ CREATE TABLE finding_batches (
 );
 `,
 	},
+	{
+		Version: 11,
+		Name:    "add_netnl_imports",
+		Up: `-- propose-internetnl-standards run 02: "wanderer import internetnl
+-- <file>" must be idempotent — re-importing the same completed
+-- Internet.nl export a second time changes nothing. The netnl-
+-- findings/v1 file carries no per-domain or per-batch request ID
+-- (design.md "Design gate outcome" measured this against the real
+-- API; the draft contract's request_id does not exist on the wire),
+-- so the file's own sha256 is the idempotency key instead.
+CREATE TABLE netnl_imports (
+  file_hash   TEXT PRIMARY KEY,
+  imported_at DATETIME NOT NULL
+);
+`,
+	},
 }
 
 // runMigrations applies every migration whose Version is not already

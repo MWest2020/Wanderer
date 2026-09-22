@@ -15,15 +15,26 @@
   niet-nul exit bij een onvolledige batch. Bevestig éérst met één
   echte MAIL-batch of die dezelfde platte `{status, verdict}`-vorm
   heeft als web; de web-meting is gedaan, mail niet.
-- [ ] 1.3 Copy fixtures into Wanderer's testdata (same bytes).
+- [x] 1.3 Copy fixtures into Wanderer's testdata (same bytes) — done
+  2026-09-22, `internal/scanner/testdata/findings-v1-{web,mail}-20260922.json`,
+  sha256-verified identical to the change's `fixtures/` copies.
 
 ## 2. Wanderer importer
-- [ ] 2.1 `wanderer import internetnl <file>`: parse, target-match,
+- [x] 2.1 `wanderer import internetnl <file>`: parse, target-match,
   persist under import-kind scan; WARN+skip for unknown domains and
   malformed entries; abort on schema-version mismatch; idempotent
-  re-import (file hash + request ID).
-- [ ] 2.2 Store: import-kind scans coexist with perimeter scans;
-  assessor reads newest per kind.
+  re-import — done 2026-09-22. Idempotency keys on the file's sha256
+  alone: the measured netnl-findings/v1 schema (design.md "Design gate
+  outcome") carries no request ID anywhere, per-domain or per-batch,
+  so "file hash + request ID" as originally phrased isn't buildable
+  against the real fixture; the file hash alone already gives byte-
+  identical re-imports a no-op.
+- [x] 2.2 Store: import-kind scans coexist with perimeter scans;
+  assessor reads newest per kind — done 2026-09-22. Findings.SourceModus
+  gained `import` (no new Scan.Kind column, per design decision);
+  `Store.LatestScanByModus` gives a future assessor its "newest scan
+  for this modus" primitive without this run reaching into
+  assessor/rules territory.
 
 ## 3. Assessor
 - [ ] 3.1 `standards` dimension registration + six rules (verdict
