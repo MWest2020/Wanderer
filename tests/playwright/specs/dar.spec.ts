@@ -32,22 +32,22 @@ test.describe("Overview slimness", () => {
 });
 
 test.describe("Organisation scope persistence", () => {
-  test("Per-org Overview threads slug into the two nav tabs", async ({ page }) => {
-    await page.goto("/ui/orgs/conduction");
+  test("Per-org Overzicht threads slug into the two nav tabs", async ({ page }) => {
+    await page.goto("/ui/orgs/voorbeeld");
     await expect(page.locator("h1")).toContainText("Voorbeeld B.V.");
 
     const nav = page.locator(".nav-bar");
-    await expect(nav.locator("a", { hasText: "Overview" })).toHaveAttribute("href", "/ui/orgs/conduction");
-    await expect(nav.locator("a", { hasText: "Trends" })).toHaveAttribute("href", "/ui/trends?org=conduction");
+    await expect(nav.locator("a", { hasText: "Overzicht" })).toHaveAttribute("href", "/ui/orgs/voorbeeld");
+    await expect(nav.locator("a", { hasText: "Trends" })).toHaveAttribute("href", "/ui/trends?org=voorbeeld");
     // The retired tabs are gone.
     await expect(nav.locator("a", { hasText: "Analysis" })).toHaveCount(0);
     await expect(nav.locator("a", { hasText: "Reporting" })).toHaveCount(0);
   });
 
   test("Trends with ?org= renders the scope pill", async ({ page }) => {
-    await page.goto("/ui/trends?org=conduction");
+    await page.goto("/ui/trends?org=voorbeeld");
     await expect(page.locator(".scope-pill")).toContainText("Voorbeeld");
-    await expect(page.locator(".scope-pill a")).toHaveAttribute("href", "/ui/orgs/conduction");
+    await expect(page.locator(".scope-pill a")).toHaveAttribute("href", "/ui/orgs/voorbeeld");
   });
 
   test("Unknown org slug returns 404", async ({ page }) => {
@@ -56,7 +56,7 @@ test.describe("Organisation scope persistence", () => {
   });
 
   test("Targets page filters by ?org=", async ({ page }) => {
-    await page.goto("/ui/targets?org=conduction");
+    await page.goto("/ui/targets?org=voorbeeld");
     await expect(page.locator(".scope-pill")).toContainText("Voorbeeld");
     await expect(page.locator("text=example.nl")).toHaveCount(0);
   });

@@ -17,7 +17,7 @@
 //
 // Runs against the `scan-dev` fixture (playwright.config.ts): a
 // `wanderer serve` instance seeded with the `baseline` scenario
-// (conduction.nl, acme.example.com — see internal/fixtures/baseline.go)
+// (voorbeeld.nl, acme.example.com — see internal/fixtures/baseline.go)
 // and -ui-htpasswd so the door's scan form is enabled for a signed-in
 // user (this project's httpCredentials answer the Basic challenge).
 //
@@ -28,15 +28,15 @@
 // ui-dev-scan.spec.ts's existing rule of not waiting out a live scan
 // in this suite. The content-rich assertions (a completed reasoning
 // page, the onbekend-is-not-ja headline) instead read the fixture's
-// already-completed conduction.nl scan — deterministic, no network.
+// already-completed voorbeeld.nl scan — deterministic, no network.
 
 import { test, expect } from "@playwright/test";
 import type { Page } from "@playwright/test";
 import { checkAccessibility } from "../support/axe";
 
-async function conductionAnswerURL(page: Page): Promise<string> {
+async function voorbeeldAnswerURL(page: Page): Promise<string> {
   await page.goto("/ui/targets");
-  const row = page.locator("tr", { hasText: "conduction.nl" });
+  const row = page.locator("tr", { hasText: "voorbeeld.nl" });
   await expect(row).toBeVisible();
   const scanLink = row.locator('a[href*="/ui/scans/"]');
   const href = await scanLink.getAttribute("href");
@@ -55,10 +55,10 @@ test.describe("Het vlootoverzicht", () => {
     // De vloot is de eerste laag (specs/web-ui/spec.md "De vloot is de
     // eerste laag", change 2026-09-22-drie-lagen-ciso): score en
     // domeinenlijst vóór het scanformulier, niet een kale invoer zonder
-    // data (de fixture's baseline scenario seedt conduction.nl en
+    // data (de fixture's baseline scenario seedt voorbeeld.nl en
     // acme.example.com met afgeronde assessments).
     await expect(page.locator(".fleet-score-total")).toBeVisible();
-    const row = page.locator("table.targets tr", { hasText: "conduction.nl" });
+    const row = page.locator("table.targets tr", { hasText: "voorbeeld.nl" });
     await expect(row).toBeVisible();
 
     // Geen losse rule-ID's op de pagina zelf (enkel als href in de
@@ -107,10 +107,10 @@ test.describe("Domain in → answer vult zich", () => {
 
 test.describe("Onbekend is geen ja", () => {
   test("a headline with an unanswered flow never reads a plain Ja", async ({ page }) => {
-    const answerURL = await conductionAnswerURL(page);
+    const answerURL = await voorbeeldAnswerURL(page);
     await page.goto(answerURL);
 
-    // conduction.nl's baseline fixture has no transit.hop or ns-host
+    // voorbeeld.nl's baseline fixture has no transit.hop or ns-host
     // ip.asn findings, so the transit and DNS flows score onbekend
     // (dns.ns_vendor_jurisdiction has ns hosts but no GeoIP lookup
     // for them; wand.transit.eu_path has no traceroute at all) while
@@ -131,7 +131,7 @@ test.describe("Onbekend is geen ja", () => {
   test("the reasoning page renders the onbekend flow distinctly, with the rule ID collapsed", async ({
     page,
   }) => {
-    const answerURL = await conductionAnswerURL(page);
+    const answerURL = await voorbeeldAnswerURL(page);
     await page.goto(answerURL);
     await page.locator('a:has-text("onderbouwing")').click();
     await expect(page).toHaveURL(/\/ui\/scans\/[^/]+\/assessment$/);

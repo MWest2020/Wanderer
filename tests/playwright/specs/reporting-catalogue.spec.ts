@@ -17,7 +17,7 @@ test.describe("Trends rule catalogue", () => {
   });
 
   test("Status column shows worst score + target count", async ({ page }) => {
-    await page.goto("/ui/trends?org=conduction");
+    await page.goto("/ui/trends?org=voorbeeld");
     const row = page.locator("table.rule-catalogue tr", { hasText: "wand.juridisch.cert_issuer_eea" });
     await expect(row).toBeVisible();
     const statusCell = row.locator("td").last();

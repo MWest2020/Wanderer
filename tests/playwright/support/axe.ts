@@ -19,7 +19,7 @@ const FAILING_IMPACTS = new Set(["serious", "critical"]);
 
 // checkAccessibility scans `page` and throws if any violation has impact
 // "serious" or "critical". `screenName` identifies the screen in the
-// failure message (e.g. "trends", "antwoord — conduction.nl") so a
+// failure message (e.g. "trends", "antwoord — voorbeeld.nl") so a
 // reader can find the right template without re-running the suite.
 export async function checkAccessibility(page: Page, screenName: string): Promise<void> {
   const results = await new AxeBuilder({ page }).analyze();

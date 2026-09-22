@@ -5,10 +5,10 @@
 // collapsed evidence, and onbekend vs n.v.t. rendered as visually
 // distinct states from each other and from a failing "Nee".
 //
-// Targets conduction.nl's scan specifically (not "the first scan
-// link"): internal/fixtures/baseline.go seeds conduction.nl and
+// Targets voorbeeld.nl's scan specifically (not "the first scan
+// link"): internal/fixtures/baseline.go seeds voorbeeld.nl and
 // acme.example.com with shared accountability findings, but only
-// conduction.nl's ".nl" TLD trips the registry-redaction rule, so its
+// voorbeeld.nl's ".nl" TLD trips the registry-redaction rule, so its
 // report is the one scan guaranteed to carry all four answer states
 // (ja via securitytxt, nee via no_reseller, onbekend via the
 // evidence-less soa_rname/ns_holder_transparent rules, n.v.t. via
@@ -26,9 +26,9 @@
 import { test, expect } from "@playwright/test";
 import type { Locator, Page } from "@playwright/test";
 
-async function conductionAssessmentURL(page: Page): Promise<string> {
+async function voorbeeldAssessmentURL(page: Page): Promise<string> {
   await page.goto("/ui/targets");
-  const row = page.locator("tr", { hasText: "conduction.nl" });
+  const row = page.locator("tr", { hasText: "voorbeeld.nl" });
   await expect(row).toBeVisible();
   const scanLink = row.locator('a[href*="/ui/scans/"]');
   const href = await scanLink.getAttribute("href");
@@ -40,8 +40,16 @@ test.describe("Accountability answer sheet", () => {
   test("assessment page renders one question per accountability rule", async ({
     page,
   }) => {
-    const url = await conductionAssessmentURL(page);
+    const url = await voorbeeldAssessmentURL(page);
     await page.goto(url);
+
+    // Sinds 2026-09-22-drie-lagen-ciso run 05 (taak 5.1) staan de
+    // frameworktabellen achter één klik: de onderbouwing opent met de
+    // zeven vragen, de regels per framework zitten in een dichte
+    // <details>. De accountability-sectie zit daarin, dus openen vóór
+    // je hem beoordeelt — niet de UI terugdraaien om de spec te
+    // plezieren.
+    await page.locator("details.framework-details").click();
 
     const section = page.locator("#wand-accountability");
     await expect(section).toBeVisible();
@@ -64,13 +72,16 @@ test.describe("Accountability answer sheet", () => {
   test("onbekend and n.v.t. answers are visually distinct from a failing nee", async ({
     page,
   }) => {
-    const url = await conductionAssessmentURL(page);
+    const url = await voorbeeldAssessmentURL(page);
     await page.goto(url);
+
+    // Zelfde reden als hierboven: de frameworksectie staat dicht.
+    await page.locator("details.framework-details").click();
 
     const section = page.locator("#wand-accountability");
 
     // The fixture's registrant_identifiable rule scores n.v.t.
-    // (registry_redacted, conduction.nl's ".nl" TLD); soa_rname and
+    // (registry_redacted, voorbeeld.nl's ".nl" TLD); soa_rname and
     // ns_holder_transparent score onbekend (no dns.soa / whois.ns_holder
     // evidence); no_reseller scores nee (a reseller finding is present);
     // securitytxt scores ja. All four rows must be present.

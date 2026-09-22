@@ -70,7 +70,7 @@ func (s *davStub) putBySuffix(suffix string) ([]byte, bool) {
 func seedScan(t *testing.T, st *store.Store) string {
 	t.Helper()
 	ctx := context.Background()
-	tgt := &models.Target{Domain: "conduction.nl"}
+	tgt := &models.Target{Domain: "voorbeeld.nl"}
 	if err := st.UpsertTarget(ctx, tgt); err != nil {
 		t.Fatalf("upsert: %v", err)
 	}
@@ -81,7 +81,7 @@ func seedScan(t *testing.T, st *store.Store) string {
 	if err := st.AppendFindings(ctx, sc.ID, []models.Finding{
 		{
 			ProbeID:  "tls.issuer",
-			Subject:  "conduction.nl",
+			Subject:  "voorbeeld.nl",
 			Severity: models.SeverityFinding,
 			Attributes: map[string]any{
 				"issuer_country": "NL",
@@ -138,7 +138,7 @@ func TestPublish_DropsJSONLDAndMarkdown(t *testing.T) {
 	if strings.Contains(string(jsonld), "ghp_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa") {
 		t.Error("JSON-LD bundle leaked a secret-shaped token — redaction did not run")
 	}
-	if !strings.Contains(string(jsonld), "conduction.nl") {
+	if !strings.Contains(string(jsonld), "voorbeeld.nl") {
 		t.Error("JSON-LD bundle missing the scan subject")
 	}
 }

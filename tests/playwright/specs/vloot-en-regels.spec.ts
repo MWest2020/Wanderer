@@ -16,9 +16,9 @@
 // for the fleet-edit route (internal/ui/ui.go's allowFleetEdit).
 //
 // The sort assertions and the rule page's threshold/remediation both
-// depend on internal/fixtures/baseline.go: conduction's fleet carries
+// depend on internal/fixtures/baseline.go: voorbeeld's fleet carries
 // a second domain (tweede.nl, afhankelijk on the certificate
-// dimension, scanned two days before conduction.nl) so "sort by
+// dimension, scanned two days before voorbeeld.nl) so "sort by
 // score" and "sort by last scan" produce different first rows, and
 // acme.example.com carries a whois.expiry finding inside
 // wand.operationeel.domain_expiry's 30-day urgent window so that
@@ -30,12 +30,12 @@ import { checkAccessibility } from "../support/axe";
 
 test.describe("Domein toevoegen aan de vloot", () => {
   test("een nieuw domein verschijnt zonder te scannen", async ({ page }) => {
-    await page.goto("/ui/orgs/conduction/fleet");
+    await page.goto("/ui/orgs/voorbeeld/fleet");
 
     await page.locator("#fleet-domain").fill("vloot-playwright.nl");
     await page.locator('form.fleet-add-form button[type="submit"]').click();
 
-    await expect(page).toHaveURL(/\/ui\/orgs\/conduction\/fleet$/);
+    await expect(page).toHaveURL(/\/ui\/orgs\/voorbeeld\/fleet$/);
     const row = page.locator("table tbody tr", { hasText: "vloot-playwright.nl" });
     await expect(row).toBeVisible();
     await expect(row).toContainText("nog niet gescand");
@@ -44,7 +44,7 @@ test.describe("Domein toevoegen aan de vloot", () => {
 
 test.describe("Het vlootscherm sorteren", () => {
   test("op score zet het slechtst scorende domein bovenaan", async ({ page }) => {
-    await page.goto("/ui/orgs/conduction/fleet");
+    await page.goto("/ui/orgs/voorbeeld/fleet");
 
     await page.locator("p.fleet-sort a", { hasText: "Score" }).click();
     await expect(page).toHaveURL(/[?&]sort=score/);
@@ -57,14 +57,14 @@ test.describe("Het vlootscherm sorteren", () => {
   });
 
   test("op laatste scan zet het meest recent gescande domein bovenaan", async ({ page }) => {
-    await page.goto("/ui/orgs/conduction/fleet");
+    await page.goto("/ui/orgs/voorbeeld/fleet");
 
     await page.locator("p.fleet-sort a", { hasText: "Laatste scan" }).click();
     await expect(page).toHaveURL(/[?&]sort=last_scan/);
     await expect(page.locator("p.fleet-sort strong", { hasText: "Laatste scan" })).toBeVisible();
 
     const firstRow = page.locator("table tbody tr").first();
-    await expect(firstRow.locator("td").first()).toHaveText("conduction.nl");
+    await expect(firstRow.locator("td").first()).toHaveText("voorbeeld.nl");
   });
 });
 

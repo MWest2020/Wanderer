@@ -19,7 +19,7 @@ hostname: alma
 core:
   mode: local
   db: /tmp/wanderer-demo.db
-  organisation: conduction
+  organisation: voorbeeld
 scan:
   timeout: 2m
 inspectors:

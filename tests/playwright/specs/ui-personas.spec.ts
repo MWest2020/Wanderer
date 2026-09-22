@@ -50,10 +50,10 @@ test.describe("Trends = Farmer", () => {
 });
 
 test.describe("Two-tab nav + legacy redirects", () => {
-  test("Nav shows exactly Overview and Trends", async ({ page }) => {
+  test("Nav shows exactly Overzicht and Trends", async ({ page }) => {
     await page.goto("/ui/");
     const nav = page.locator(".nav-bar");
-    await expect(nav.locator("a", { hasText: "Overview" })).toBeVisible();
+    await expect(nav.locator("a", { hasText: "Overzicht" })).toBeVisible();
     await expect(nav.locator("a", { hasText: "Trends" })).toBeVisible();
     await expect(nav.locator("a", { hasText: "Analysis" })).toHaveCount(0);
     await expect(nav.locator("a", { hasText: "Reporting" })).toHaveCount(0);
