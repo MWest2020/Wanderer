@@ -9,6 +9,24 @@ once a first release is cut. Until then every entry lives under
 
 ## [Unreleased]
 
+## [0.8.1] - 2026-09-22
+
+### Changed
+
+- **De demopagina leidt nu met de score.** De publieke voorbeeldpagina
+  toonde een kale "Nee — ..." zonder x/n, terwijl de antwoordpagina
+  achter de inlog die wel had — de demopagina heeft een eigen sjabloon
+  en was bij die wijziging overgeslagen. Het is de enige pagina die een
+  bezoeker zonder inlog ziet.
+- **De drie lagen staan in de UI en in een ADR.** `/ui/` is de vloot
+  (toerist), de antwoordpagina één domein met de zeven vragen (boer),
+  de onderbouwing de techniek (explorer) — met de twee
+  frameworktabellen achter één klik. Vastgelegd in ADR-0018, die
+  ADR-0017 vervangt.
+- **Taalresten weg.** De stroomlabels (Certificaat, Netwerkpad,
+  Hyperscaler, Derde partijen) en de navigatie zijn Nederlands; de
+  kopzin noemt de stroomnaam niet langer twee keer.
+
 ## [0.8.0] - 2026-09-22
 
 ### Fixed
@@ -1111,7 +1129,8 @@ ExApp) can pin a reproducible version instead of `@main`.
   deferred (see `docs/observability.md`).
   (`openspec/changes/archive/2026-04-24-init-mvp-scanners`)
 
-[Unreleased]: https://github.com/MWest2020/wanderer/compare/v0.8.0...main
+[Unreleased]: https://github.com/MWest2020/wanderer/compare/v0.8.1...main
+[0.8.1]: https://github.com/MWest2020/wanderer/compare/v0.8.0...v0.8.1
 [0.8.0]: https://github.com/MWest2020/wanderer/compare/v0.7.0...v0.8.0
 [0.7.0]: https://github.com/MWest2020/wanderer/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/MWest2020/wanderer/compare/v0.5.1...v0.6.0
