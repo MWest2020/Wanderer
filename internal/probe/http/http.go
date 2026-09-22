@@ -462,7 +462,7 @@ func looksLikeHTML(contentType string, body []byte) bool {
 // binary, or otherwise not field-shaped) reports false.
 func parseSecurityTxt(body []byte) (map[string][]string, bool) {
 	fields := map[string][]string{}
-	any := false
+	sawField := false
 	for _, line := range strings.Split(string(body), "\n") {
 		line = strings.TrimSpace(strings.TrimRight(line, "\r"))
 		if line == "" || strings.HasPrefix(line, "#") {
@@ -478,9 +478,9 @@ func parseSecurityTxt(body []byte) (map[string][]string, bool) {
 			continue
 		}
 		fields[key] = append(fields[key], val)
-		any = true
+		sawField = true
 	}
-	return fields, any
+	return fields, sawField
 }
 
 func securityTxtUnavailable(domain, reason string) models.Finding {

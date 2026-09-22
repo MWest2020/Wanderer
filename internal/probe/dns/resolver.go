@@ -4,10 +4,10 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"crypto/rand"
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"math/rand"
 	"net"
 	"os"
 	"strings"
@@ -133,7 +133,10 @@ const (
 )
 
 func encodeCAAQuery(name string) ([]byte, uint16, error) {
-	id := uint16(rand.Intn(1 << 16))
+	id, err := randomTransactionID()
+	if err != nil {
+		return nil, 0, err
+	}
 	var buf bytes.Buffer
 
 	header := make([]byte, 12)
@@ -154,6 +157,19 @@ func encodeCAAQuery(name string) ([]byte, uint16, error) {
 	buf.Write(qtype)
 
 	return buf.Bytes(), id, nil
+}
+
+// randomTransactionID returns a cryptographically random 16-bit DNS
+// transaction ID. It is the only defence against a spoofed answer
+// (RFC 5452): whoever can predict it can feed the resolver a forged
+// response ahead of the real one. math/rand's PRNG is predictable and
+// must never be used here.
+func randomTransactionID() (uint16, error) {
+	var b [2]byte
+	if _, err := rand.Read(b[:]); err != nil {
+		return 0, fmt.Errorf("dns: generate transaction id: %w", err)
+	}
+	return binary.BigEndian.Uint16(b[:]), nil
 }
 
 func encodeName(name string) ([]byte, error) {
