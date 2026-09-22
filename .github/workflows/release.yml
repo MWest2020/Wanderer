@@ -35,3 +35,28 @@ jobs:
           args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # De release die goreleaser hierboven aanmaakt, gebruikt
+      # GITHUB_TOKEN. GitHub start met opzet géén workflows op een
+      # gebeurtenis die met dat token is gemaakt (anders zou een
+      # workflow zichzelf eindeloos kunnen aanroepen). Gevolg: de
+      # `on: release: [published]`-trigger in release-dispatch.yml
+      # heeft sinds v0.6.0 niet meer gevuurd, en het ExApp-image bleef
+      # op de oude binary staan zonder dat iets klaagde.
+      #
+      # Daarom sturen we het signaal hier, in dezelfde job, met het
+      # token dat er wél toe doet. release-dispatch.yml houdt zijn
+      # workflow_dispatch voor handwerk; de release-trigger daar is
+      # dood hout dat we laten staan noch nodig hebben.
+      - name: wanderer-exapp laten herbouwen
+        env:
+          GH_TOKEN: ${{ secrets.EXAPP_DISPATCH_TOKEN }}
+          VERSION: ${{ github.ref_name }}
+        run: |
+          if [ -z "$GH_TOKEN" ]; then
+            echo "::error::EXAPP_DISPATCH_TOKEN ontbreekt — het ExApp-image blijft op de vorige versie staan."
+            exit 1
+          fi
+          gh api repos/MWest2020/wanderer-exapp/dispatches \
+            -f event_type=wanderer-release \
+            -f "client_payload[version]=${VERSION}"

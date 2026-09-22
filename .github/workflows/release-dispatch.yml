@@ -9,9 +9,13 @@ name: release-dispatch
 # the repository_dispatch permission. The default GITHUB_TOKEN cannot
 # dispatch to another repository, so this manual secret is needed.
 
+# LET OP: de release-trigger stond hier, en vuurde niet. Een release die
+# goreleaser met GITHUB_TOKEN aanmaakt, start geen workflows — dat is
+# GitHub-beleid tegen oneindige lussen. Tussen v0.7.0 en v0.8.0 bleef het
+# ExApp-image daardoor stil op de oude binary staan. Het signaal gaat nu
+# uit release.yml zelf; wat hier overblijft is de handmatige knop, voor
+# als je een oudere versie opnieuw wilt uitduwen.
 on:
-  release:
-    types: [published]
   workflow_dispatch:
     inputs:
       version:
