@@ -147,6 +147,27 @@ zelf-gehoste instantie — en zelf-hosten is precies wat wij doen.
   "niet dubbel scoren"-eis uit de assessor-delta is geen theorie.
 - De testnamen zijn stabiel en machineleesbaar.
 
+### 6. `results` op een onafgeronde batch slaagt stil
+
+Gemeten terwijl de mail-batch nog liep: `internetnl results <id>
+--json` eindigt met **exitcode 0** en schrijft een document met
+`"domains": null` en `request.status: "running"`. Geen foutmelding,
+geen waarschuwing.
+
+Contract-eis 8 zegt dat export van een onvolledige batch niet-nul moet
+eindigen en niets moet schrijven. Dat is dus nog niet zo — en het is
+geen theoretisch risico: een CI-stap die `results` aanroept en de
+exitcode gelooft, archiveert een leeg bestand en meldt succes. De
+importkant aan Wanderer-zijde zou dan een geldig ogend bestand met nul
+domeinen inlezen en "niet gemeten" tonen, precies zoals de demopagina
+vanmiddag deed.
+
+**Besluit:** eis 8 geldt voor de nieuwe `--format findings`-uitvoer, en
+taak 1.2 legt hem vast met een test die een lopende batch aanbiedt en
+een niet-nul exit plus een afwezig bestand verwacht. Het bestaande
+`results`-gedrag blijft zoals het is (dat is netnl's eigen contract
+met zijn gebruikers), maar de findings-export erft het niet.
+
 ### Nog te bevestigen
 
 Deze meting was `--type web`. Of een **mail**-batch dezelfde platte
