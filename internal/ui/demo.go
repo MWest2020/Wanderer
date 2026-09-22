@@ -10,10 +10,17 @@
 // to reach any other target's data (tasks.md 1.3), and it never
 // touches a Scanner, so no request to it can start a scan (tasks.md
 // 1.4).
+//
+// The headline also carries the x/n score (docs/tasks/2026-09-22-demo-score.md
+// 1.1/1.2): composeDemoHeadline reuses BuildFleetScore — the same x/n
+// the login-gated answer page shows — rather than a third count, and
+// leads with it so a reader sees how much scores well before the
+// ja/nee/onbekend sentence that names the heaviest open point.
 package ui
 
 import (
 	"context"
+	"fmt"
 	"html/template"
 	"net/http"
 	"strings"
@@ -73,13 +80,33 @@ func DemoHandler(st *store.Store, tmpl *template.Template, target string) http.H
 			findingsByID[f.ID] = f
 		}
 		v := BuildAnswerVerdict(assessments, findingsByID)
+		fs := BuildFleetScore(assessments, findingsByID)
 		view.HasScan = true
 		view.ScannedAt = startedAt.UTC().Format(time.RFC3339)
 		view.Verdict = v.Verdict
-		view.Headline = v.Headline
+		view.Headline = composeDemoHeadline(v, fs)
 		view.FlowAnswers = BuildFlowAnswers(assessments, findingsByID, target)
 		render(w, tmpl, "demo.tmpl", view)
 	}
+}
+
+// composeDemoHeadline leads the demo page's headline with the x/n
+// score (docs/tasks/2026-09-22-demo-score.md 1.2 "leidt met de score,
+// niet met een kale nee"), so a reader sees in one sentence how much
+// scores well before the existing ja/nee/onbekend sentence that names
+// the heaviest open point (BuildAnswerVerdict's Headline, unchanged).
+// fs.N is 0 exactly when v.Verdict is "onbekend" — no flow answered or
+// afhankelijk — so there is no score to lead with and v.Headline is
+// returned as-is.
+func composeDemoHeadline(v AnswerVerdict, fs FleetScore) string {
+	if fs.N == 0 {
+		return v.Headline
+	}
+	score := fmt.Sprintf("%d/%d", fs.X, fs.N)
+	if fs.Unanswered > 0 {
+		score += fmt.Sprintf(" · %d onbekend", fs.Unanswered)
+	}
+	return score + " — " + v.Headline
 }
 
 // latestCompletedScan finds target's most recent scan that is not
