@@ -40,6 +40,12 @@
 - [ ] 5.2 Opvolger van ADR-0017 met de nieuwe rolverdeling.
 
 ## 6. Bewijs
+- [ ] 6.0 Twee specs uit `answer-first-flow.spec.ts` zoeken
+  `form.door-form`, terwijl het scanformulier sinds run 02
+  `class="scan-form"` heet en onderaan de vlootpagina staat. Zij falen
+  daarop (gemeten 2026-09-22: 43 geslaagd, 2 gefaald; de
+  contrastfouten waren toen al weg). Breng die twee in lijn met de
+  nieuwe indeling — verander de UI NIET om een oude spec te plezieren.
 - [ ] 6.1 Playwright: vlootscore zichtbaar, slechtste domein bovenaan,
   handeling op de antwoordpagina. In de juiste `testMatch`.
 - [ ] 6.2 docs + CHANGELOG.
