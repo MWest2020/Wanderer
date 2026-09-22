@@ -2,6 +2,7 @@ package agent
 
 import (
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"sync/atomic"
@@ -28,19 +29,21 @@ func TestOutbox_EnsureDir(t *testing.T) {
 func TestOutbox_SpoolDrainRoundTrip(t *testing.T) {
 	o := newTestOutbox(t)
 	body := []byte(`{"findings":[{"id":"f_1","probe_id":"dns.mx"}]}`)
-	if err := o.Spool("t_abc", body); err != nil {
+	if err := o.Spool("t_abc", "batch-1", body); err != nil {
 		t.Fatalf("spool: %v", err)
 	}
 
 	var captured []struct {
-		scanID string
-		body   []byte
+		scanID  string
+		batchID string
+		body    []byte
 	}
-	send := func(scanID string, b []byte) error {
+	send := func(scanID, batchID string, b []byte) error {
 		captured = append(captured, struct {
-			scanID string
-			body   []byte
-		}{scanID, append([]byte(nil), b...)})
+			scanID  string
+			batchID string
+			body    []byte
+		}{scanID, batchID, append([]byte(nil), b...)})
 		return nil
 	}
 	if err := o.Drain(send); err != nil {
@@ -51,6 +54,9 @@ func TestOutbox_SpoolDrainRoundTrip(t *testing.T) {
 	}
 	if captured[0].scanID != "t_abc" {
 		t.Errorf("scanID = %s", captured[0].scanID)
+	}
+	if captured[0].batchID != "batch-1" {
+		t.Errorf("batchID = %s, want batch-1", captured[0].batchID)
 	}
 	if string(captured[0].body) != string(body) {
 		t.Errorf("body lost in round-trip")
@@ -64,14 +70,14 @@ func TestOutbox_SpoolDrainRoundTrip(t *testing.T) {
 
 func TestOutbox_DrainStopsOnFailure(t *testing.T) {
 	o := newTestOutbox(t)
-	if err := o.Spool("t_one", []byte(`{}`)); err != nil {
+	if err := o.Spool("t_one", "batch-1", []byte(`{}`)); err != nil {
 		t.Fatal(err)
 	}
-	if err := o.Spool("t_two", []byte(`{}`)); err != nil {
+	if err := o.Spool("t_two", "batch-2", []byte(`{}`)); err != nil {
 		t.Fatal(err)
 	}
 	var calls int32
-	stub := func(_ string, _ []byte) error {
+	stub := func(_, _ string, _ []byte) error {
 		atomic.AddInt32(&calls, 1)
 		return errors.New("network down")
 	}
@@ -85,6 +91,32 @@ func TestOutbox_DrainStopsOnFailure(t *testing.T) {
 	entries, _ := os.ReadDir(o.Dir)
 	if len(entries) != 2 {
 		t.Errorf("expected 2 files after failed drain, got %d", len(entries))
+	}
+}
+
+// TestOutbox_SpoolPersistsBatchIDAcrossRestart pins "Restart keeps
+// the identifier": a fresh Outbox value pointed at the same
+// directory — standing in for the agent process restarting before
+// the batch was delivered — still drains the batch under the exact
+// identifier it was spooled with.
+func TestOutbox_SpoolPersistsBatchIDAcrossRestart(t *testing.T) {
+	dir := t.TempDir()
+	o := &Outbox{Dir: dir, MaxBytes: 1 << 20}
+	if err := o.Spool("t_abc", "batch-before-restart", []byte(`{}`)); err != nil {
+		t.Fatalf("spool: %v", err)
+	}
+
+	restarted := &Outbox{Dir: dir, MaxBytes: 1 << 20}
+	var gotBatchID string
+	err := restarted.Drain(func(_, batchID string, _ []byte) error {
+		gotBatchID = batchID
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("drain: %v", err)
+	}
+	if gotBatchID != "batch-before-restart" {
+		t.Errorf("batchID after restart = %s, want batch-before-restart", gotBatchID)
 	}
 }
 
@@ -103,7 +135,7 @@ func TestOutbox_PrunesOnSpool(t *testing.T) {
 	// over ~120 bytes after the envelope.
 	body := []byte(`{"pad":"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"}`)
 	for i := 0; i < 5; i++ {
-		if err := o.Spool("t_x", body); err != nil {
+		if err := o.Spool("t_x", fmt.Sprintf("batch-%d", i), body); err != nil {
 			t.Fatalf("spool %d: %v", i, err)
 		}
 	}
@@ -128,11 +160,11 @@ func TestOutbox_DrainSkipsCorrupt(t *testing.T) {
 	if err := os.WriteFile(bad, []byte("not json"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if err := o.Spool("t_good", []byte(`{}`)); err != nil {
+	if err := o.Spool("t_good", "batch-good", []byte(`{}`)); err != nil {
 		t.Fatal(err)
 	}
 	called := false
-	if err := o.Drain(func(scanID string, _ []byte) error {
+	if err := o.Drain(func(scanID, _ string, _ []byte) error {
 		called = true
 		if scanID != "t_good" {
 			t.Errorf("drain called with corrupt file: %s", scanID)

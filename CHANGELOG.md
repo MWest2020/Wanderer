@@ -11,6 +11,14 @@ once a first release is cut. Until then every entry lives under
 
 ### Fixed
 
+- **Eén keer is één keer: replayed findings-batches werden dubbel
+  opgeslagen** (`2026-09-20-agent-enrollment`, run 03). Elke batch
+  draagt nu een door de agent gegenereerde `X-Wanderer-Batch-Id`; de
+  kern slaat een batch één keer op en beantwoordt een herhaling met
+  `200 {"received": 0, "duplicate": true}`. De outbox bewaart die
+  identificatie op schijf, zodat een batch die een herstart overleeft
+  bij aflevering nog steeds wordt herkend.
+
 - **Toegankelijkheid: contrast, kleur-als-enige-onderscheid, brede
   tabellen, lege tabelkop** (`2026-09-22-toegankelijkheid`, run 02).
   Alle oordeelkleuren (`ja`/`nee`/`onbekend`/`n.v.t.`,

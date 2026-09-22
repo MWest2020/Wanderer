@@ -256,8 +256,8 @@ func runAgentRemote(logger *slog.Logger, cfg *agent.Config, enrolToken string, i
 		// Drain spooled batches first so a backlog clears before new
 		// findings pile on. A persistent failure aborts the drain
 		// which leaves the file for the next tick.
-		if err := ob.Drain(func(scanID string, body []byte) error {
-			return r.SendBytes(ctx, scanID, body)
+		if err := ob.Drain(func(scanID, batchID string, body []byte) error {
+			return r.SendBytes(ctx, scanID, batchID, body)
 		}); err != nil {
 			logger.Warn("agent.drain", "err", err)
 		}
@@ -272,8 +272,13 @@ func runAgentRemote(logger *slog.Logger, cfg *agent.Config, enrolToken string, i
 			logger.Error("agent.marshal", "err", err)
 			return
 		}
-		if err := sendWithRetry(ctx, r, cfg.Core.TargetID, body, 3); err != nil {
-			if spoolErr := ob.Spool(cfg.Core.TargetID, body); spoolErr != nil {
+		batchID, err := agent.NewBatchID()
+		if err != nil {
+			logger.Error("agent.batch_id", "err", err)
+			return
+		}
+		if err := sendWithRetry(ctx, r, cfg.Core.TargetID, batchID, body, 3); err != nil {
+			if spoolErr := ob.Spool(cfg.Core.TargetID, batchID, body); spoolErr != nil {
 				logger.Error("agent.spool", "err", spoolErr, "send_err", err)
 				return
 			}
@@ -285,9 +290,10 @@ func runAgentRemote(logger *slog.Logger, cfg *agent.Config, enrolToken string, i
 }
 
 // sendWithRetry attempts up to maxAttempts POSTs with exponential
-// backoff plus jitter. Returns the last error on persistent failure
-// so the caller can spool the batch.
-func sendWithRetry(ctx context.Context, r *agent.Remote, scanID string, body []byte, maxAttempts int) error {
+// backoff plus jitter. Every attempt carries the same batchID so the
+// core recognises them as the same batch. Returns the last error on
+// persistent failure so the caller can spool the batch.
+func sendWithRetry(ctx context.Context, r *agent.Remote, scanID, batchID string, body []byte, maxAttempts int) error {
 	delays := []time.Duration{0, 250 * time.Millisecond, time.Second}
 	if maxAttempts > len(delays) {
 		maxAttempts = len(delays)
@@ -303,7 +309,7 @@ func sendWithRetry(ctx context.Context, r *agent.Remote, scanID string, body []b
 				return ctx.Err()
 			}
 		}
-		err := r.SendBytes(ctx, scanID, body)
+		err := r.SendBytes(ctx, scanID, batchID, body)
 		if err == nil {
 			return nil
 		}

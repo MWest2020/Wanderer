@@ -118,6 +118,7 @@ Content-Type: application/json
 X-Wanderer-Agent: webapp-01.example.internal
 X-Wanderer-Timestamp: 2026-04-26T12:00:00Z
 X-Wanderer-Signature: <base64 HMAC-SHA256(secret, timestamp + "\n" + body)>
+X-Wanderer-Batch-Id: <random per-batch identifier, minted once by the agent>
 
 {"findings": [...]}
 ```
@@ -131,6 +132,17 @@ The core verifies in this order:
 A failure on any step returns 401. The 401 response body does not
 distinguish which check failed — that prevents an attacker from
 mapping out which hostnames are valid.
+
+`X-Wanderer-Batch-Id` is required. The agent mints a random identifier
+once per batch and resends the same value on every delivery attempt of
+that batch — live retries and an outbox drain after a restart alike.
+The core stores a batch once per identifier: a request missing the
+header is rejected with 400, and a repeat of an identifier it already
+has is answered `200 {"received": 0, "duplicate": true}` without
+storing the findings again. This matters because the outbox retries on
+any send that *looked* like it failed, including a response lost in
+transit after the core had already stored the batch — without an
+identifier that retry would double-count every finding in it.
 
 ### Outbox: surviving a network outage
 

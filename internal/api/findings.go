@@ -92,6 +92,7 @@ func FindingsIngestHandler(st *store.Store, secrets AgentSecrets) http.Handler {
 		hostname := r.Header.Get(agent.HeaderHostname)
 		timestamp := r.Header.Get(agent.HeaderTimestamp)
 		signature := r.Header.Get(agent.HeaderSignature)
+		batchID := r.Header.Get(agent.HeaderBatchID)
 		body, err := io.ReadAll(io.LimitReader(r.Body, 4*1024*1024))
 		if err != nil {
 			writeError(w, http.StatusBadRequest, "read_body", err.Error())
@@ -105,6 +106,11 @@ func FindingsIngestHandler(st *store.Store, secrets AgentSecrets) http.Handler {
 		if err := agent.Verify(secret, body, timestamp, signature, time.Now().UTC()); err != nil {
 			// Single 401 surface — do not leak which check failed.
 			writeError(w, http.StatusUnauthorized, "unauthorized", "agent authentication failed")
+			return
+		}
+
+		if batchID == "" {
+			writeError(w, http.StatusBadRequest, "missing_batch_id", "X-Wanderer-Batch-Id header is required")
 			return
 		}
 
@@ -124,7 +130,8 @@ func FindingsIngestHandler(st *store.Store, secrets AgentSecrets) http.Handler {
 				payload.Findings[i].SourceModus = models.SourceModusInventory
 			}
 		}
-		if err := st.AppendFindings(r.Context(), scanID, payload.Findings); err != nil {
+		received, duplicate, err := st.AppendBatch(r.Context(), scanID, batchID, payload.Findings)
+		if err != nil {
 			if errors.Is(err, store.ErrNotFound) {
 				writeError(w, http.StatusNotFound, "scan_not_found", err.Error())
 				return
@@ -132,9 +139,21 @@ func FindingsIngestHandler(st *store.Store, secrets AgentSecrets) http.Handler {
 			writeError(w, http.StatusInternalServerError, "store_error", err.Error())
 			return
 		}
+		if duplicate {
+			// Already stored under this batch ID — answer as received
+			// without inserting again. 200 rather than 409: from the
+			// agent's perspective this retry is not an error, it is
+			// exactly the outcome it wanted (the core has the batch).
+			writeJSON(w, http.StatusOK, map[string]any{
+				"scan_id":   scanID,
+				"received":  0,
+				"duplicate": true,
+			})
+			return
+		}
 		writeJSON(w, http.StatusCreated, map[string]any{
 			"scan_id":  scanID,
-			"received": len(payload.Findings),
+			"received": received,
 		})
 	})
 }

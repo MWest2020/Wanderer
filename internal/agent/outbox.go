@@ -24,9 +24,9 @@ const DefaultOutboxMaxBytes int64 = 100 << 20
 // directory listing is also a chronological order.
 //
 // On-disk format: one file per failed batch, each file is a JSON
-// document of shape {"scan_id": "...", "body": "<base64 of POST body>"}.
-// The body is base64-encoded so the JSON wrapper round-trips without
-// double-escaping the original payload.
+// document of shape {"scan_id": "...", "batch_id": "...", "body":
+// "<base64 of POST body>"}. The body is base64-encoded so the JSON
+// wrapper round-trips without double-escaping the original payload.
 type Outbox struct {
 	Dir      string
 	MaxBytes int64
@@ -36,9 +36,15 @@ type Outbox struct {
 	Now func() time.Time
 }
 
-// SpooledBatch is the on-disk shape.
+// SpooledBatch is the on-disk shape. BatchID is the identifier the
+// agent minted for this batch before the first send attempt; keeping
+// it on disk (not just in memory) means a batch spooled before a
+// restart still carries the identifier it was minted with when the
+// outbox finally delivers it — see specs/scanner/spec.md, "Restart
+// keeps the identifier".
 type SpooledBatch struct {
-	ScanID string `json:"scan_id"`
+	ScanID  string `json:"scan_id"`
+	BatchID string `json:"batch_id"`
 	// Body is the raw POST body the agent would have sent. Stored as
 	// json.RawMessage so it round-trips bit-for-bit; the core's HMAC
 	// re-signing on retry uses the current timestamp so an attacker
@@ -69,10 +75,16 @@ func (o *Outbox) EnsureDir() error {
 // Spool persists one batch. The filename is
 // <RFC3339-basic UTC>_<random6>.json so lexicographic sort matches
 // chronological order. After write, Spool calls Prune so a hard
-// outage cannot grow the directory past MaxBytes.
-func (o *Outbox) Spool(scanID string, body []byte) error {
+// outage cannot grow the directory past MaxBytes. batchID is the
+// identifier already sent with the failed live attempt(s); it is
+// stored alongside the batch so a later drain retries under the same
+// identifier instead of minting a new one.
+func (o *Outbox) Spool(scanID, batchID string, body []byte) error {
 	if scanID == "" {
 		return errors.New("outbox: scanID required")
+	}
+	if batchID == "" {
+		return errors.New("outbox: batchID required")
 	}
 	now := time.Now().UTC
 	if o.Now != nil {
@@ -90,8 +102,9 @@ func (o *Outbox) Spool(scanID string, body []byte) error {
 	path := filepath.Join(o.Dir, filename)
 
 	envelope, err := json.Marshal(SpooledBatch{
-		ScanID: scanID,
-		Body:   json.RawMessage(body),
+		ScanID:  scanID,
+		BatchID: batchID,
+		Body:    json.RawMessage(body),
 	})
 	if err != nil {
 		return fmt.Errorf("outbox: marshal: %w", err)
@@ -108,10 +121,11 @@ func (o *Outbox) Spool(scanID string, body []byte) error {
 }
 
 // Drain reads spooled batches in lexicographic (age) order and calls
-// send for each. A successful send removes the file; a failure stops
-// the drain so the next tick retries the same batch first. A
-// malformed file is logged once and skipped.
-func (o *Outbox) Drain(send func(scanID string, body []byte) error) error {
+// send for each, passing the identifier the batch was spooled with. A
+// successful send removes the file; a failure stops the drain so the
+// next tick retries the same batch first. A malformed file is logged
+// once and skipped.
+func (o *Outbox) Drain(send func(scanID, batchID string, body []byte) error) error {
 	files, err := o.listBatchFiles()
 	if err != nil {
 		return err
@@ -129,7 +143,7 @@ func (o *Outbox) Drain(send func(scanID string, body []byte) error) error {
 			_ = os.Rename(path, bad)
 			continue
 		}
-		if err := send(b.ScanID, b.Body); err != nil {
+		if err := send(b.ScanID, b.BatchID, b.Body); err != nil {
 			return fmt.Errorf("outbox: send %s: %w", f.Name(), err)
 		}
 		if err := os.Remove(path); err != nil && !errors.Is(err, fs.ErrNotExist) {
