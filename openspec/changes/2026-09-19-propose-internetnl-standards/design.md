@@ -242,3 +242,30 @@ waarden zijn `good`, `bad`, `warning`, `not-tested`,
 noemt dát verwarrend genoeg "verdict"). De producent draagt beide
 over: `status` is waar de assessor op scoort, `verdict` is
 verklarende tekst die netnl niet hoort te interpreteren.
+
+## Verwachte uitkomst voor westerweel.work (om de assessor tegen te ijken)
+
+Onafhankelijk uitgerekend uit de twee fixtures, vóór de
+assessor-run binnenkwam, zodat "de regel doet wat hij zegt" niet uit
+diezelfde run komt:
+
+| regel                          | tests | statussen                                  | verwacht    |
+| ------------------------------ | ----- | ------------------------------------------ | ----------- |
+| `wand.standards.dnssec`        | 6     | 6 passed                                   | soeverein   |
+| `wand.standards.mail_auth`     | 5     | 5 passed                                   | soeverein   |
+| `wand.standards.rpki`          | 10    | 10 passed                                  | soeverein   |
+| `wand.standards.ipv6`          | 9     | 8 passed, 1 failed                         | afhankelijk |
+| `wand.standards.tls_config`    | 22    | 15 passed, 3 failed, 2 info, 2 not_tested  | afhankelijk |
+| `wand.standards.starttls_dane` | 19    | 18 not_tested, 1 error                      | onbekend    |
+| (`web_appsecpriv`, 5 tests)    | —     | 3 passed, 2 info                           | geen regel  |
+
+`starttls_dane` is het geval dat de meting oplevert en een verzonnen
+fixture nooit had gegeven: geen enkele test geslaagd, achttien niet
+uitgevoerd en één mislukt. Dat MOET onbekend worden. Wordt het
+soeverein, dan leest een domein zonder meetbare STARTTLS als een
+domein dat het goed heeft — en dat is de gevaarlijkste fout die deze
+dimensie kan maken.
+
+De RPKI-regel ziet hier 10 tests; met de voorvoegselregel uit
+bevinding 3 waren dat er 4 geweest, en dan was het oordeel nog steeds
+"soeverein" — even groen, op minder dan de helft van het bewijs.
