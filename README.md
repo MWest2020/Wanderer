@@ -126,6 +126,28 @@ To run the HTTP API:
 curl -X POST http://localhost:8080/scans -d '{"domain":"example.nl"}'
 ```
 
+## In your pipeline
+
+`action.yml` at the repo root is a composite GitHub Action: it scans
+one domain and writes the score, the deciding rule(s), and a
+remediation line per failing point to the job summary. It runs
+entirely in your own runner — no telemetry, no default GeoIP download
+from a server of ours, nothing sent anywhere but the domain you asked
+it to scan. See [`docs/how-to/action.md`](docs/how-to/action.md) for
+the full input/output reference.
+
+```yaml
+- uses: MWest2020/wanderer@v0.7.0
+  id: wanderer
+  with:
+    domain: onze.gemeente.nl
+    # fail-on: afhankelijk   # opt-in: empty by default, see the docs
+- run: echo "${{ steps.wanderer.outputs.verdict }}"
+```
+
+A complete example, including a weekly scheduled scan, lives at
+[`docs/examples/wanderer-scan.yml`](docs/examples/wanderer-scan.yml).
+
 ## Layout
 
 ```

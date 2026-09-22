@@ -9,6 +9,29 @@ once a first release is cut. Until then every entry lives under
 
 ## [Unreleased]
 
+### Added
+
+- **GitHub Action** (`2026-09-21-distributie`, run 02). `action.yml` at
+  the repo root: a composite action that downloads the published
+  release archive for the runner's OS/arch, verifies it against the
+  release's `checksums.txt`, runs `wanderer scan` + `wanderer assess`
+  against one domain, and writes the score, which rule(s) decided the
+  verdict, and a remediation sentence per `afhankelijk` rule to
+  `$GITHUB_STEP_SUMMARY`. Inputs: `domain` (required), `fail-on`
+  (`afhankelijk` | `onbekend`, empty by default — a sovereignty
+  verdict is not a build error unless you opt in), `geoip` (optional
+  mmdb path — without it, jurisdiction-dependent answers are honestly
+  reported as `onbekend`, not silently dropped), `version` (defaults
+  to latest). Outputs: `score`, `verdict`, `report-path`. The action
+  runs entirely in the caller's runner: it talks to the scanned domain
+  and to this repository's releases, and to nothing of ours — no
+  telemetry, no default GeoIP download. Example workflow at
+  `docs/examples/wanderer-scan.yml`; full reference at
+  `docs/how-to/action.md`. Task 2.4 (exercising the action in this
+  repo's own CI against a real domain) is out of scope for the builder
+  role — it touches `.github/workflows/`, which this agent's token
+  cannot push to.
+
 ## [0.7.0] - 2026-09-21
 
 ### Fixed
