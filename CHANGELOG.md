@@ -9,6 +9,27 @@ once a first release is cut. Until then every entry lives under
 
 ## [Unreleased]
 
+### Added
+
+- **`standards` dimension: Internet.nl measurements, imported, not
+  reimplemented.** `wanderer import internetnl <findings-file>` reads
+  a `netnl-findings/v1` file (exported by the standalone **netnl**
+  tool) and scores six rules — DNSSEC, SPF/DKIM/DMARC,
+  STARTTLS/DANE, IPv6, RPKI, TLS configuration — by mapping
+  Internet.nl's own verdicts, never recomputing its percentage score.
+  Renders through the existing per-rule table (no new page); the
+  imported Internet.nl report URL is now a clickable link in the
+  Verdict text instead of inert text, and a target with no import
+  shows "not measured" with the onbekend badge rather than an empty or
+  good-looking row. The fleet screen's x/n sovereignty score is
+  deliberately untouched by this dimension — see
+  [assessor.md](docs/reference/assessor.md#the-standards-dimension)
+  and the new how-to,
+  [Feed Internet.nl results from CI](docs/how-to/internetnl-ci.md).
+  Wanderer will not implement its own probes for any of these six
+  measurement domains — see
+  [Permanent non-goals](docs/explanation/internetnl-non-goals.md).
+
 ## [0.8.2] - 2026-09-22
 
 ### Fixed

@@ -105,6 +105,57 @@ func TestBuildFleetScore_SameXNDifferentUnansweredAreNotEqual(t *testing.T) {
 	}
 }
 
+// TestBuildFleetScore_StandardsNeverEntersTheFlowCount pins run 04
+// task 4.1's deliberate choice: the vlootscherm's x/n (spec.md "Het
+// vlootscherm scoort x van n, niet ja of nee") is built from the
+// seven fixed sovereignty flows (flows.go's flowRules) only —
+// wand.standards.* is not, and never becomes, one of them. So an
+// internetnl import (or the lack of one) can change the standards
+// dimension's own score, but it must never move the fleet screen's
+// x/n or Unanswered count — a domain without any Internet.nl import
+// does not "sink" in the vlootscore just because the standards
+// dimension renders "not measured" (design.md risk this test guards
+// against).
+func TestBuildFleetScore_StandardsNeverEntersTheFlowCount(t *testing.T) {
+	sevenFlowsAllSoevereign := []models.Rationale{
+		rationale("wand.juridisch.apex_ip_eea", "apex in NL", models.ScoreSoeverein),
+		rationale("wand.juridisch.mx_vendor_jurisdiction", "mx in NL", models.ScoreSoeverein),
+		rationale("wand.juridisch.ns_vendor_jurisdiction", "ns in NL", models.ScoreSoeverein),
+		rationale("wand.juridisch.cert_issuer_eea", "cert in NL", models.ScoreSoeverein),
+		rationale("wand.transit.eu_path", "transit in EER", models.ScoreSoeverein),
+		rationale("wand.technologie.no_us_hyperscaler", "no hyperscaler", models.ScoreSoeverein),
+		rationale("wand.technologie.third_parties_eea", "third parties in EER", models.ScoreSoeverein),
+	}
+	withoutStandards := BuildFleetScore(assessmentWith(sevenFlowsAllSoevereign...), nil)
+
+	withStandardsNotMeasured := append(append([]models.Rationale{}, sevenFlowsAllSoevereign...),
+		rationale("wand.standards.dnssec", "no internetnl.* findings imported for DNSSEC — not measured", models.ScoreOnbekend),
+		rationale("wand.standards.mail_auth", "no internetnl.* findings imported for SPF/DKIM/DMARC — not measured", models.ScoreOnbekend),
+		rationale("wand.standards.starttls_dane", "no internetnl.* findings imported for STARTTLS/DANE — not measured", models.ScoreOnbekend),
+		rationale("wand.standards.ipv6", "no internetnl.* findings imported for IPv6 — not measured", models.ScoreOnbekend),
+		rationale("wand.standards.rpki", "no internetnl.* findings imported for RPKI — not measured", models.ScoreOnbekend),
+		rationale("wand.standards.tls_config", "no internetnl.* findings imported for TLS configuration — not measured", models.ScoreOnbekend),
+	)
+	got := BuildFleetScore(assessmentWith(withStandardsNotMeasured...), nil)
+
+	if got != withoutStandards {
+		t.Fatalf("BuildFleetScore with six not-measured standards rows = %+v, want unchanged %+v", got, withoutStandards)
+	}
+	if got.X != 7 || got.N != 7 || got.Unanswered != 0 {
+		t.Fatalf("got = %+v, want 7/7, 0 onbeantwoord — standards rows must not count as unanswered flow questions", got)
+	}
+
+	// Even a failing standards rule (afhankelijk) must not move the
+	// flow count — it is not a flow question.
+	withStandardsFailing := append(append([]models.Rationale{}, sevenFlowsAllSoevereign...),
+		rationale("wand.standards.dnssec", "DNSSEC substantively failed", models.ScoreAfhankelijk),
+	)
+	got2 := BuildFleetScore(assessmentWith(withStandardsFailing...), nil)
+	if got2 != withoutStandards {
+		t.Fatalf("BuildFleetScore with a failing standards row = %+v, want unchanged %+v", got2, withoutStandards)
+	}
+}
+
 // allSovereignRationales returns the seven flow rules all scoring
 // soeverein, with overrides for the CriteriumIDs in `overrides`
 // applied on top — the shared fixture for BuildFleetSummary's tests

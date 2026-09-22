@@ -397,6 +397,90 @@ func TestAssessmentPage_RetiredRuleDegrades(t *testing.T) {
 	}
 }
 
+// TestAssessmentPage_StandardsReportURLIsClickable covers run 04 task
+// 4.1: the Internet.nl report URL a standards rule's Verdict carries
+// (design.md "Design gate outcome" #5 — opaque, self-hosted, never
+// built by Wanderer) must render as a real link on the existing rule
+// table, not as inert text.
+func TestAssessmentPage_StandardsReportURLIsClickable(t *testing.T) {
+	srv, st := newServer(t, "")
+	_, scanID := seed(t, st)
+	reportURL := "https://netnl.westerweel.work/site/westerweel.work/485/"
+	a := &models.Assessment{
+		ScanID:    scanID,
+		Framework: "wand",
+		Dimensions: []models.DimensionScore{{
+			Dimension:    models.DimensionStandards,
+			Score:        models.ScoreSoeverein,
+			Completeness: models.CompletenessComplete,
+			Rationale: []models.Rationale{{
+				CriteriumID: "wand.standards.dnssec",
+				Verdict:     "all 6 tested DNSSEC test(s) passed — see " + reportURL,
+				Score:       models.ScoreSoeverein,
+				Evidence:    []string{"finding-1"},
+			}},
+		}},
+	}
+	if err := st.CreateAssessment(context.Background(), a); err != nil {
+		t.Fatalf("create assessment: %v", err)
+	}
+	resp, err := http.Get(srv.URL + "/ui/scans/" + scanID + "/assessment")
+	if err != nil {
+		t.Fatalf("get: %v", err)
+	}
+	defer resp.Body.Close()
+	body, _ := io.ReadAll(resp.Body)
+	bodyStr := string(body)
+	want := `<a href="` + reportURL + `" rel="noopener noreferrer" target="_blank">` + reportURL + `</a>`
+	if !strings.Contains(bodyStr, want) {
+		t.Errorf("expected a clickable report link %q; body:\n%s", want, bodyStr)
+	}
+}
+
+// TestAssessmentPage_StandardsWithoutImportShowsNotMeasured covers run
+// 04 task 4.1: a target with no `wanderer import internetnl` run at
+// all must show "not measured" text with the onbekend badge on each
+// standards rule — never an empty row and never a score that reads as
+// good.
+func TestAssessmentPage_StandardsWithoutImportShowsNotMeasured(t *testing.T) {
+	srv, st := newServer(t, "")
+	_, scanID := seed(t, st)
+	a := &models.Assessment{
+		ScanID:    scanID,
+		Framework: "wand",
+		Dimensions: []models.DimensionScore{{
+			Dimension:    models.DimensionStandards,
+			Score:        models.ScoreOnbekend,
+			Completeness: models.CompletenessIncomplete,
+			Rationale: []models.Rationale{{
+				CriteriumID: "wand.standards.dnssec",
+				Verdict:     "no internetnl.* findings imported for DNSSEC — not measured",
+				Score:       models.ScoreOnbekend,
+				Reason:      "not_measured",
+			}},
+		}},
+	}
+	if err := st.CreateAssessment(context.Background(), a); err != nil {
+		t.Fatalf("create assessment: %v", err)
+	}
+	resp, err := http.Get(srv.URL + "/ui/scans/" + scanID + "/assessment")
+	if err != nil {
+		t.Fatalf("get: %v", err)
+	}
+	defer resp.Body.Close()
+	body, _ := io.ReadAll(resp.Body)
+	bodyStr := string(body)
+	if !strings.Contains(bodyStr, "not measured") {
+		t.Errorf("expected \"not measured\" text for an unimported standards rule; body:\n%s", bodyStr)
+	}
+	if !strings.Contains(bodyStr, `score-onbekend">onbekend</span>`) {
+		t.Errorf("expected the onbekend badge on the not-measured rule, not an empty or good-looking box; body:\n%s", bodyStr)
+	}
+	if strings.Contains(bodyStr, `score-soeverein`) {
+		t.Errorf("a target with no import must never render a soeverein-looking standards badge; body:\n%s", bodyStr)
+	}
+}
+
 // TestAssessmentPage_FrameworkTablesCollapseBehindOneClick covers run 05
 // task 5.1: the onderbouwing page opens with the seven flow questions,
 // and the two raw framework tables underneath sit behind a single

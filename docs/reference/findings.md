@@ -62,6 +62,7 @@ packs.
 | `operationeel`    | Operationeel    |
 | `mens`            | Mens            |
 | `accountability`  | Accountability (wand-native, no DICTU counterpart — see [assessor.md](assessor.md#the-accountability-dimension)) |
+| `standards`       | Standards (wand-native, no DICTU counterpart — Internet.nl import, see [assessor.md](assessor.md#the-standards-dimension)) |
 | (empty)           | no hint — raw observation |
 
 ## Scanner-level meta findings
@@ -384,6 +385,42 @@ ADR-0008 for the redaction contract.
 | `egress.<scanner>.unconfigured`      | info          | —               | scanner enabled but no paths/sources to read                                                        |
 | `egress.<scanner>.error`             | info          | —               | scanner ran but failed mid-run                                                                      |
 | `egress.host_resolution.unavailable` | info          | —               | emitted at most once per run when no GeoLite2 DB is wired                                           |
+
+## Internet.nl import Findings — `internal/scanner/netnlimport.go`
+
+Produced by `wanderer import internetnl <file>`, never by a probe: the
+importer parses a `netnl-findings/v1` file (exported by **netnl**,
+the standalone internetnl-cli tool — see
+[Feed Internet.nl results from CI](../how-to/internetnl-ci.md)) and
+persists one Finding per Internet.nl subtest, under a scan of kind
+`import`. They carry `SourceModus = "import"` (`models.SourceModusImport`)
+so the assessor's completeness calculation and the store's
+`FindingsForAssessment` correlation (below) can tell them apart from
+perimeter/inventory/egress/drift data.
+
+| ProbeID                     | Severity                                    | Dimension   | Attributes |
+| ---------------------------- | -------------------------------------------- | ----------- | ---------- |
+| `internetnl.<type>.<test>`  | info (`passed`/`not_tested`) \| observation (`info`, default) \| concern (`warning`, `error`) \| finding (`failed`) | `standards` | `domain`, `type` (`web`\|`mail`), `test`, `category`, `status`, `verdict`, `detail` (always `null` on the real API — see below), `measured_at` (RFC 3339, the whole batch's `finished_date`, identical for every domain in one file), `score_percent`, `report_url` |
+| `internetnl.<type>.status`  | severity of `status`                         | `standards` | `domain`, `type`, `status`, `measured_at`, `score_percent`, `report_url` — emitted instead of per-test findings when the domain measured with **zero** results (Internet.nl's own `status: "error"` case: the measurement broke, not "not delivered") |
+
+`test` is the Internet.nl test name (`web_dnssec_exist`,
+`mail_starttls_tls_available`, …); `category` is the API's own
+category for it (`web_dnssec`, `mail_starttls`, …), resolved by netnl
+from `GET /metadata/report`'s hierarchy, **not** derivable from the
+test name by a prefix rule (six RPKI tests — `web_ns_rpki_exists`,
+`mail_ns_rpki_exists`, `mail_mx_ns_rpki_exists`, and their `_valid`
+counterparts — have no category name as a literal prefix). `status` is
+one of `passed` / `failed` / `warning` / `info` / `not_tested` /
+`error` — the assessor scores on `status`; `detail` is carried as an
+opaque, always-`null` field so a future API version that populates it
+does not need a schema bump, and no rule may be built on it.
+`report_url` is the Internet.nl (or self-hosted netnl-serve) report
+URL, carried **verbatim** — Wanderer never constructs it from domain +
+request ID, since a self-hosted instance's URL shape differs from
+`internet.nl`'s own.
+
+Consumed by the six `wand.standards.*` rules — see
+[assessor.md](assessor.md#the-standards-dimension).
 
 ## Reading tips
 

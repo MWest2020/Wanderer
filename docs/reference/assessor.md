@@ -108,6 +108,12 @@ rules live in `internal/assessor/wand/accountability_rules.go`.
 | `wand.accountability.soa_rname`             | accountability  |
 | `wand.accountability.securitytxt`           | accountability  |
 | `wand.accountability.ns_holder_transparent` | accountability  |
+| `wand.standards.dnssec`                     | standards       |
+| `wand.standards.mail_auth`                  | standards       |
+| `wand.standards.starttls_dane`              | standards       |
+| `wand.standards.ipv6`                       | standards       |
+| `wand.standards.rpki`                       | standards       |
+| `wand.standards.tls_config`                 | standards       |
 
 The `oidc_federation` rule always returns no evidence until the
 egress probe lands — it is listed so the reader sees the future
@@ -185,6 +191,81 @@ probe failure. See
 [Accountability: the passive ceiling](../explanation/accountability-boundaries.md)
 for why Wanderer does not work around this.
 
+## The `standards` dimension
+
+`standards` is a second **wand-native** dimension — no DICTU
+counterpart, same as `accountability` — that scores the Dutch
+comply-or-explain standards list (Forum Standaardisatie) as measured
+by **Internet.nl**: DNSSEC, SPF/DKIM/DMARC, STARTTLS/DANE, IPv6, RPKI,
+and TLS configuration. Wanderer does **not** reimplement any of these
+probes itself; see
+[Permanent non-goals: what Wanderer will never probe itself](../explanation/internetnl-non-goals.md)
+for why, and
+[Feed Internet.nl results from CI](../how-to/internetnl-ci.md) for how
+to get a measurement into Wanderer.
+
+The dimension has no evidence at all until an operator runs
+`wanderer import internetnl <findings-file>` — a **file import**, not
+a probe. `internal/scanner/netnlimport.go` parses a `netnl-findings/v1`
+document (produced by the standalone **netnl** tool) and persists
+`internetnl.<type>.<test>` Findings under a scan of kind `import`,
+tagged `SourceModus = "import"` (`models.SourceModusImport`) — see
+[findings.md](findings.md#internetnl-import-findings--internalscannernetnlimportgo)
+for the Finding shape. No network call happens on Wanderer's side; all
+probing is Internet.nl's own, under its own measurement policy.
+
+The six `wand.standards.*` rules
+(`internal/assessor/wand/standards_rules.go`) each map one or two
+Internet.nl API categories onto a verdict, verbatim — never
+recomputing Internet.nl's own percentage score (the "clever valkuil"
+design.md warns against: weights change between Internet.nl releases,
+and a home-grown score would disagree with the public report the
+target's owner can open in a browser):
+
+| Rule ID                          | Internet.nl categor(y/ies)         |
+| --------------------------------- | ----------------------------------- |
+| `wand.standards.dnssec`          | `web_dnssec`, `mail_dnssec`         |
+| `wand.standards.mail_auth`       | `mail_auth`                         |
+| `wand.standards.starttls_dane`   | `mail_starttls`                     |
+| `wand.standards.ipv6`            | `web_ipv6`, `mail_ipv6`             |
+| `wand.standards.rpki`            | `web_rpki`, `mail_rpki` (includes the nameserver-RPKI subtests the API itself groups under the same category) |
+| `wand.standards.tls_config`      | `web_https`                         |
+
+Verdict mapping, per rule, from the relevant category's per-test
+`status` values:
+
+- every relevant test `passed` → **soeverein**
+- a genuine mix of passed and failed/warning → **voldoende**
+- tested and none passed → **afhankelijk**
+- no relevant Finding, or every relevant test `not_tested`/`error` →
+  **onbekend**, reason `not_measured`
+- every relevant Finding older than `standards.max_age` (default 30
+  days) → **onbekend**, reason `measurement_stale`
+
+`not_tested` and `error` never count as measured evidence and never
+score positively: a domain with no mail server configured at all
+returns mostly `not_tested` for its mail-security tests, and scoring
+that as sovereign would be the single most dangerous mistake this
+dimension could make — "never measured" must never read as "measured
+and fine". `error` (the measurement itself broke, e.g. an Internet.nl
+worker crashed on that test) is likewise never treated as a failure of
+the target.
+
+Web and mail measurements for the same target import as two separate
+`import`-kind scans (one `type: "web"`, one `type: "mail"`); a
+perimeter scan carries neither on its own. `Store.FindingsForAssessment`
+(`internal/store/netnlimport.go`) correlates a target's latest web and
+latest mail import alongside whichever scan is actually being
+assessed, so `wand.assess`/`wanderer assess`/the API/the MCP tools all
+see both halves of the evidence regardless of which scan kind they
+were called against — a fresh import of one type supersedes only that
+type's findings, never the other's.
+
+Every standards rule declares `standards.max_age` as a `Threshold`
+(`StandardsMaxAgeDays` / `StandardsMaxAge`,
+`internal/assessor/wand/standards_rules.go`) so the staleness boundary
+is visible on the rule page, not only in code.
+
 ## Reason codes
 
 A `RuleResult` (and the `models.Rationale` it becomes) may carry an
@@ -230,6 +311,8 @@ The codes seeded by this change:
 | `not_published_by_registry` | `structural` | `target`  | `domain_expiry`, when RDAP answered but published no expiration event.        |
 | `probe_unavailable`         | `gap`        | `target`  | Any accountability/operationeel rule backed only by a `*.unavailable` finding. |
 | `scanner_no_ipv6`           | `structural` | `scanner` | `variant_convergence`, for v6 paths the scanner host could not test because it has no working IPv6 route. |
+| `not_measured`               | `gap`        | `target`  | Every `wand.standards.*` rule, when no relevant `internetnl.*` Finding exists or every relevant test came back `not_tested`/`error` (no import yet, or Internet.nl never ran that measurement). |
+| `measurement_stale`          | `gap`        | `target`  | Every `wand.standards.*` rule, when the relevant `internetnl.*` Finding(s) are all older than `standards.max_age` (default 30 days). |
 
 `internal/assessor/reason.go` holds the single registry mapping every
 code to its class and subject, across every pack. Emitting a code

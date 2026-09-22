@@ -79,6 +79,56 @@ func TestWorstScoreCovering_AbsentDimensionIsNotCovered(t *testing.T) {
 	}
 }
 
+// TestWorstScoreCovering_StandardsNotMeasuredNeverCounts pins run 04
+// task 4.1's chosen behaviour: a target with no internetnl import
+// scores onbekend ("not measured") on every wand.standards.* rule
+// (internal/assessor/wand/standards_rules.go), and WorstScoreCovering
+// already excludes onbekend/Rank()==0 dimensions from both the worst
+// score and the covered list — the same rule every other dimension
+// gets. So a domain without an Internet.nl import is never worse off
+// on the fleet/trends "covers: ..." pill than a domain that was never
+// assessed for standards at all; it must not read as "afhankelijk"
+// just because the dimension exists and has nothing to show.
+func TestWorstScoreCovering_StandardsNotMeasuredNeverCounts(t *testing.T) {
+	dims := []models.DimensionScore{
+		{Dimension: models.DimensionJuridisch, Score: models.ScoreSoeverein},
+		{Dimension: models.DimensionStandards, Score: models.ScoreOnbekend},
+	}
+	score, covered := WorstScoreCovering(dims)
+	if score != models.ScoreSoeverein {
+		t.Errorf("score = %s, want soeverein (standards not-measured must not drag it down)", score)
+	}
+	for _, c := range covered {
+		if c == string(models.DimensionStandards) {
+			t.Fatalf("covered = %v, standards should not be listed while not measured", covered)
+		}
+	}
+}
+
+// TestWorstScoreCovering_StandardsWithEvidenceCounts is the other
+// half: once a target does carry a scored standards verdict (an
+// import happened), it participates exactly like any other dimension
+// — including being able to be the worst score.
+func TestWorstScoreCovering_StandardsWithEvidenceCounts(t *testing.T) {
+	dims := []models.DimensionScore{
+		{Dimension: models.DimensionJuridisch, Score: models.ScoreSoeverein},
+		{Dimension: models.DimensionStandards, Score: models.ScoreAfhankelijk},
+	}
+	score, covered := WorstScoreCovering(dims)
+	if score != models.ScoreAfhankelijk {
+		t.Errorf("score = %s, want afhankelijk (standards is the worst covered dimension)", score)
+	}
+	found := false
+	for _, c := range covered {
+		if c == string(models.DimensionStandards) {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("covered = %v, want it to include standards once it has a real verdict", covered)
+	}
+}
+
 func TestAccountabilityPill_NotAssessedWhenDimensionAbsent(t *testing.T) {
 	pill := AccountabilityPill([]models.DimensionScore{
 		{Dimension: models.DimensionJuridisch, Score: models.ScoreSoeverein},

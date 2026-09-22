@@ -135,11 +135,47 @@
   call site) is out of this run's scope — see the run report.
 
 ## 4. Wrap-up
-- [ ] 4.1 UI: verify standards renders via existing rule rendering;
-  report URL clickable in evidence; "not measured" pill state.
-- [ ] 4.2 docs/reference (assessor, findings) + how-to "Feed
+- [x] 4.1 UI: verify standards renders via existing rule rendering;
+  report URL clickable in evidence; "not measured" pill state — done
+  2026-09-22 (habitat run 04). The generic rationale table
+  (`assessment.tmpl`/`reporting_rule.tmpl`) already rendered standards
+  rules correctly for two of the three checks — "not measured" text
+  and the onbekend badge came for free from the existing engine/UI
+  contract, and the vlootscherm's x/n is scoped to the seven
+  sovereignty flows only (`internal/ui/flows.go`), so a standards
+  rule never enters that count at all; `WorstScoreCovering`/
+  `WorstScore` (used by the trends "covers: ..." pill) already
+  exclude onbekend dimensions, so a not-measured target never sinks.
+  Chose to lock both behaviours down with new tests
+  (`TestWorstScoreCovering_StandardsNotMeasuredNeverCounts`,
+  `TestWorstScoreCovering_StandardsWithEvidenceCounts`,
+  `TestBuildFleetScore_StandardsNeverEntersTheFlowCount`) rather than
+  leave them implicit. The one real gap: the Internet.nl report URL
+  was shown as inert text inside the Verdict sentence, not a link.
+  Fixed with a new `linkify` template func
+  (`internal/ui/linkify.go`) applied to `.Verdict` in both templates —
+  finds `http(s)://` substrings, validates scheme+host before
+  linking, HTML-escapes everything else; unsafe/non-http(s) matches
+  stay plain text. No assessor/engine changes.
+- [x] 4.2 docs/reference (assessor, findings) + how-to "Feed
   Internet.nl results from CI"; note the permanent non-goals list in
-  docs/explanation.
-- [ ] 4.3 CHANGELOG; commit + push; archive.
-- [ ] 4.4 Draft v2 follow-up proposal stub (facade webhook ingestion)
-  once v1 has run in CI for a few weeks.
+  docs/explanation — done 2026-09-22. Added "The `standards`
+  dimension" to `docs/reference/assessor.md` (rule↔category mapping,
+  verdict rules, `not_measured`/`measurement_stale` reason codes,
+  cross-scan correlation), an "Internet.nl import Findings" section to
+  `docs/reference/findings.md` (`internetnl.<type>.<test>` shape,
+  `SourceModusImport`), `docs/how-to/internetnl-ci.md` (the three real
+  commands, plus the `--format findings` non-zero-on-incomplete-batch
+  exit code a CI step must gate on), and
+  `docs/explanation/internetnl-non-goals.md` (the permanent
+  non-reimplementation list from proposal.md, why it's permanent not
+  deferred, and the deferral policy for future probes). Linked from
+  `docs/index.md`.
+- [x] 4.3 CHANGELOG; commit + push; archive — CHANGELOG entry added
+  under `[Unreleased]` 2026-09-22. Commit/push/archive left to Mark
+  per the builder role (never merges, never pushes).
+- [x] 4.4 Draft v2 follow-up proposal stub (facade webhook ingestion)
+  once v1 has run in CI for a few weeks — done 2026-09-22,
+  `openspec/changes/2026-09-22-internetnl-facade-v2-stub.md`: proposal
+  heading, why it waits, no specs/tasks (a stub, explicitly not a
+  change).

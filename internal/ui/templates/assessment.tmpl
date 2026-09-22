@@ -145,7 +145,7 @@
           </td>
           <td><span class="badge score-{{.Score}}">{{.Score}}</span></td>
           <td>
-            {{.Verdict}}
+            {{linkify .Verdict}}
             {{if .Remediation}}<p class="answer-remediation">→ {{.Remediation}}</p>{{end}}
           </td>
           <td class="evidence">

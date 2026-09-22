@@ -59,6 +59,12 @@ func Templates() (*template.Template, error) {
 			}
 			return out, nil
 		},
+		// linkify makes an evidence-carried http(s) URL (e.g. an
+		// imported Internet.nl report.url, opaque and never built by
+		// Wanderer — design.md "Design gate outcome" #5) clickable in
+		// a rule's rendered Verdict text, without a dedicated page for
+		// it (run 04 task 4.1).
+		"linkify": linkifyVerdict,
 	}).ParseFS(assets, "templates/*.tmpl")
 	if err != nil {
 		return nil, fmt.Errorf("ui: parse templates: %w", err)

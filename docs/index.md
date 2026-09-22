@@ -31,6 +31,9 @@ merits.
   downstream ExApp in sync.
 - [**Wanderer in your pipeline**](how-to/action.md) — the GitHub Action
   (`action.yml`): inputs, outputs, and what it deliberately doesn't do.
+- [**Feed Internet.nl results from CI**](how-to/internetnl-ci.md) —
+  `internetnl submit` / `internetnl results --format findings` /
+  `wanderer import internetnl`, and the exit code a CI step must check.
 
 ## Reference
 
@@ -62,6 +65,9 @@ merits.
 - [**Accountability: the passive ceiling**](explanation/accountability-boundaries.md)
   — RDAP fields we wish existed, and why the `.nl` registrant/expiry
   questions are structurally n.v.t. rather than a scanner gap.
+- [**Permanent non-goals: what Wanderer will never probe itself**](explanation/internetnl-non-goals.md)
+  — why DNSSEC, SPF/DKIM/DMARC, STARTTLS/DANE, IPv6, RPKI and TLS
+  grading are delegated to Internet.nl for good, not deferred.
 - [**Maintainability**](explanation/maintainability.md) — single entry
   point for contributors: CHANGELOG, ADRs, API stability, testing
   baseline, dependency policy, commit style.
