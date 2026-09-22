@@ -110,10 +110,24 @@
 mail gives `mail_auth`, `mail_dnssec`, `mail_ipv6`, `mail_rpki`,
 `mail_starttls`. (The contract previously named `starttls_dane` — no
 such category exists.) A test entry in the
-API carries no category of its own; the producer derives it by taking
-the longest key in `results.categories` that prefixes the test name
-(`web_dnssec_exist` → `web_dnssec`). A test matching no category keeps
-`category: null` rather than being dropped.
+API carries no category of its own. The producer derives it from the
+instance's own `GET /metadata/report`, whose
+`report.hierarchy.<web|mail>` lists each category with its subtest
+groups: a test belongs to the category one of whose group names is the
+longest prefix of the test name.
+
+A plain prefix match against `results.categories` is **not** good
+enough, and this was measured: `web_ns_rpki_exists` and five siblings
+match no category name (the category is `web_rpki`, the test carries
+an infixed `ns`), so an RPKI rule would score from half its tests and
+silently ignore nameserver RPKI. The hierarchy places them correctly
+(`web_rpki -> web_ns_rpki`).
+
+If the metadata cannot be fetched, the producer MAY fall back to the
+prefix rule but SHALL warn on stderr; silent degradation here reaches
+the consumer as a rule that confidently reads "passed". A test that
+matches nothing either way keeps `category: null` rather than being
+dropped.
 
 Renaming these to a tidier vocabulary (`dnssec`, `tls_config`, …) was
 considered and rejected: a private word list drifts from the API the

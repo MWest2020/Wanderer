@@ -23,7 +23,15 @@ levert deze categorieën:
 | `web_https`     | `wand.standards.tls_config`    |
 | `web_appsecpriv`| GEEN regel — zie hieronder     |
 
-Let op: de regel heet `starttls_dane`, de categorie heet
+Let op 1: `wand.standards.rpki` moet OOK de nameserver-RPKI-tests
+krijgen (`web_ns_rpki_*`, `mail_ns_rpki_*`, `mail_mx_ns_rpki_*`). Die
+horen volgens de metadata-hiërarchie van de instantie bij `web_rpki`
+respectievelijk `mail_rpki`, ook al lijkt hun naam er niet op. Zie
+design.md bevinding 7. Schrijf een test die faalt als de regel op
+minder dan alle RPKI-tests van het domein scoort — dit is precies het
+soort gat dat er "groen" uitziet.
+
+Let op 2: de regel heet `starttls_dane`, de categorie heet
 `mail_starttls`. Die naam staat al in de spec; hernoem hem niet, maar
 zet de mapping expliciet in de code met een comment, anders zoekt de
 volgende lezer een categorie die niet bestaat.

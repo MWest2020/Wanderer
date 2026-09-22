@@ -192,6 +192,48 @@ Fixture: `fixtures/batch-v2-mail-westerweel.work-20260922.json`.
   en niet als "goed" — anders scoort een domein zonder mail
   uitstekend op mailbeveiliging.
 
+### 7. De voorvoegselregel laat RPKI stilletjes vallen
+
+Mijn eigen correctie bij bevinding 3 — "leid de categorie af uit het
+langste voorvoegsel dat in `results.categories` voorkomt" — is
+uitgeprobeerd op de twee fixtures en **klopt niet**. Zes tests vallen
+buiten de boot:
+
+    web_ns_rpki_exists      web_ns_rpki_valid
+    mail_ns_rpki_exists     mail_ns_rpki_valid
+    mail_mx_ns_rpki_exists  mail_mx_ns_rpki_valid
+
+De categorie heet `web_rpki`, de test heet `web_ns_rpki_exists`: het
+`ns` zit ertussen, dus geen enkele categorienaam is een voorvoegsel.
+Met de voorvoegselregel scoort `wand.standards.rpki` op 2 van de 4
+web-tests en 2 van de 6 mail-tests, en blijft nameserver-RPKI
+ongemeten. Een domein met ongeldige RPKI op zijn nameservers zou
+gewoon soeverein scoren. Precies de stille niet-gescoorde regel waar
+bevinding 3 voor waarschuwde — veroorzaakt door de oplossing van
+bevinding 3.
+
+**De instantie publiceert de juiste koppeling zelf.**
+`GET /metadata/report` geeft `report.hierarchy.<web|mail>`: een lijst
+van categorieën met hun subtestgroepen. Opgevraagd op
+api.westerweel.work:
+
+    web_rpki -> web_rpki
+    web_rpki -> web_ns_rpki
+
+netnl haalt dat document al op en ontleedt het al
+(`client.metadata_report`, `gating.reference_from_metadata`).
+
+**Besluit:** de categorie komt uit de metadata-hiërarchie, niet uit
+een voorvoegselregel op `results.categories`. Een test hoort bij de
+categorie waarvan een groepsnaam het langste voorvoegsel van de
+testnaam is. Is de metadata niet op te halen, dan valt de export terug
+op de voorvoegselregel én zet hij dat als waarschuwing op stderr — een
+stille degradatie is hier erger dan geen export, want de consument ziet
+alleen een regel die "soeverein" zegt.
+
+Een test die ook dan nergens bij hoort, krijgt `category: null` en
+blijft staan.
+
 ### Wat het contract nog meer verzweeg: `verdict`
 
 Elke testuitslag heeft náást `status` een `verdict`-woord: gemeten
