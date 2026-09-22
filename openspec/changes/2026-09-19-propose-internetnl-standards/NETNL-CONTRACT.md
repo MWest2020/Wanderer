@@ -16,15 +16,28 @@
    Breaking changes bump the version; Wanderer refuses versions it
    does not know. Additive fields are allowed within v1.
 3. **Per-test granularity.** Every Internet.nl subtest appears as its
-   own entry with the API's verdict verbatim (`passed` / `failed` /
-   `warning` / `info` / `not_tested`). No aggregation, no
+   own entry with the API's verdict verbatim: `passed` / `failed` /
+   `warning` / `info` / `not_tested` / **`error`**. No aggregation, no
    re-weighting, no omissions — the consumer decides what to score.
-4. **Variant results included.** Where the batch API reports
-   per-variant detail (www/non-www, IPv4/IPv6), it is carried through
-   under the test's `detail`, never flattened away.
+   (`error` is a test that broke on the instance, not a bad result;
+   netnl already handles it — see `render.py` `_TEST_STATUS_ORDER`.)
+4. **`detail` is optional and usually `null`.** Measured against batch
+   API v2.7.0 on 2026-09-22: every test entry is exactly
+   `{"status", "verdict"}` — including `web_ipv6_ws_reach`, where
+   per-variant detail would be expected. Those variant results live in
+   the HTML report, **not** in the API. The field stays in the schema
+   so a future API version can fill it without a schema bump, but
+   producers MUST NOT scrape the report to populate it, and consumers
+   MUST NOT depend on it.
 5. **Traceability.** Each domain block carries `measured_at`
-   (RFC 3339, from the API), the batch `request_id`, and the public
-   `report_url`. Wanderer surfaces the report URL as evidence; the
+   (RFC 3339), the batch `request_id`, and the `report_url`.
+   `measured_at` is the batch's `request.finished_date` — the API
+   publishes no per-domain timestamp, so every domain in one file
+   carries the same value. `report_url` comes from the API's
+   per-domain `report.url` and is **opaque**: on a self-hosted
+   instance it points at that instance
+   (`https://netnl.example.org/site/...`), not at internet.nl.
+   Consumers display it and never construct it. Wanderer surfaces the report URL as evidence; the
    percentage score is carried as informational only.
 6. **Determinism.** The same completed batch exports byte-identical
    files (stable ordering), so re-imports are idempotent and the file
@@ -60,15 +73,15 @@
       "results": [
         {
           "test": "web_dnssec_exist",
-          "category": "dnssec",
+          "category": "web_dnssec",
           "verdict": "passed",
           "detail": null
         },
         {
           "test": "web_ipv6_ws_reach",
-          "category": "ipv6",
-          "verdict": "warning",
-          "detail": {"www": "passed", "apex": "failed"}
+          "category": "web_ipv6",
+          "verdict": "passed",
+          "detail": null
         }
       ]
     },
@@ -91,11 +104,20 @@
 }
 ```
 
-Category values v1 consumers may rely on: `dnssec`, `ipv6`,
-`mail_auth`, `starttls_dane`, `rpki`, `tls_config`, `web_security`
-(headers/security.txt subtests — carried for completeness; Wanderer
-deliberately does not score these, see the assessor delta). Unknown
-categories MUST be preserved by producers and ignored by consumers.
+`category` carries the API's own category name **verbatim**, with its
+`web_`/`mail_` prefix: measured values are `web_appsecpriv`,
+`web_dnssec`, `web_https`, `web_ipv6`, `web_rpki`. A test entry in the
+API carries no category of its own; the producer derives it by taking
+the longest key in `results.categories` that prefixes the test name
+(`web_dnssec_exist` → `web_dnssec`). A test matching no category keeps
+`category: null` rather than being dropped.
+
+Renaming these to a tidier vocabulary (`dnssec`, `tls_config`, …) was
+considered and rejected: a private word list drifts from the API the
+first time Internet.nl adds a category, and the mismatch surfaces as a
+silently unscored rule. Mapping API category → wand rule is the
+**consumer's** job and lives in Wanderer. Unknown categories MUST be
+preserved by producers and ignored by consumers.
 
 ## v2 (named follow-up, not in this contract)
 

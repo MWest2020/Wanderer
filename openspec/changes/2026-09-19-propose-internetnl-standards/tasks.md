@@ -1,10 +1,20 @@
 # Tasks: standards dimension (Internet.nl via netnl)
 
 ## 1. Contract first
-- [ ] 1.1 Review NETNL-CONTRACT.md; land it in the internetnl-cli
-  repo with golden fixtures (web + mail).
-- [ ] 1.2 netnl: `--format findings` exporter + determinism test +
-  non-zero exit on incomplete batch.
+- [x] 1.1 Review NETNL-CONTRACT.md — gedaan 2026-09-22 tegen een
+  ECHTE meting (api.westerweel.work, batch v2.7.0, westerweel.work),
+  niet tegen de documentatie. Vijf correcties, zie design.md
+  "Design gate outcome": `detail` per variant bestaat niet in de API
+  (eis 4 vervalt), `error` ontbrak in de verdictverzameling, de
+  categorienamen dragen een `web_`-voorvoegsel, `measured_at` bestaat
+  alleen per batch, en de rapport-URL is ondoorzichtig (zelf-gehost).
+  Het antwoord ligt als fixture in `fixtures/`.
+- [ ] 1.1b Het gecorrigeerde contract in de internetnl-cli-repo
+  landen, met gouden fixtures (web + mail).
+- [ ] 1.2 netnl: `--format findings` exporter + determinisme-test +
+  niet-nul exit bij een onvolledige batch. Bevestig éérst met één
+  echte MAIL-batch of die dezelfde platte `{status, verdict}`-vorm
+  heeft als web; de web-meting is gedaan, mail niet.
 - [ ] 1.3 Copy fixtures into Wanderer's testdata (same bytes).
 
 ## 2. Wanderer importer
