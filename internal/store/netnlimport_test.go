@@ -35,34 +35,46 @@ func TestNetnlImportIdempotency(t *testing.T) {
 	ctx := context.Background()
 	s := openTestStore(t)
 
-	recorded, err := s.NetnlImportRecorded(ctx, "deadbeef")
+	recorded, err := s.NetnlImportRecorded(ctx, "deadbeef", "westerweel.work")
 	if err != nil {
 		t.Fatalf("NetnlImportRecorded (before): %v", err)
 	}
 	if recorded {
-		t.Fatal("unimported hash reported as recorded")
+		t.Fatal("unimported (hash, domain) reported as recorded")
 	}
 
-	if err := s.RecordNetnlImport(ctx, "deadbeef"); err != nil {
+	if err := s.RecordNetnlImport(ctx, "deadbeef", "westerweel.work"); err != nil {
 		t.Fatalf("RecordNetnlImport: %v", err)
 	}
 
-	recorded, err = s.NetnlImportRecorded(ctx, "deadbeef")
+	recorded, err = s.NetnlImportRecorded(ctx, "deadbeef", "westerweel.work")
 	if err != nil {
 		t.Fatalf("NetnlImportRecorded (after): %v", err)
 	}
 	if !recorded {
-		t.Fatal("recorded hash reported as unimported")
+		t.Fatal("recorded (hash, domain) reported as unimported")
 	}
 
 	// A different file hash is a distinct import, unaffected by the
 	// first.
-	recorded, err = s.NetnlImportRecorded(ctx, "otherhash")
+	recorded, err = s.NetnlImportRecorded(ctx, "otherhash", "westerweel.work")
 	if err != nil {
-		t.Fatalf("NetnlImportRecorded (other): %v", err)
+		t.Fatalf("NetnlImportRecorded (other hash): %v", err)
 	}
 	if recorded {
 		t.Fatal("unrelated hash reported as recorded")
+	}
+
+	// Same file hash, different domain: recording one domain from a
+	// file must not mark another domain from that same file as done
+	// (habitat run 02b — the key is (file_hash, domain), not file_hash
+	// alone).
+	recorded, err = s.NetnlImportRecorded(ctx, "deadbeef", "other.example.nl")
+	if err != nil {
+		t.Fatalf("NetnlImportRecorded (other domain): %v", err)
+	}
+	if recorded {
+		t.Fatal("unrelated domain in the same file reported as recorded")
 	}
 }
 

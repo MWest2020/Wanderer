@@ -254,13 +254,37 @@ CREATE TABLE finding_batches (
 		Up: `-- propose-internetnl-standards run 02: "wanderer import internetnl
 -- <file>" must be idempotent — re-importing the same completed
 -- Internet.nl export a second time changes nothing. The netnl-
--- findings/v1 file carries no per-domain or per-batch request ID
--- (design.md "Design gate outcome" measured this against the real
--- API; the draft contract's request_id does not exist on the wire),
--- so the file's own sha256 is the idempotency key instead.
+-- findings/v1 file carries no per-domain or per-batch request ID:
+-- design.md "Design gate outcome" found it on netnl's batch API
+-- response (top-level request_id), but netnl does not export it into
+-- this file yet, so there is nothing here to key on until that
+-- lands. The file's own sha256 is the idempotency key instead.
 CREATE TABLE netnl_imports (
   file_hash   TEXT PRIMARY KEY,
   imported_at DATETIME NOT NULL
+);
+`,
+	},
+	{
+		Version: 12,
+		Name:    "netnl_imports_per_domain",
+		Up: `-- propose-internetnl-standards run 02b: keying idempotency on
+-- file_hash alone meant a domain skipped for lack of a matching
+-- target still marked the whole file as imported. Adding the target
+-- afterwards and re-running the import then did nothing, because the
+-- file hash was already recorded — the only way out was deleting the
+-- row by hand. The key must be (file_hash, domain): a domain isn't
+-- "done" for a file until it was actually imported, not merely seen.
+-- No rows exist outside test databases yet, so the simplest correct
+-- migration is to drop and recreate rather than carry forward a data
+-- migration for rows that don't exist in practice.
+DROP TABLE netnl_imports;
+
+CREATE TABLE netnl_imports (
+  file_hash   TEXT NOT NULL,
+  domain      TEXT NOT NULL,
+  imported_at DATETIME NOT NULL,
+  PRIMARY KEY (file_hash, domain)
 );
 `,
 	},

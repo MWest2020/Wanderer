@@ -29,27 +29,32 @@ func (s *Store) GetTargetByDomain(ctx context.Context, domain string) (*models.T
 	return s.GetTarget(ctx, id)
 }
 
-// NetnlImportRecorded reports whether a netnl-findings file with this
-// exact sha256 hash has already been imported, so the caller can skip
-// re-persisting an identical file (spec.md "Re-importing an identical
-// file SHALL be idempotent").
-func (s *Store) NetnlImportRecorded(ctx context.Context, fileHash string) (bool, error) {
+// NetnlImportRecorded reports whether domain has already been
+// imported from the netnl-findings file with this exact sha256 hash,
+// so the caller can skip re-persisting it (spec.md "Re-importing an
+// identical file SHALL be idempotent"). The key is (fileHash, domain)
+// rather than fileHash alone: a domain skipped on a previous run
+// because its target did not exist yet is not "done" for this file —
+// it must still be imported once the target shows up, even though the
+// file itself was already seen (habitat run 02b).
+func (s *Store) NetnlImportRecorded(ctx context.Context, fileHash, domain string) (bool, error) {
 	var exists bool
 	err := s.db.QueryRowContext(ctx,
-		`SELECT EXISTS(SELECT 1 FROM netnl_imports WHERE file_hash = ?)`, fileHash).Scan(&exists)
+		`SELECT EXISTS(SELECT 1 FROM netnl_imports WHERE file_hash = ? AND domain = ?)`, fileHash, domain).Scan(&exists)
 	if err != nil {
 		return false, fmt.Errorf("store: check netnl import: %w", err)
 	}
 	return exists, nil
 }
 
-// RecordNetnlImport marks fileHash as imported. Call this once the
-// findings it describes have been persisted, so a later re-run of the
-// same file is recognised as a no-op.
-func (s *Store) RecordNetnlImport(ctx context.Context, fileHash string) error {
+// RecordNetnlImport marks domain as imported from fileHash. Call this
+// once that domain's findings have been persisted, so a later re-run
+// of the same file recognises this domain as a no-op without
+// affecting any other domain in the file.
+func (s *Store) RecordNetnlImport(ctx context.Context, fileHash, domain string) error {
 	_, err := s.db.ExecContext(ctx,
-		`INSERT INTO netnl_imports (file_hash, imported_at) VALUES (?, ?)`,
-		fileHash, time.Now().UTC())
+		`INSERT INTO netnl_imports (file_hash, domain, imported_at) VALUES (?, ?, ?)`,
+		fileHash, domain, time.Now().UTC())
 	if err != nil {
 		return fmt.Errorf("store: record netnl import: %w", err)
 	}
