@@ -9,6 +9,17 @@ once a first release is cut. Until then every entry lives under
 
 ## [Unreleased]
 
+## [0.9.2] - 2026-09-23
+
+### Changed
+
+- **De copyrighthouder in `LICENSE` is Mark Westerweel.** Een
+  copyrighthouder hoort een rechtspersoon of een mensennaam te zijn;
+  v0.9.1 zette er de GitHub-handle neer. De overige vermeldingen
+  (de `author` van de Action, wie de wand-regelpack onderhoudt)
+  blijven MWest2020 — dat gaat over publicatie en onderhoud, niet
+  over eigendom.
+
 ## [0.9.1] - 2026-09-22
 
 ### Changed
@@ -1197,7 +1208,8 @@ ExApp) can pin a reproducible version instead of `@main`.
   deferred (see `docs/observability.md`).
   (`openspec/changes/archive/2026-04-24-init-mvp-scanners`)
 
-[Unreleased]: https://github.com/MWest2020/wanderer/compare/v0.9.1...main
+[Unreleased]: https://github.com/MWest2020/wanderer/compare/v0.9.2...main
+[0.9.2]: https://github.com/MWest2020/wanderer/compare/v0.9.1...v0.9.2
 [0.9.1]: https://github.com/MWest2020/wanderer/compare/v0.9.0...v0.9.1
 [0.9.0]: https://github.com/MWest2020/wanderer/compare/v0.8.2...v0.9.0
 [0.8.2]: https://github.com/MWest2020/wanderer/compare/v0.8.1...v0.8.2
