@@ -1,13 +1,13 @@
 # Tasks: standards-feed
 
 ## 1. The route — habitat run 01
-- [ ] 1.1 `POST /imports/internetnl`, reusing the CLI's import path (no second
+- [x] 1.1 `POST /imports/internetnl`, reusing the CLI's import path (no second
       implementation). Counts in the response.
-- [ ] 1.2 Token: `WANDERER_IMPORT_TOKEN`, `Authorization: Bearer`, constant-time
+- [x] 1.2 Token: `WANDERER_IMPORT_TOKEN`, `Authorization: Bearer`, constant-time
       compare. Unset → refuse everything, say so once at startup.
-- [ ] 1.3 Tests for every scenario in the spec delta, each checked once with
+- [x] 1.3 Tests for every scenario in the spec delta, each checked once with
       its fix removed.
-- [ ] 1.4 docs: `docs/how-to/internetnl-ci.md` gains the HTTP route next to
+- [x] 1.4 docs: `docs/how-to/internetnl-ci.md` gains the HTTP route next to
       the CLI; CHANGELOG.
 
 ## 2. The feed — homelab

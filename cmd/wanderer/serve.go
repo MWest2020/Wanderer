@@ -145,9 +145,11 @@ func runServe(args []string) int {
 		fmt.Fprintf(os.Stderr, "wanderer: list agents: %v\n", err)
 		return 1
 	}
+	importToken := envOr("WANDERER_IMPORT_TOKEN", "")
+	warnIfImportInactive(logger, importToken)
 
 	root := http.NewServeMux()
-	root.Handle("/", api.RouterWithSecrets(st, sc, logger, agentSecrets))
+	root.Handle("/", api.RouterWithImportToken(st, sc, logger, agentSecrets, importToken))
 	if err := mountDemo(root, st, logger, demoTarget); err != nil {
 		fmt.Fprintf(os.Stderr, "wanderer: %v\n", err)
 		return 1
@@ -248,6 +250,18 @@ func warnIfNoAgentsEnrolled(ctx context.Context, st *store.Store, logger *slog.L
 	}
 	logger.Info("agent.ingest.inactive", "reason", "no enrolled agents")
 	return nil
+}
+
+// warnIfImportInactive logs once, at startup, when
+// POST /imports/internetnl would refuse every request because
+// WANDERER_IMPORT_TOKEN is unset — matching the route's actual
+// behaviour (reject everything) so an operator does not have to learn
+// that the hard way from a stream of 401s, mirroring
+// warnIfNoAgentsEnrolled.
+func warnIfImportInactive(logger *slog.Logger, token string) {
+	if token == "" {
+		logger.Info("import.internetnl.inactive", "reason", "WANDERER_IMPORT_TOKEN not set")
+	}
 }
 
 // cfgX accessors return the YAML value for one setting, or the

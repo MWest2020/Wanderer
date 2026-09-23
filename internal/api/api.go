@@ -1,7 +1,9 @@
 // Package api exposes Wanderer's HTTP surface: POST /scans,
-// GET /scans/{id}, GET /healthz, GET /metrics, POST /agents/enrol.
-// The MVP is single-tenant and trusted-network; authentication is a
-// separate change.
+// GET /scans/{id}, GET /healthz, GET /metrics, POST /agents/enrol,
+// POST /imports/internetnl. The MVP is single-tenant and
+// trusted-network; authentication is a separate change (except for
+// the agent-ingest and import routes, which are token/HMAC-gated
+// from the start since they write evidence into reports).
 package api
 
 import (
@@ -24,17 +26,27 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
-// Router builds the HTTP router using a default (nil) AgentSecrets,
-// which leaves the agent-ingest endpoint registered but rejecting
-// every request. Use RouterWithSecrets to enable agent ingestion.
+// Router builds the HTTP router using a default (nil) AgentSecrets
+// and no import token, which leaves the agent-ingest endpoint and
+// POST /imports/internetnl registered but rejecting every request.
+// Use RouterWithSecrets or RouterWithImportToken to enable them.
 func Router(st *store.Store, sc *scanner.Scanner, logger *slog.Logger) http.Handler {
 	return RouterWithSecrets(st, sc, logger, nil)
 }
 
 // RouterWithSecrets is Router but with a per-hostname agent secret
 // resolver attached. Pass a *StaticAgentSecrets for simple
-// configurations.
+// configurations. POST /imports/internetnl stays inactive (no import
+// token) — use RouterWithImportToken to enable it.
 func RouterWithSecrets(st *store.Store, sc *scanner.Scanner, logger *slog.Logger, secrets AgentSecrets) http.Handler {
+	return RouterWithImportToken(st, sc, logger, secrets, "")
+}
+
+// RouterWithImportToken is RouterWithSecrets with
+// POST /imports/internetnl's token also wired in. importToken is the
+// value of WANDERER_IMPORT_TOKEN; empty means the route stays
+// registered but refuses every request (see ImportInternetnlHandler).
+func RouterWithImportToken(st *store.Store, sc *scanner.Scanner, logger *slog.Logger, secrets AgentSecrets, importToken string) http.Handler {
 	r := chi.NewRouter()
 	r.Use(middleware.RequestID)
 	r.Use(middleware.RealIP)
@@ -140,6 +152,8 @@ func RouterWithSecrets(st *store.Store, sc *scanner.Scanner, logger *slog.Logger
 	r.Method(http.MethodPost, "/scans/{id}/findings", FindingsIngestHandler(st, secrets))
 
 	r.Method(http.MethodPost, "/agents/enrol", EnrolHandler(st))
+
+	r.Method(http.MethodPost, "/imports/internetnl", ImportInternetnlHandler(st, logger, importToken))
 
 	r.Get("/targets/{id}/drift", func(w http.ResponseWriter, r *http.Request) {
 		id := chi.URLParam(r, "id")

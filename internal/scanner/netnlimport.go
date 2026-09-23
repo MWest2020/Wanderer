@@ -1,13 +1,16 @@
 package scanner
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
 	"os"
 	"time"
 
+	"github.com/MWest2020/wanderer/internal/store"
 	"github.com/MWest2020/wanderer/pkg/models"
 )
 
@@ -272,4 +275,76 @@ func netnlDomainSeverity(status string) models.Severity {
 		return models.SeverityConcern
 	}
 	return models.SeverityInfo
+}
+
+// ImportNetnlDomains matches each parsed domain entry to an existing
+// target, groups entries by target (a batch file can carry both a web
+// and a mail entry for the same domain), and persists one import-kind
+// scan per matched target. Unknown domains are logged at WARN and
+// skipped — spec.md "Unknown domains SHALL be logged at WARN and
+// skipped".
+//
+// This is the one write path for netnl imports: both the CLI
+// (`wanderer import internetnl`) and the HTTP route
+// (`POST /imports/internetnl`) call through here rather than each
+// having their own copy — the server is the only writer of its
+// SQLite database, so a second implementation would risk drifting
+// from the first one's idempotency and matching rules.
+//
+// Idempotency is checked per domain against fileHash, not once for
+// the whole file: a domain skipped on an earlier run because its
+// target did not exist yet must still be imported once the target
+// exists, even though this exact file was already seen (habitat run
+// 02b — the earlier file-level check made that second run a silent
+// no-op).
+func ImportNetnlDomains(ctx context.Context, st *store.Store, logger *slog.Logger, fileHash string, domains []NetnlDomain) (imported, skippedUnknown, skippedAlready int, err error) {
+	byDomain := map[string][]NetnlDomain{}
+	var order []string
+	for _, d := range domains {
+		if _, ok := byDomain[d.Domain]; !ok {
+			order = append(order, d.Domain)
+		}
+		byDomain[d.Domain] = append(byDomain[d.Domain], d)
+	}
+
+	for _, domain := range order {
+		already, err := st.NetnlImportRecorded(ctx, fileHash, domain)
+		if err != nil {
+			return imported, skippedUnknown, skippedAlready, fmt.Errorf("check import record for %q: %w", domain, err)
+		}
+		if already {
+			skippedAlready++
+			continue
+		}
+
+		target, err := st.GetTargetByDomain(ctx, domain)
+		if err != nil {
+			if errors.Is(err, store.ErrNotFound) {
+				logger.Warn("import.internetnl.unknown_domain", "domain", domain)
+				skippedUnknown++
+				continue
+			}
+			return imported, skippedUnknown, skippedAlready, fmt.Errorf("lookup target %q: %w", domain, err)
+		}
+
+		scan, err := st.CreateScan(ctx, target.ID)
+		if err != nil {
+			return imported, skippedUnknown, skippedAlready, fmt.Errorf("create scan for %q: %w", domain, err)
+		}
+		var findings []models.Finding
+		for _, d := range byDomain[domain] {
+			findings = append(findings, NetnlFindings(d)...)
+		}
+		if err := st.AppendFindings(ctx, scan.ID, findings); err != nil {
+			return imported, skippedUnknown, skippedAlready, fmt.Errorf("persist findings for %q: %w", domain, err)
+		}
+		if err := st.FinishScan(ctx, scan.ID, models.ScanStatusComplete, ""); err != nil {
+			return imported, skippedUnknown, skippedAlready, fmt.Errorf("finish scan for %q: %w", domain, err)
+		}
+		if err := st.RecordNetnlImport(ctx, fileHash, domain); err != nil {
+			return imported, skippedUnknown, skippedAlready, fmt.Errorf("record import for %q: %w", domain, err)
+		}
+		imported++
+	}
+	return imported, skippedUnknown, skippedAlready, nil
 }

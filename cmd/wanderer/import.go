@@ -5,7 +5,6 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
-	"errors"
 	"flag"
 	"fmt"
 	"log/slog"
@@ -15,7 +14,6 @@ import (
 
 	"github.com/MWest2020/wanderer/internal/scanner"
 	"github.com/MWest2020/wanderer/internal/store"
-	"github.com/MWest2020/wanderer/pkg/models"
 )
 
 // runImport dispatches `wanderer import <source> <file>`. The only
@@ -80,7 +78,7 @@ func runImportInternetnl(args []string) int {
 	}
 	defer st.Close()
 
-	imported, skippedUnknown, skippedAlready, err := importNetnlDomains(ctx, st, logger, fileHash, file.Domains)
+	imported, skippedUnknown, skippedAlready, err := scanner.ImportNetnlDomains(ctx, st, logger, fileHash, file.Domains)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "wanderer: import: %v\n", err)
 		return 1
@@ -97,69 +95,4 @@ func runImportInternetnl(args []string) int {
 	fmt.Fprintf(os.Stdout, "wanderer: import: %d domain(s) imported, %d skipped (unknown target), %d skipped (already imported from this file)\n",
 		imported, skippedUnknown, skippedAlready)
 	return 0
-}
-
-// importNetnlDomains matches each parsed domain entry to an existing
-// target, groups entries by target (a batch file can carry both a web
-// and a mail entry for the same domain), and persists one import-kind
-// scan per matched target. Unknown domains are logged at WARN and
-// skipped — spec.md "Unknown domains SHALL be logged at WARN and
-// skipped".
-//
-// Idempotency is checked per domain against fileHash, not once for
-// the whole file: a domain skipped on an earlier run because its
-// target did not exist yet must still be imported once the target
-// exists, even though this exact file was already seen (habitat run
-// 02b — the earlier file-level check made that second run a silent
-// no-op).
-func importNetnlDomains(ctx context.Context, st *store.Store, logger *slog.Logger, fileHash string, domains []scanner.NetnlDomain) (imported, skippedUnknown, skippedAlready int, err error) {
-	byDomain := map[string][]scanner.NetnlDomain{}
-	var order []string
-	for _, d := range domains {
-		if _, ok := byDomain[d.Domain]; !ok {
-			order = append(order, d.Domain)
-		}
-		byDomain[d.Domain] = append(byDomain[d.Domain], d)
-	}
-
-	for _, domain := range order {
-		already, err := st.NetnlImportRecorded(ctx, fileHash, domain)
-		if err != nil {
-			return imported, skippedUnknown, skippedAlready, fmt.Errorf("check import record for %q: %w", domain, err)
-		}
-		if already {
-			skippedAlready++
-			continue
-		}
-
-		target, err := st.GetTargetByDomain(ctx, domain)
-		if err != nil {
-			if errors.Is(err, store.ErrNotFound) {
-				logger.Warn("import.internetnl.unknown_domain", "domain", domain)
-				skippedUnknown++
-				continue
-			}
-			return imported, skippedUnknown, skippedAlready, fmt.Errorf("lookup target %q: %w", domain, err)
-		}
-
-		scan, err := st.CreateScan(ctx, target.ID)
-		if err != nil {
-			return imported, skippedUnknown, skippedAlready, fmt.Errorf("create scan for %q: %w", domain, err)
-		}
-		var findings []models.Finding
-		for _, d := range byDomain[domain] {
-			findings = append(findings, scanner.NetnlFindings(d)...)
-		}
-		if err := st.AppendFindings(ctx, scan.ID, findings); err != nil {
-			return imported, skippedUnknown, skippedAlready, fmt.Errorf("persist findings for %q: %w", domain, err)
-		}
-		if err := st.FinishScan(ctx, scan.ID, models.ScanStatusComplete, ""); err != nil {
-			return imported, skippedUnknown, skippedAlready, fmt.Errorf("finish scan for %q: %w", domain, err)
-		}
-		if err := st.RecordNetnlImport(ctx, fileHash, domain); err != nil {
-			return imported, skippedUnknown, skippedAlready, fmt.Errorf("record import for %q: %w", domain, err)
-		}
-		imported++
-	}
-	return imported, skippedUnknown, skippedAlready, nil
 }

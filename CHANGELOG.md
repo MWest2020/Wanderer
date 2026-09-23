@@ -9,6 +9,21 @@ once a first release is cut. Until then every entry lives under
 
 ## [Unreleased]
 
+### Added
+
+- **`POST /imports/internetnl`.** `wanderer serve` now accepts a
+  `netnl-findings/v1` document over HTTP, imported through the exact
+  same code path as `wanderer import internetnl` — one
+  implementation, called from both doors — and answers with the same
+  three counts (`imported`, `skipped_unknown`, `skipped_already`).
+  This exists because the server is the only writer of its SQLite
+  database; a CronJob mounting the volume to import directly would be
+  a second writer. The route requires `Authorization: Bearer
+  $WANDERER_IMPORT_TOKEN`, checked with a constant-time compare; with
+  the variable unset, the route stays registered but refuses every
+  request, and the server logs `import.internetnl.inactive` once at
+  startup. See `docs/how-to/internetnl-ci.md`.
+
 ## [0.9.2] - 2026-09-23
 
 ### Changed

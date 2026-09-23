@@ -45,6 +45,32 @@ internetnl results <request-id> --format findings \
 wanderer import internetnl --db wanderer.db findings.json
 ```
 
+Step 3 also works over HTTP, against a running `wanderer serve`
+instance, instead of the CLI's own SQLite file — useful when the
+server is the only process allowed to touch the database (the
+Wanderer Deployment is a single RWO volume; a CronJob opening the
+file directly would be a second writer). Set `WANDERER_IMPORT_TOKEN`
+on the server, then post the same file as the request body:
+
+```sh
+curl -sf -X POST https://wanderer.example/imports/internetnl \
+  -H "Authorization: Bearer $WANDERER_IMPORT_TOKEN" \
+  --data-binary @findings.json
+```
+
+The response reports the same three counts the CLI prints:
+`imported`, `skipped_unknown`, `skipped_already`. Idempotency works
+the same way across both doors — the route hashes the request body
+exactly as the CLI hashes the file, so posting the same bytes twice
+(by CLI, by HTTP, or one of each) imports once. Without
+`WANDERER_IMPORT_TOKEN` set, the route stays registered but refuses
+every request with 401 — the server logs
+`import.internetnl.inactive` once at startup so that is visible
+without waiting for a failed request. The REST API is otherwise
+reachable on the tailnet without authentication; this route is the
+exception because an import writes verdicts that appear in reports as
+evidence.
+
 Repeat step 1–3 per measurement type (`--type web`, `--type mail`) —
 they are two independent batches with two independent request IDs.
 Wanderer correlates a target's latest web and latest mail import
