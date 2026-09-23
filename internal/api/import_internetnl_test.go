@@ -54,15 +54,15 @@ func importRequest(t *testing.T, srv *httptest.Server, body []byte, authHeader s
 }
 
 func decodeImportResponse(t *testing.T, resp *http.Response) struct {
-	Imported        int `json:"imported"`
-	SkippedUnknown  int `json:"skipped_unknown"`
-	SkippedAlready  int `json:"skipped_already"`
+	Imported       int `json:"imported"`
+	SkippedUnknown int `json:"skipped_unknown"`
+	SkippedAlready int `json:"skipped_already"`
 } {
 	t.Helper()
 	var body struct {
-		Imported        int `json:"imported"`
-		SkippedUnknown  int `json:"skipped_unknown"`
-		SkippedAlready  int `json:"skipped_already"`
+		Imported       int `json:"imported"`
+		SkippedUnknown int `json:"skipped_unknown"`
+		SkippedAlready int `json:"skipped_already"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
 		t.Fatalf("decode response: %v", err)
