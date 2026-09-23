@@ -1,8 +1,6 @@
 package store
 
-import "fmt"
-
-// importScanExistsFmt is the store's single SQL definition of "this
+// importScanExistsSQL is the store's single SQL definition of "this
 // scan is an import scan" (habitat run 02: an import written by
 // `wanderer import internetnl` or `POST /imports/internetnl` carries
 // only source_modus='import' Findings and no assessment; a perimeter
@@ -14,12 +12,7 @@ import "fmt"
 // PreviousScanForTarget's WHERE clause — rather than re-deriving the
 // rule itself.
 //
-// scanIDExpr must be a trusted, internal SQL expression (a column
-// reference such as "scans.id"), never request input — it is
-// interpolated directly, not bound as a parameter.
-const importScanExistsFmt = `EXISTS (SELECT 1 FROM findings WHERE findings.scan_id = %s AND findings.source_modus = 'import')`
-
-// importScanExistsSQL renders importScanExistsFmt for scanIDExpr.
-func importScanExistsSQL(scanIDExpr string) string {
-	return fmt.Sprintf(importScanExistsFmt, scanIDExpr)
-}
+// It correlates on `scans.id`, so it only fits a query over the
+// scans table. A constant, not a format string: the query text stays
+// fixed at compile time.
+const importScanExistsSQL = `EXISTS (SELECT 1 FROM findings WHERE findings.scan_id = scans.id AND findings.source_modus = 'import')`

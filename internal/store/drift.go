@@ -21,7 +21,7 @@ func (s *Store) PreviousScanForTarget(ctx context.Context, targetID string, befo
 	row := s.db.QueryRowContext(ctx,
 		`SELECT id, target_id, started_at, ended_at, status, COALESCE(error,'')
 		 FROM scans
-		 WHERE target_id = ? AND started_at < ? AND NOT `+importScanExistsSQL("scans.id")+`
+		 WHERE target_id = ? AND started_at < ? AND NOT `+importScanExistsSQL+`
 		 ORDER BY started_at DESC, id DESC
 		 LIMIT 1`,
 		targetID, before.UTC())
