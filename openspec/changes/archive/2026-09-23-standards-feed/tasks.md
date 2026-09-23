@@ -20,10 +20,10 @@
 ## 3. Out
 - [x] 3.1 Release, deploy, run the CronJob once by hand. (v0.10.0; Job
       `wanderer-standards-eerste`: web 4 imported, mail 1, 0 unknown.)
-- [ ] 3.2 Nagemeten: the standards rules on `westerweel.work` score from real
+- [x] 3.2 Nagemeten: the standards rules on `westerweel.work` score from real
       findings, not "niet gemeten"; `rijksoverheid.nl` still reads "niet
       gemeten".
-- [ ] 3.3 Archive — after section 4.
+- [x] 3.3 Archive — after section 4.
 
 ## 4. Import scans are not "the latest scan" — habitat run 02
 Found by the first live run (3.1): the import landed after the perimeter scans
@@ -36,5 +36,9 @@ this ships; the four domains were rescanned by hand.
       `PreviousScanForTarget`.
 - [x] 4.2 Tests for every scenario in `specs/web-ui` and `specs/scheduling` of
       this change, each checked once with its fix removed.
-- [ ] 4.3 Release; unsuspend the CronJob in homelab; after its next run the
+- [x] 4.3 Release; unsuspend the CronJob in homelab; after its next run the
       fleet row of `westerweel.work` still shows its perimeter score.
+      (v0.10.1; second Job ran after the 10:39 perimeter scans; the fleet
+      rendered from a copy of the prod DB shows all four westerweel rows on
+      their perimeter scans with real scores. `rijksoverheid.nl`: all six
+      standards rules "not measured".)
