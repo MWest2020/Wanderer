@@ -404,7 +404,7 @@ func scanStatusHandler(st *store.Store, tmpl *template.Template) http.HandlerFun
 		}
 		var latest *store.ScanRow
 		for i := range scans {
-			if !strings.EqualFold(scans[i].Domain, domain) {
+			if !strings.EqualFold(scans[i].Domain, domain) || scans[i].IsImport {
 				continue
 			}
 			if latest == nil || scans[i].StartedAt.After(latest.StartedAt) {
@@ -546,6 +546,9 @@ func buildSnapshots(ctx context.Context, st *store.Store, orgID string) (snaps [
 	}
 	byTarget := map[string]latest{}
 	for _, s := range scans {
+		if s.IsImport {
+			continue
+		}
 		cur, ok := byTarget[s.TargetID]
 		if !ok || s.StartedAt.After(cur.when) {
 			byTarget[s.TargetID] = latest{scan: s, when: s.StartedAt}
@@ -723,6 +726,9 @@ func fleetHandler(st *store.Store, tmpl *template.Template, allowEdit bool, sche
 		}
 		lastScanByTarget := map[string]store.ScanRow{}
 		for _, sc := range scans {
+			if sc.IsImport {
+				continue
+			}
 			if cur, ok := lastScanByTarget[sc.TargetID]; !ok || sc.StartedAt.After(cur.StartedAt) {
 				lastScanByTarget[sc.TargetID] = sc
 			}
@@ -1011,6 +1017,9 @@ func targetsHandler(st *store.Store, tmpl *template.Template) http.HandlerFunc {
 		}
 		byTarget := map[string]latest{}
 		for _, s := range scans {
+			if s.IsImport {
+				continue
+			}
 			cur, ok := byTarget[s.TargetID]
 			if !ok || s.StartedAt.After(cur.when) {
 				byTarget[s.TargetID] = latest{scan: s, when: s.StartedAt}

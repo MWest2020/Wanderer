@@ -1376,6 +1376,90 @@ func TestFleetPage_ShowsScoreAndWorstFinding(t *testing.T) {
 	}
 }
 
+func TestFleetPage_ImportScanAfterPerimeterKeepsPerimeterScore(t *testing.T) {
+	// specs/web-ui/spec.md "Import after a perimeter scan": an import
+	// scan landing after a scored perimeter scan must not blank out
+	// the fleet row — habitat run 02 found this rendering "0/0" (no
+	// oordeel) on prod because the import scan, not the perimeter
+	// scan, was picked as the domain's "latest" scan.
+	srv, st := newServer(t, "")
+	tgt, err := st.AddFleetDomain(context.Background(), models.DefaultOrganisationID, "voorbeeld.nl")
+	if err != nil {
+		t.Fatalf("AddFleetDomain: %v", err)
+	}
+	_, startedAt := seedFleetScan(
+		t, st, tgt.ID,
+		models.Rationale{CriteriumID: "wand.juridisch.apex_ip_eea", Verdict: "apex in NL", Score: models.ScoreSoeverein},
+	)
+	time.Sleep(5 * time.Millisecond)
+	imp, err := st.CreateScan(context.Background(), tgt.ID)
+	if err != nil {
+		t.Fatalf("create import scan: %v", err)
+	}
+	if err := st.AppendFindings(context.Background(), imp.ID, []models.Finding{
+		{ProbeID: "internetnl.dnssec", Subject: "voorbeeld.nl", Severity: models.SeverityInfo, SourceModus: models.SourceModusImport, Attributes: map[string]any{}},
+	}); err != nil {
+		t.Fatalf("append import finding: %v", err)
+	}
+	if err := st.FinishScan(context.Background(), imp.ID, models.ScanStatusComplete, ""); err != nil {
+		t.Fatalf("finish import scan: %v", err)
+	}
+
+	resp, err := http.Get(srv.URL + "/ui/orgs/default/fleet")
+	if err != nil {
+		t.Fatalf("get: %v", err)
+	}
+	defer resp.Body.Close()
+	body, _ := io.ReadAll(resp.Body)
+	bodyStr := string(body)
+	if strings.Contains(bodyStr, "nog geen oordeel") {
+		t.Errorf("fleet page shows no verdict after an import scan landed — the import scan must not replace the perimeter scan as \"latest\"; body:\n%s", bodyStr)
+	}
+	if !strings.Contains(bodyStr, "1/1") {
+		t.Errorf("fleet page missing the perimeter scan's score \"1/1\"; body:\n%s", bodyStr)
+	}
+	if !strings.Contains(bodyStr, startedAt.UTC().Format(time.RFC3339)) {
+		t.Errorf("fleet page's last-scan time is not the perimeter scan's timestamp %s; body:\n%s", startedAt.UTC().Format(time.RFC3339), bodyStr)
+	}
+}
+
+func TestFleetPage_OnlyImportScansShowsAsNotYetScanned(t *testing.T) {
+	// specs/web-ui/spec.md "Only imports, no perimeter scan yet": a
+	// fleet domain whose only scans are import scans must be listed
+	// as not yet scanned, not with a blank/zero score.
+	srv, st := newServer(t, "")
+	tgt, err := st.AddFleetDomain(context.Background(), models.DefaultOrganisationID, "voorbeeld.nl")
+	if err != nil {
+		t.Fatalf("AddFleetDomain: %v", err)
+	}
+	imp, err := st.CreateScan(context.Background(), tgt.ID)
+	if err != nil {
+		t.Fatalf("create import scan: %v", err)
+	}
+	if err := st.AppendFindings(context.Background(), imp.ID, []models.Finding{
+		{ProbeID: "internetnl.dnssec", Subject: "voorbeeld.nl", Severity: models.SeverityInfo, SourceModus: models.SourceModusImport, Attributes: map[string]any{}},
+	}); err != nil {
+		t.Fatalf("append import finding: %v", err)
+	}
+	if err := st.FinishScan(context.Background(), imp.ID, models.ScanStatusComplete, ""); err != nil {
+		t.Fatalf("finish import scan: %v", err)
+	}
+
+	resp, err := http.Get(srv.URL + "/ui/orgs/default/fleet")
+	if err != nil {
+		t.Fatalf("get: %v", err)
+	}
+	defer resp.Body.Close()
+	body, _ := io.ReadAll(resp.Body)
+	bodyStr := string(body)
+	if !strings.Contains(bodyStr, "voorbeeld.nl") {
+		t.Fatalf("fleet page missing the domain; body:\n%s", bodyStr)
+	}
+	if !strings.Contains(bodyStr, "nog niet gescand") {
+		t.Errorf("fleet page must list an import-only domain as \"nog niet gescand\"; body:\n%s", bodyStr)
+	}
+}
+
 func TestFleetPage_ShowsUnansweredCount(t *testing.T) {
 	// spec.md scenario "Twee domeinen naast elkaar": an onbekend
 	// question is reported separately, never folded into n.

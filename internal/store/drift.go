@@ -11,13 +11,17 @@ import (
 )
 
 // PreviousScanForTarget returns the most recent scan for targetID
-// that finished before before. ErrNotFound is returned when there is
-// no such scan — the caller treats that as "this is a baseline run".
+// that finished before before, skipping import scans (habitat run
+// 02, spec.md "Drift compares perimeter scans, not imports") — an
+// import scan is a different kind of evidence and must never stand in
+// as "the previous scan" for a delta or a drift diff. ErrNotFound is
+// returned when there is no such scan — the caller treats that as
+// "this is a baseline run".
 func (s *Store) PreviousScanForTarget(ctx context.Context, targetID string, before time.Time) (*models.Scan, error) {
 	row := s.db.QueryRowContext(ctx,
 		`SELECT id, target_id, started_at, ended_at, status, COALESCE(error,'')
 		 FROM scans
-		 WHERE target_id = ? AND started_at < ?
+		 WHERE target_id = ? AND started_at < ? AND NOT `+importScanExistsSQL("scans.id")+`
 		 ORDER BY started_at DESC, id DESC
 		 LIMIT 1`,
 		targetID, before.UTC())

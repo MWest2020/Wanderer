@@ -9,6 +9,23 @@ once a first release is cut. Until then every entry lives under
 
 ## [Unreleased]
 
+### Fixed
+
+- **An import scan can no longer stand in for a domain's latest (or
+  previous) scan.** `wanderer import internetnl` / `POST
+  /imports/internetnl` create a scan that carries only imported
+  Findings and no assessment of its own; the fleet screen, the
+  dashboard and its roll-ups, the trends layer, the demo page, and the
+  drift engine (`PreviousScanForTarget`) all picked "the newest scan"
+  by `started_at` without excluding it. On prod this showed four
+  domains as 0/0 right after their first import, and would have made
+  the drift engine diff a perimeter scan against an import instead of
+  the perimeter scan before it. "Is this an import scan" is now
+  decided in one place in `internal/store`
+  (`internal/store/importscan.go`); every listed selection site uses
+  it. Import scans are unaffected otherwise — they stay in the store
+  and stay reachable at `/ui/scans/{id}`.
+
 ## [0.10.0] - 2026-09-23
 
 ### Added

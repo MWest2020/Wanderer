@@ -119,7 +119,10 @@ func composeDemoHeadline(v AnswerVerdict, fs FleetScore) string {
 // and skips those instead of landing on one, so a scan without a
 // beoordeling can never bump an older, assessed scan off the page.
 // Domain matching is case-insensitive, mirroring scanStatusHandler's
-// lookup.
+// lookup. Import scans are excluded explicitly (habitat run 02): they
+// never carry an Assessment, so the len(assessments) == 0 skip below
+// already kept them out incidentally — excluding them here too makes
+// that a rule instead of a side effect of the assessment check.
 func latestCompletedScan(ctx context.Context, st *store.Store, domain string) (scanID string, startedAt time.Time, found bool, err error) {
 	scans, err := st.ListScans(ctx, store.Selectors{})
 	if err != nil {
@@ -127,7 +130,7 @@ func latestCompletedScan(ctx context.Context, st *store.Store, domain string) (s
 	}
 	var candidates []store.ScanRow
 	for _, s := range scans {
-		if !strings.EqualFold(s.Domain, domain) {
+		if !strings.EqualFold(s.Domain, domain) || s.IsImport {
 			continue
 		}
 		switch models.ScanStatus(s.Status) {

@@ -31,10 +31,10 @@ and became the newest scan of four domains, so the fleet screen showed 0/0 for
 them. `PreviousScanForTarget` has the same blind spot, so drift would diff a
 perimeter scan against an import. The CronJob is suspended in homelab until
 this ships; the four domains were rescanned by hand.
-- [ ] 4.1 One store-level notion of "import scan", used by every latest-scan
+- [x] 4.1 One store-level notion of "import scan", used by every latest-scan
       selection (fleet, dashboard, aggregate/trends, demo, door) and by
       `PreviousScanForTarget`.
-- [ ] 4.2 Tests for every scenario in `specs/web-ui` and `specs/scheduling` of
+- [x] 4.2 Tests for every scenario in `specs/web-ui` and `specs/scheduling` of
       this change, each checked once with its fix removed.
 - [ ] 4.3 Release; unsuspend the CronJob in homelab; after its next run the
       fleet row of `westerweel.work` still shows its perimeter score.

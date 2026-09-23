@@ -38,6 +38,9 @@ type Headline struct {
 func BuildHeadline(snaps []TargetSnapshot, scans []store.ScanRow) Headline {
 	h := Headline{TotalScans: len(scans)}
 	for _, s := range scans {
+		if s.IsImport {
+			continue
+		}
 		if s.StartedAt.After(h.LastScanAt) {
 			h.LastScanAt = s.StartedAt
 		}
@@ -347,11 +350,19 @@ func TopConcerns(snaps []TargetSnapshot, ruleLookup func(framework, criteriumID 
 }
 
 // RecentActivity returns the most-recent `maxRows` scans across the
-// estate, newest-first by StartedAt. The hasAssessment function
+// estate, newest-first by StartedAt. Import scans are excluded (an
+// import carries no assessment and its "activity" is really the
+// perimeter scan it feeds — habitat run 02); they stay reachable on
+// their own page, just not in this feed. The hasAssessment function
 // reports whether a given scan has any persisted Assessment so the
 // template can link to the Analysis page when one exists.
 func RecentActivity(scans []store.ScanRow, hasAssessment func(scanID string) bool, maxRows int) []ActivityRow {
-	all := append([]store.ScanRow(nil), scans...)
+	all := make([]store.ScanRow, 0, len(scans))
+	for _, s := range scans {
+		if !s.IsImport {
+			all = append(all, s)
+		}
+	}
 	sort.Slice(all, func(i, j int) bool {
 		return all[i].StartedAt.After(all[j].StartedAt)
 	})

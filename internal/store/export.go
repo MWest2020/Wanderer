@@ -120,6 +120,12 @@ type ScanRow struct {
 	Status       string
 	Error        string
 	FindingCount int
+	// IsImport reports whether this scan is an import scan (habitat
+	// run 02, see importScanExistsFmt). Every "latest"/"previous"
+	// scan selection over a []ScanRow SHALL skip rows where this is
+	// true; a full listing (exports, audit) does not filter on it —
+	// ListScans still returns every scan.
+	IsImport bool
 }
 
 // ListScans streams a flat row per scan matching sel.
@@ -136,7 +142,8 @@ func (s *Store) ListScans(ctx context.Context, sel Selectors) ([]ScanRow, error)
 		args = append(args, sel.OrganisationID)
 	}
 	q := `SELECT scans.id, scans.target_id, targets.domain, scans.started_at, scans.ended_at, scans.status, COALESCE(scans.error,''),
-	             (SELECT COUNT(*) FROM findings WHERE findings.scan_id = scans.id)
+	             (SELECT COUNT(*) FROM findings WHERE findings.scan_id = scans.id),
+	             ` + importScanExistsSQL("scans.id") + `
 	      FROM scans LEFT JOIN targets ON targets.id = scans.target_id` + where + ` ORDER BY scans.started_at, scans.id`
 	rows, err := s.db.QueryContext(ctx, q, args...)
 	if err != nil {
@@ -146,7 +153,7 @@ func (s *Store) ListScans(ctx context.Context, sel Selectors) ([]ScanRow, error)
 	var out []ScanRow
 	for rows.Next() {
 		var r ScanRow
-		if err := rows.Scan(&r.ID, &r.TargetID, &r.Domain, &r.StartedAt, &r.EndedAt, &r.Status, &r.Error, &r.FindingCount); err != nil {
+		if err := rows.Scan(&r.ID, &r.TargetID, &r.Domain, &r.StartedAt, &r.EndedAt, &r.Status, &r.Error, &r.FindingCount, &r.IsImport); err != nil {
 			return nil, fmt.Errorf("store: scan scans row: %w", err)
 		}
 		out = append(out, r)
