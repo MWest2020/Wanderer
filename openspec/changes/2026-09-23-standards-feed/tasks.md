@@ -11,15 +11,30 @@
       the CLI; CHANGELOG.
 
 ## 2. The feed — homelab
-- [ ] 2.1 netnl tenant `wanderer` on the facade; credential as a secret.
-- [ ] 2.2 Import token as a secret, mounted into the Wanderer Deployment and
+- [x] 2.1 netnl tenant `wanderer` on the facade; credential as a secret.
+- [x] 2.2 Import token as a secret, mounted into the Wanderer Deployment and
       the CronJob.
-- [ ] 2.3 CronJob: web for the operator's own Wanderer targets, mail for the
+- [x] 2.3 CronJob: web for the operator's own Wanderer targets, mail for the
       domain that receives mail; export findings; post to the route.
 
 ## 3. Out
-- [ ] 3.1 Release, deploy, run the CronJob once by hand.
+- [x] 3.1 Release, deploy, run the CronJob once by hand. (v0.10.0; Job
+      `wanderer-standards-eerste`: web 4 imported, mail 1, 0 unknown.)
 - [ ] 3.2 Nagemeten: the standards rules on `westerweel.work` score from real
       findings, not "niet gemeten"; `rijksoverheid.nl` still reads "niet
       gemeten".
-- [ ] 3.3 Archive.
+- [ ] 3.3 Archive — after section 4.
+
+## 4. Import scans are not "the latest scan" — habitat run 02
+Found by the first live run (3.1): the import landed after the perimeter scans
+and became the newest scan of four domains, so the fleet screen showed 0/0 for
+them. `PreviousScanForTarget` has the same blind spot, so drift would diff a
+perimeter scan against an import. The CronJob is suspended in homelab until
+this ships; the four domains were rescanned by hand.
+- [ ] 4.1 One store-level notion of "import scan", used by every latest-scan
+      selection (fleet, dashboard, aggregate/trends, demo, door) and by
+      `PreviousScanForTarget`.
+- [ ] 4.2 Tests for every scenario in `specs/web-ui` and `specs/scheduling` of
+      this change, each checked once with its fix removed.
+- [ ] 4.3 Release; unsuspend the CronJob in homelab; after its next run the
+      fleet row of `westerweel.work` still shows its perimeter score.

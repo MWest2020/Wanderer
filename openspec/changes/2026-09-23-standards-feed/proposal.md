@@ -52,3 +52,11 @@ honest, not a gap.
 The v2 facade webhook (`2026-09-22-internetnl-facade-v2-stub.md`) — the facade
 pushing the file itself. This change puts the receiving end in place; the
 webhook can later post to the same route without a change here.
+
+## After the first live run
+
+The first run on prod (2026-09-23) exposed a gap the earlier change did not
+cover: an import creates a scan of its own, and the fleet screen and the drift
+engine both take "the newest scan" without asking what kind it is. Four
+domains showed 0/0 until they were rescanned. Section 4 of the tasks fixes
+that; the CronJob stays suspended until it ships.
