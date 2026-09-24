@@ -9,6 +9,8 @@ once a first release is cut. Until then every entry lives under
 
 ## [Unreleased]
 
+## [0.11.0] - 2026-09-24
+
 ### Changed
 
 - **`/ui/` en `/ui/orgs/{slug}` tonen de vloot in beeld, niet in tekst.**
@@ -17,8 +19,14 @@ once a first release is cut. Until then every entry lives under
   `x/n` in het midden), de verdeling per stroom als gestapelde balk per
   stroom, en de domeinen als raster (domein × stroom, één gekleurde cel
   per stroom, slechtste eerst) — de "zwaarste: …"-zin per domein
-  vervalt. De top-3 duurste regels spreken nu de stroom + handeling
-  (met `{domein}` weggelaten) in plaats van de Engelse rationale. De
+  vervalt. De top-3 duurste regels spreken nu de handeling ("Verhuis de
+  hosting van elk getroffen domein naar …"), met de stroom ervoor als
+  de regel er een heeft, en een balk "7 van 11 domeinen", in plaats van
+  de Engelse rationale; een kale regel-ID alleen als er geen handeling
+  is. De ring heeft een zichtbare legenda (soeverein, niet soeverein,
+  onbeantwoord, met aantallen) en het raster een legenda voor
+  S/V/N/?. Op een telefoon blijven de stroombalken zichtbaar (naam
+  erboven) en scrollt alleen het raster, niet de pagina. De
   Organisations-tabel verschijnt alleen nog met meer dan één
   organisatie. Alles inline SVG/CSS vanuit Go, geen JavaScript, geen
   nieuwe dependency; elk beeld draagt dezelfde feiten ook als tekst
@@ -1259,7 +1267,8 @@ ExApp) can pin a reproducible version instead of `@main`.
   deferred (see `docs/observability.md`).
   (`openspec/changes/archive/2026-04-24-init-mvp-scanners`)
 
-[Unreleased]: https://github.com/MWest2020/wanderer/compare/v0.10.1...main
+[Unreleased]: https://github.com/MWest2020/wanderer/compare/v0.11.0...main
+[0.11.0]: https://github.com/MWest2020/wanderer/compare/v0.10.1...v0.11.0
 [0.10.1]: https://github.com/MWest2020/wanderer/compare/v0.10.0...v0.10.1
 [0.10.0]: https://github.com/MWest2020/wanderer/compare/v0.9.2...v0.10.0
 [0.9.2]: https://github.com/MWest2020/wanderer/compare/v0.9.1...v0.9.2

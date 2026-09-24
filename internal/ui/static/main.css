@@ -492,8 +492,9 @@ tr.retired td { opacity: 0.7; font-style: italic; }
 
 /* Mobile (run 02, task 1b.4): at narrow widths the per-stroom bars'
    fixed label column + nowrap summary column left the 1fr bar track
-   squeezed to zero. Stack the row instead — bar first, full width,
-   label allowed to sit below it — and let the domain grid scroll
+   squeezed to zero. Stack the row instead — name, then the bar at full
+   width, then the counts — so each name heads its own bar rather than
+   reading as the heading of the next one; and let the domain grid scroll
    inside its own frame (.table-scroll, shared with the wide tables
    elsewhere) instead of pushing the whole page into horizontal
    scroll. */
@@ -504,7 +505,7 @@ tr.retired td { opacity: 0.7; font-style: italic; }
     align-items: stretch;
     gap: 0.15rem;
   }
-  .flow-bar-label { order: 2; }
-  .flow-bar { order: 1; width: 100%; }
-  .flow-bar-summary { order: 3; white-space: normal; }
+  .flow-bar { width: 100%; }
+  .flow-bar-summary { white-space: normal; }
+  .flow-bar-row + .flow-bar-row { margin-top: 0.5rem; }
 }

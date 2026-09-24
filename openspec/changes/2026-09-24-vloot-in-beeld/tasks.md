@@ -25,7 +25,7 @@ mobiel) lieten vier dingen zien:
       de hele pagina horizontaal scrollen.
 
 ## 2. Uit
-- [ ] 2.1 `make playwright`, lint nul, screenshot vóór/na op een kopie van de
+- [x] 2.1 `make playwright`, lint nul, screenshot vóór/na op een kopie van de
       prod-data.
 - [ ] 2.2 Release, deploy, nagekeken op de live instantie.
 - [ ] 2.3 ADR-0018 bijwerken (rendered surface); archiveren.

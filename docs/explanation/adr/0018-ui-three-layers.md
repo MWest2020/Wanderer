@@ -1,6 +1,6 @@
 ---
 status: draft
-last_reviewed: 2026-09-22
+last_reviewed: 2026-09-24
 ---
 
 # 0018 — UI information architecture: vloot / domein / techniek
@@ -69,10 +69,16 @@ referenced "Tourist = Overview".
 
 ## Rendered surface
 
-- **De vloot** (`/ui/`, `/ui/orgs/{slug}`) renders the vlootscore
-  headline (`x/n`, onbeantwoord apart, aantal niet-soeverein), the
-  verdeling per stroom, and the top-3 duurste regels, ahead of the
-  per-domain list (slechtste eerst) and the scan-input form.
+- **De vloot** (`/ui/`, `/ui/orgs/{slug}`) opens with the scan-input
+  form as a compact bar under the header, then shows the fleet as
+  pictures (change `2026-09-24-vloot-in-beeld`, after Mark on
+  2026-09-24: "still too much Analysis"): the vlootscore as a ring with
+  a legend (soeverein, niet soeverein, onbeantwoord), one stacked bar
+  per stroom, the top-3 duurste regels as handelingen with a "x van n
+  domeinen" bar, and the domains as a grid of domein × stroom
+  (slechtste eerst). No rule rationale on this layer; it lives on the
+  rule page, one layer down. Every picture carries its facts as text
+  too.
 - **Het domein** (`/ui/scans/{id}/answer`) shows the `x/n` score next
   to the oordeelzin, and one handeling per niet-soeverein flow.
 - **De techniek** (`/ui/scans/{id}/assessment`) opens with the seven
