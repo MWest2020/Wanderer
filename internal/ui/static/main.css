@@ -415,8 +415,26 @@ tr.retired td { opacity: 0.7; font-style: italic; }
 .ring-segment.score-afhankelijk { stroke: var(--afhankelijk); }
 .ring-segment.score-onbekend    { stroke: var(--onbekend); }
 .ring-center-label { font-size: 1.3rem; font-weight: 600; fill: var(--fg); }
+.fleet-ring-details { display: flex; flex-direction: column; gap: 0.5rem; }
 .fleet-score-headline { margin: 0; }
 .fleet-score-headline .small { display: block; margin-top: 0.15rem; }
+
+/* Ring legend (run 02): the ring's soeverein/niet-soeverein/onbeantwoord
+   counts as visible text next to it, not only in the aria-label. */
+.ring-legend { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.2rem; }
+.ring-legend-item { font-size: 0.875rem; }
+.ring-legend-count { font-weight: 600; }
+.ring-legend-dot {
+  display: inline-block;
+  width: 0.65rem;
+  height: 0.65rem;
+  border-radius: 50%;
+  margin-right: 0.35rem;
+}
+.ring-legend-dot.score-soeverein   { background: var(--soeverein); }
+.ring-legend-dot.score-voldoende   { background: var(--voldoende); }
+.ring-legend-dot.score-afhankelijk { background: var(--afhankelijk); }
+.ring-legend-dot.score-onbekend    { background: var(--onbekend); }
 
 .flow-bars { list-style: none; margin: 0; padding: 0; }
 .flow-bar-row {
@@ -455,3 +473,38 @@ tr.retired td { opacity: 0.7; font-style: italic; }
 .domain-grid .grid-cell.score-afhankelijk { background: rgba(176, 42, 55, 0.08); color: var(--afhankelijk); }
 .domain-grid .grid-cell.score-onbekend    { background: rgba(73, 80, 87, 0.06); color: var(--muted); }
 .covers { margin-left: 0.35rem; }
+
+/* Grid legend (run 02): the raster's S/V/N/? letters spelled out once,
+   above the table, in the same colours as the cells. */
+.grid-legend { margin: 0 0 0.5rem 0; }
+.grid-legend-item {
+  display: inline-block;
+  min-width: 1.2em;
+  padding: 0 0.3em;
+  text-align: center;
+  font-weight: 700;
+  border-radius: 0.2rem;
+}
+.grid-legend-item.score-soeverein   { background: rgba(20, 108, 67, 0.08); color: var(--soeverein); }
+.grid-legend-item.score-voldoende   { background: rgba(69, 112, 13, 0.08); color: var(--voldoende); }
+.grid-legend-item.score-afhankelijk { background: rgba(176, 42, 55, 0.08); color: var(--afhankelijk); }
+.grid-legend-item.score-onbekend    { background: rgba(73, 80, 87, 0.06); color: var(--muted); }
+
+/* Mobile (run 02, task 1b.4): at narrow widths the per-stroom bars'
+   fixed label column + nowrap summary column left the 1fr bar track
+   squeezed to zero. Stack the row instead — bar first, full width,
+   label allowed to sit below it — and let the domain grid scroll
+   inside its own frame (.table-scroll, shared with the wide tables
+   elsewhere) instead of pushing the whole page into horizontal
+   scroll. */
+@media (max-width: 480px) {
+  .flow-bar-row {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.15rem;
+  }
+  .flow-bar-label { order: 2; }
+  .flow-bar { order: 1; width: 100%; }
+  .flow-bar-summary { order: 3; white-space: normal; }
+}

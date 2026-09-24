@@ -82,6 +82,41 @@ test.describe("Het vlootoverzicht", () => {
   });
 });
 
+// Run 02 (nakijken op prod-data, 2026-09-24-vloot-in-beeld): screenshots
+// on a copy of prod data showed the ring's onbeantwoord count living
+// only in its aria-label, and — on a 390px viewport — the per-stroom
+// bars collapsing to zero width while the domain grid pushed the whole
+// page into horizontal scroll.
+test.describe("Vloot-in-beeld: legenda en mobiel (run 02)", () => {
+  test("de ring-legenda toont 'onbeantwoord' als tekst, niet alleen in het aria-label", async ({
+    page,
+  }) => {
+    await page.goto("/ui/");
+    await expect(page.locator("svg.fleet-ring")).toBeVisible();
+    await expect(page.locator(".ring-legend")).toContainText("onbeantwoord");
+  });
+
+  test("op 390px blijven de stroombalken zichtbaar en scrollt de pagina niet horizontaal", async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto("/ui/");
+
+    const scrollWidth = await page.evaluate(() => document.documentElement.scrollWidth);
+    const innerWidth = await page.evaluate(() => window.innerWidth);
+    expect(scrollWidth).toBeLessThanOrEqual(innerWidth);
+
+    const bars = page.locator(".flow-bar");
+    const count = await bars.count();
+    expect(count).toBeGreaterThan(0);
+    for (let i = 0; i < count; i++) {
+      const box = await bars.nth(i).boundingBox();
+      expect(box).not.toBeNull();
+      expect(box!.width).toBeGreaterThan(0);
+    }
+  });
+});
+
 test.describe("Domain in → answer vult zich", () => {
   test("submitting a domain lands on that target's progressive answer page", async ({ page }) => {
     await page.goto("/ui/");

@@ -46,14 +46,21 @@
       {{end}}
       <text x="{{.Ring.Center}}" y="{{.Ring.Center}}" class="ring-center-label" text-anchor="middle" dominant-baseline="middle">{{.Ring.CenterLabel}}</text>
     </svg>
-    <p class="fleet-score-headline">
-      {{if .NotSovereign}}
-      <strong class="not-sovereign-count">{{.NotSovereign}} domein{{if ne .NotSovereign 1}}en{{end}} niet soeverein</strong>
-      {{else}}
-      <span class="muted">geen domein niet-soeverein</span>
-      {{end}}
-      {{if .DomainsWithoutScan}}<span class="muted small">· {{.DomainsWithoutScan}} domein{{if ne .DomainsWithoutScan 1}}en{{end}} nog niet gescand</span>{{end}}
-    </p>
+    <div class="fleet-ring-details">
+      <ul class="ring-legend">
+        {{range .Ring.Legend}}
+        <li class="ring-legend-item"><span class="ring-legend-dot {{.Class}}" aria-hidden="true"></span>{{.Label}} <span class="ring-legend-count">{{.Count}}</span></li>
+        {{end}}
+      </ul>
+      <p class="fleet-score-headline">
+        {{if .NotSovereign}}
+        <strong class="not-sovereign-count">{{.NotSovereign}} domein{{if ne .NotSovereign 1}}en{{end}} niet soeverein</strong>
+        {{else}}
+        <span class="muted">geen domein niet-soeverein</span>
+        {{end}}
+        {{if .DomainsWithoutScan}}<span class="muted small">· {{.DomainsWithoutScan}} domein{{if ne .DomainsWithoutScan 1}}en{{end}} nog niet gescand</span>{{end}}
+      </p>
+    </div>
   </div>
   {{if .ScopedOrganisation}}<p class="meta"><a href="{{.FleetManageURL}}">vloot beheren (toevoegen/verwijderen) →</a></p>{{end}}
 </section>
@@ -82,7 +89,7 @@
     {{range .TopRules}}
     <li>
       <a href="{{.Link}}{{if $.OrgSlug}}?org={{$.OrgSlug}}{{end}}">
-        {{if .FlowLabel}}{{.FlowLabel}} — {{.Handeling}}{{else}}{{.Fallback}}{{end}}
+        {{if .Handeling}}{{if .FlowLabel}}{{.FlowLabel}} — {{end}}{{.Handeling}}{{else}}{{.Fallback}}{{end}}
       </a>
       <div class="top-rule-bar-row">
         <span class="top-rule-bar"><span class="top-rule-bar-fill" style="width: {{.WidthPercent}}"></span></span>
@@ -96,6 +103,13 @@
 
 <section class="dashboard-section">
   <h2>Domeinen <span class="scope-label">slechtste eerst</span></h2>
+  <p class="grid-legend muted small">
+    <span class="grid-legend-item score-soeverein">S</span> soeverein ·
+    <span class="grid-legend-item score-voldoende">V</span> voldoende ·
+    <span class="grid-legend-item score-afhankelijk">N</span> afhankelijk ·
+    <span class="grid-legend-item score-onbekend">?</span> onbekend (of niet gemeten)
+  </p>
+  <div class="table-scroll">
   <table class="targets domain-grid">
     <thead>
       <tr>
@@ -125,6 +139,7 @@
       {{end}}
     </tbody>
   </table>
+  </div>
 </section>
 {{else}}
 <p class="empty-state">

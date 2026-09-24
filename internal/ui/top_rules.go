@@ -8,11 +8,13 @@ import (
 )
 
 // TopRuleView is one row of the door's "kost de vloot de meeste punten"
-// top 3 (design.md "The top 3 without the rationale"): the flow the rule
-// belongs to and its handeling, in the vlootlaag's own language — never
-// the rule's English Description/Rationale, which stays one click away
-// on the rule's reporting page. FlowLabel and Handeling are both "" when
-// the underlying rule has no flow or no handeling entry; Fallback then
+// top 3 (design.md "The top 3 without the rationale"): the handeling in
+// the vlootlaag's own language, with the flow it belongs to when the
+// rule is one of the seven flow rules — never the rule's English
+// Description/Rationale, which stays one click away on the rule's
+// reporting page. FlowLabel is "" for a handeling outside the seven
+// flows (run 02: a bare handeling still beats a rule ID). Handeling is
+// "" only when the rule has no handeling entry at all; Fallback then
 // carries the rule ID instead, per design.md ("its ID is shown — never
 // the rationale").
 type TopRuleView struct {
@@ -62,11 +64,14 @@ func flowLabelForRule(ruleID string) string {
 
 // BuildTopRuleViews turns the fleet's top ConcernRows (aggregate.go's
 // TopConcerns, the same rows the door's TopRules already carried) into
-// the vlootlaag's top-3 shape: stroom + handeling + a bar of how many of
-// how many domains it hits, with the rule ID as the only fallback when
-// either is missing — spec.md "de top-3 ... SHALL in de taal van deze
-// laag staan ... de onderbouwing van een regel hoort op de regelpagina,
-// niet hier".
+// the vlootlaag's top-3 shape: handeling (with its flow when the rule has
+// one) + a bar of how many of how many domains it hits, with the rule ID
+// as the only fallback when there is no handeling at all — spec.md "de
+// top-3 ... SHALL in de taal van deze laag staan ... de onderbouwing van
+// een regel hoort op de regelpagina, niet hier". Run 02 (nakijken op
+// prod-data): a rule with a handeling but no flow used to fall all the
+// way back to a bare rule ID, which read as a dead end even though the
+// page had an action to show.
 func BuildTopRuleViews(rows []ConcernRow) []TopRuleView {
 	out := make([]TopRuleView, 0, len(rows))
 	for _, r := range rows {
@@ -79,12 +84,11 @@ func BuildTopRuleViews(rows []ConcernRow) []TopRuleView {
 		if r.Total > 0 {
 			v.WidthPercent = fmt.Sprintf("%.2f%%", float64(r.TargetCount)/float64(r.Total)*100)
 		}
-		flowLabel := flowLabelForRule(r.CriteriumID)
 		handeling, hasHandeling := handelingForFleet(r.CriteriumID)
-		if flowLabel == "" || !hasHandeling {
+		if !hasHandeling {
 			v.Fallback = r.CriteriumID
 		} else {
-			v.FlowLabel = flowLabel
+			v.FlowLabel = flowLabelForRule(r.CriteriumID)
 			v.Handeling = handeling
 		}
 		out = append(out, v)

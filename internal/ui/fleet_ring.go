@@ -29,11 +29,24 @@ type RingSegment struct {
 	Dashoffset string
 }
 
+// RingLegendItem is one line of the ring's legend (run 02, nakijken op
+// prod-data task 1b.2): a colour bullet matching a segment's class, its
+// Dutch label, and the same Count the segment's arc was sized from — so
+// the onbeantwoord count, which used to live only inside the ring's
+// aria-label, is visible as plain text too.
+type RingLegendItem struct {
+	Class string
+	Label string
+	Count int
+}
+
 // FleetRing is the vlootscore ring (proposal.md "de vlootscore wordt een
 // ring": soeverein / niet-soeverein / onbeantwoord as segments, x/n in the
 // middle). AriaLabel carries the same facts as text (spec.md scenario
 // "Elk beeld heeft zijn woorden"): "{x} van {n} vragen soeverein, {u}
-// onbeantwoord".
+// onbeantwoord". Legend carries those same three counts as a visible
+// list next to the ring, always in soeverein/niet-soeverein/onbeantwoord
+// order regardless of which segments actually drew an arc.
 type FleetRing struct {
 	AriaLabel   string
 	CenterLabel string
@@ -41,6 +54,7 @@ type FleetRing struct {
 	Size, Center, Radius, StrokeWidth float64
 
 	Segments []RingSegment
+	Legend   []RingLegendItem
 }
 
 // BuildFleetRing turns a fleet's x/n/onbeantwoord counts into ring
@@ -49,8 +63,20 @@ type FleetRing struct {
 // (FleetSummary.N) so n-x is the niet-soeverein segment, and unanswered
 // the onbekend segment kept apart from n (FleetSummary.Unanswered). A
 // fleet with nothing to show (n+unanswered == 0) renders the bare grey
-// track — no segment, no division by zero.
+// track — no segment, no division by zero — but Legend still lists its
+// three zero counts, since "nothing to show" is itself a fact worth
+// reading (run 02: the onbeantwoord count used to disappear entirely
+// when it wasn't part of an arc).
 func BuildFleetRing(x, n, unanswered int) FleetRing {
+	parts := []struct {
+		class string
+		label string
+		count int
+	}{
+		{"score-soeverein", "soeverein", x},
+		{"score-afhankelijk", "niet soeverein", n - x},
+		{"score-onbekend", "onbeantwoord", unanswered},
+	}
 	ring := FleetRing{
 		AriaLabel:   fmt.Sprintf("%d van %d vragen soeverein, %d onbeantwoord", x, n, unanswered),
 		CenterLabel: fmt.Sprintf("%d/%d", x, n),
@@ -59,17 +85,12 @@ func BuildFleetRing(x, n, unanswered int) FleetRing {
 		Radius:      fleetRingRadius,
 		StrokeWidth: fleetRingStrokeWidth,
 	}
+	for _, p := range parts {
+		ring.Legend = append(ring.Legend, RingLegendItem{Class: p.class, Label: p.label, Count: p.count})
+	}
 	total := n + unanswered
 	if total <= 0 {
 		return ring
-	}
-	parts := []struct {
-		class string
-		count int
-	}{
-		{"score-soeverein", x},
-		{"score-afhankelijk", n - x},
-		{"score-onbekend", unanswered},
 	}
 	var cumulative float64
 	for _, p := range parts {

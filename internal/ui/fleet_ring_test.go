@@ -73,6 +73,74 @@ func TestBuildFleetRing_NoDataRendersBareTrackWithoutPanicking(t *testing.T) {
 	}
 }
 
+// TestBuildFleetRing_LegendCountsMatchSegments pins run 02's nakijken
+// finding (task 1b.2): the ring needs a visible legend next to it, and
+// its counts must come from the same Go computation as the segments —
+// not a second, independently-derived set of numbers that could drift.
+func TestBuildFleetRing_LegendCountsMatchSegments(t *testing.T) {
+	ring := BuildFleetRing(24, 46, 31)
+	if len(ring.Legend) != 3 {
+		t.Fatalf("Legend = %d items, want 3 (soeverein, niet soeverein, onbeantwoord)", len(ring.Legend))
+	}
+	want := map[string]struct {
+		label string
+		count int
+	}{
+		"score-soeverein":   {"soeverein", 24},
+		"score-afhankelijk": {"niet soeverein", 22}, // n - x = 46 - 24
+		"score-onbekend":    {"onbeantwoord", 31},
+	}
+	seen := map[string]bool{}
+	for _, item := range ring.Legend {
+		w, ok := want[item.Class]
+		if !ok {
+			t.Errorf("unexpected legend class %q", item.Class)
+			continue
+		}
+		seen[item.Class] = true
+		if item.Label != w.label {
+			t.Errorf("%s: Label = %q, want %q", item.Class, item.Label, w.label)
+		}
+		if item.Count != w.count {
+			t.Errorf("%s: Count = %d, want %d", item.Class, item.Count, w.count)
+		}
+	}
+	for class := range want {
+		if !seen[class] {
+			t.Errorf("legend never carried class %q", class)
+		}
+	}
+
+	// Cross-check against the segments the same call produced: the
+	// legend must not just be plausible-looking, it must equal what
+	// actually got drawn.
+	segByClass := map[string]bool{}
+	for _, seg := range ring.Segments {
+		segByClass[seg.Class] = true
+	}
+	for class, w := range want {
+		if w.count > 0 && !segByClass[class] {
+			t.Errorf("legend lists %q with count %d but no matching segment was drawn", class, w.count)
+		}
+	}
+}
+
+// TestBuildFleetRing_LegendListsZeroCountsWhenThereIsNothingToShow
+// covers the n=0/unanswered=0 edge the ring itself renders as a bare
+// track for: the legend still lists all three lines, at 0, rather than
+// disappearing along with the segments.
+func TestBuildFleetRing_LegendListsZeroCountsWhenThereIsNothingToShow(t *testing.T) {
+	ring := BuildFleetRing(0, 0, 0)
+	if len(ring.Legend) != 3 {
+		t.Fatalf("Legend = %d items, want 3 even with nothing to show", len(ring.Legend))
+	}
+	for _, item := range ring.Legend {
+		if item.Count != 0 {
+			t.Errorf("%s: Count = %d, want 0", item.Class, item.Count)
+		}
+	}
+}
+
 // TestBuildFleetRing_AllSovereignHasOneSegment covers a fleet with
 // nothing niet-soeverein or onbeantwoord: only the soeverein segment
 // renders, not three segments with two at zero width.

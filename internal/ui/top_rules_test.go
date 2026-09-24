@@ -44,11 +44,38 @@ func TestBuildTopRuleViews_FlowAndHandelingForTheFleet(t *testing.T) {
 	}
 }
 
-// TestBuildTopRuleViews_NoFlowFallsBackToRuleID covers a rule outside
-// the seven sovereignty-flow rules (e.g. an eucsf-only concern): design.
-// md "If a rule has no flow or no handeling, its ID is shown — never
-// the rationale".
-func TestBuildTopRuleViews_NoFlowFallsBackToRuleID(t *testing.T) {
+// TestBuildTopRuleViews_HandelingWithoutFlowSkipsTheFallback pins run
+// 02's nakijken finding: on prod data, wand.operationeel.caa_restricts_
+// issuance and wand.accountability.ns_holder_transparent — neither one
+// of the seven sovereignty-flow rules — rendered as a bare rule ID even
+// though both have a handeling. A handeling alone (no flow prefix) must
+// win over the rule-ID fallback.
+func TestBuildTopRuleViews_HandelingWithoutFlowSkipsTheFallback(t *testing.T) {
+	rows := []ConcernRow{{
+		Framework:   "wand",
+		CriteriumID: "wand.operationeel.caa_restricts_issuance",
+		TargetCount: 2,
+		Total:       3,
+	}}
+	views := BuildTopRuleViews(rows)
+	v := views[0]
+	if v.Fallback != "" {
+		t.Errorf("Fallback = %q, want empty when a handeling resolves", v.Fallback)
+	}
+	if v.FlowLabel != "" {
+		t.Errorf("FlowLabel = %q, want empty: this rule is not one of the seven flows", v.FlowLabel)
+	}
+	want := "Voeg een CAA-record toe aan elk getroffen domein dat vastlegt welke certificaatautoriteiten mogen uitgeven."
+	if v.Handeling != want {
+		t.Errorf("Handeling = %q, want %q", v.Handeling, want)
+	}
+}
+
+// TestBuildTopRuleViews_NoHandelingFallsBackToRuleID covers a rule with
+// neither a flow nor a handeling (e.g. an eucsf-only concern): design.md
+// "If a rule has no flow or no handeling, its ID is shown — never the
+// rationale".
+func TestBuildTopRuleViews_NoHandelingFallsBackToRuleID(t *testing.T) {
 	rows := []ConcernRow{{
 		Framework:   "eucsf",
 		CriteriumID: "eucsf.sov2.cert_issuer_eu",
@@ -62,24 +89,6 @@ func TestBuildTopRuleViews_NoFlowFallsBackToRuleID(t *testing.T) {
 	}
 	if v.FlowLabel != "" || v.Handeling != "" {
 		t.Errorf("FlowLabel/Handeling = %q/%q, want both empty when falling back", v.FlowLabel, v.Handeling)
-	}
-}
-
-// TestBuildTopRuleViews_FlowWithoutHandelingFallsBackToRuleID covers a
-// rule that is a sovereignty-flow rule but (hypothetically) has no
-// handeling entry — the fallback rule applies the same way, since a
-// half-built line (flow with no action) would read as a dead end.
-func TestBuildTopRuleViews_FlowWithoutHandelingFallsBackToRuleID(t *testing.T) {
-	rows := []ConcernRow{{
-		Framework:   "wand",
-		CriteriumID: "wand.juridisch.does_not_exist",
-		TargetCount: 1,
-		Total:       1,
-	}}
-	views := BuildTopRuleViews(rows)
-	v := views[0]
-	if v.Fallback != "wand.juridisch.does_not_exist" {
-		t.Errorf("Fallback = %q, want the rule ID", v.Fallback)
 	}
 }
 
