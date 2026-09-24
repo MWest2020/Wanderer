@@ -9,6 +9,8 @@ once a first release is cut. Until then every entry lives under
 
 ## [Unreleased]
 
+## [0.11.1] - 2026-09-24
+
 ### Fixed
 
 - **`/ui/` had geen weg meer naar het vlootbeheer bij één organisatie.**
@@ -1277,7 +1279,8 @@ ExApp) can pin a reproducible version instead of `@main`.
   deferred (see `docs/observability.md`).
   (`openspec/changes/archive/2026-04-24-init-mvp-scanners`)
 
-[Unreleased]: https://github.com/MWest2020/wanderer/compare/v0.11.0...main
+[Unreleased]: https://github.com/MWest2020/wanderer/compare/v0.11.1...main
+[0.11.1]: https://github.com/MWest2020/wanderer/compare/v0.11.0...v0.11.1
 [0.11.0]: https://github.com/MWest2020/wanderer/compare/v0.10.1...v0.11.0
 [0.10.1]: https://github.com/MWest2020/wanderer/compare/v0.10.0...v0.10.1
 [0.10.0]: https://github.com/MWest2020/wanderer/compare/v0.9.2...v0.10.0
