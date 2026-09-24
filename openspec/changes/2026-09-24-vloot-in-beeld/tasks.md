@@ -11,6 +11,19 @@
 - [x] 1.7 Tests voor elk scenario (Go + Playwright), elk één keer rood gezien
       met de reparatie eruit.
 
+## 1b. Nagekeken op prod-data — habitat run 02
+Screenshots van run 01 op een kopie van de prod-data (2026-09-24, licht en
+mobiel) lieten vier dingen zien:
+- [ ] 1b.1 Top-3 toont een kale regel-ID bij regels zonder stroom
+      (`wand.operationeel.caa_restricts_issuance`,
+      `wand.accountability.ns_holder_transparent`), terwijl beide een
+      handeling hebben.
+- [ ] 1b.2 Het aantal onbeantwoorde vragen staat nergens meer zichtbaar (alleen
+      in het aria-label); de spec eist het apart.
+- [ ] 1b.3 De letters in het raster (S/V/N/?) hebben geen legenda.
+- [ ] 1b.4 Mobiel (390 px): de stroombalken zijn nul breed, en het raster laat
+      de hele pagina horizontaal scrollen.
+
 ## 2. Uit
 - [ ] 2.1 `make playwright`, lint nul, screenshot vóór/na op een kopie van de
       prod-data.
