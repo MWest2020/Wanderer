@@ -1285,6 +1285,48 @@ func TestDoor_OrganisationsTableShownWithMultipleOrganisations(t *testing.T) {
 	}
 }
 
+// TestDoor_FleetManageLinkOnRootWithOneOrganisation is the fix for
+// vloot-beheren-bereikbaar: v0.11.0 hid the Organisations table when
+// there is one organisation (task 1.6 above) but /ui/ never gained a
+// link of its own to take over as the route to the fleet manager —
+// the door became a dead end (proposal.md: this reached prod days
+// before someone tried to remove a domain and gave up).
+func TestDoor_FleetManageLinkOnRootWithOneOrganisation(t *testing.T) {
+	srv, st := newServer(t, "")
+	seed(t, st)
+	resp, err := http.Get(srv.URL + "/ui/")
+	if err != nil {
+		t.Fatalf("get: %v", err)
+	}
+	defer resp.Body.Close()
+	body, _ := io.ReadAll(resp.Body)
+	if !strings.Contains(string(body), `href="/ui/orgs/default/fleet"`) {
+		t.Errorf("root door missing vloot beheren link to the fleet manager; body:\n%s", string(body))
+	}
+}
+
+// TestDoor_NoDirectFleetManageLinkWithMultipleOrganisations is the
+// complement: with more than one organisation, /ui/ still routes
+// through the Organisations table (spec.md "Meerdere organisaties"),
+// not a link that would be ambiguous about which fleet it manages.
+func TestDoor_NoDirectFleetManageLinkWithMultipleOrganisations(t *testing.T) {
+	srv, st := newServer(t, "")
+	seed(t, st)
+	o := &models.Organisation{Slug: "acme", Name: "ACME"}
+	if err := st.UpsertOrganisation(context.Background(), o); err != nil {
+		t.Fatal(err)
+	}
+	resp, err := http.Get(srv.URL + "/ui/")
+	if err != nil {
+		t.Fatalf("get: %v", err)
+	}
+	defer resp.Body.Close()
+	body, _ := io.ReadAll(resp.Body)
+	if strings.Contains(string(body), "vloot beheren") {
+		t.Errorf("root door must not link directly to a fleet manager with more than one organisation; body:\n%s", string(body))
+	}
+}
+
 // mustEnrolmentToken issues a fresh enrolment token for the enrol
 // helper tests; the plain token is the only return value they need.
 func mustEnrolmentToken(t *testing.T, st *store.Store) string {

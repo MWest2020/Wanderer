@@ -9,6 +9,16 @@ once a first release is cut. Until then every entry lives under
 
 ## [Unreleased]
 
+### Fixed
+
+- **`/ui/` had geen weg meer naar het vlootbeheer bij één organisatie.**
+  v0.11.0 verbergt de Organisations-tabel zodra er maar één organisatie is
+  (`vloot-in-beeld`, taak 1.6) — dat was de laatste route van `/ui/` naar
+  `/ui/orgs/{slug}/fleet`. `/ui/` toont nu zelf een "vloot beheren →"-link
+  naar die organisatie's vloot zodra het overzicht de vloot van één
+  organisatie toont; met meer dan één organisatie blijft de tabel de weg
+  erheen, ongewijzigd. (`openspec/changes/2026-09-24-vloot-beheren-bereikbaar`)
+
 ## [0.11.0] - 2026-09-24
 
 ### Changed

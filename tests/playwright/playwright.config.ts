@@ -20,6 +20,7 @@ const agentHostPort = "8282";
 const emptyOrgPort = "8283";
 const oidcPort = "8284";
 const scanDevPort = "8285";
+const singleOrgPort = "8286";
 
 const fixtureDir = "./fixtures";
 const wandererBin = "../../bin/wanderer";
@@ -148,6 +149,19 @@ export default defineConfig({
       // -ui-htpasswd wires up that gate for this fixture.
       command: serve(scanDevPort, "scan.db") + ` -ui-htpasswd ${fixtureDir}/scan-htpasswd`,
       url: `http://127.0.0.1:${scanDevPort}/healthz`,
+      reuseExistingServer: false,
+      stdout: "pipe",
+      stderr: "pipe",
+      timeout: 30_000,
+    },
+    {
+      // vloot-beheren-bereikbaar's single-organisation scenario: none
+      // of the other fixtures carry exactly one organisation (they
+      // all layer onto baseline's voorbeeld + acme), so /ui/'s direct
+      // "vloot beheren" link — which only appears with one — has
+      // nothing to click against without this DB.
+      command: serve(singleOrgPort, "single-org.db") + ` -ui-htpasswd ${fixtureDir}/scan-htpasswd`,
+      url: `http://127.0.0.1:${singleOrgPort}/healthz`,
       reuseExistingServer: false,
       stdout: "pipe",
       stderr: "pipe",

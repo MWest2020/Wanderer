@@ -36,6 +36,7 @@ var Scenarios = map[string]func(context.Context, *store.Store) error{
 	"baseline":   BuildBaseline,
 	"agent-host": BuildAgentHost,
 	"empty-org":  BuildEmptyOrg,
+	"single-org": BuildSingleOrg,
 }
 
 // baseTime anchors every fixture's timestamps so two runs of the

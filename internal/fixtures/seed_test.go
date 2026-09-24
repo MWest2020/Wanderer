@@ -24,7 +24,7 @@ func freshStore(t *testing.T) *store.Store {
 }
 
 func TestScenariosRegistered(t *testing.T) {
-	for _, want := range []string{"baseline", "agent-host", "empty-org"} {
+	for _, want := range []string{"baseline", "agent-host", "empty-org", "single-org"} {
 		if _, ok := fixtures.Scenarios[want]; !ok {
 			t.Errorf("Scenarios missing %q", want)
 		}
@@ -104,6 +104,34 @@ func TestBuildAgentHost_AlmaScanHasInventoryFindings(t *testing.T) {
 	}
 	if !sawDatadog {
 		t.Error("agent-host fixture missing datadog-agent package finding")
+	}
+}
+
+func TestBuildSingleOrg_HasExactlyOneOrgWithOneTarget(t *testing.T) {
+	ctx := context.Background()
+	st := freshStore(t)
+	if err := fixtures.BuildSingleOrg(ctx, st); err != nil {
+		t.Fatalf("build: %v", err)
+	}
+
+	orgs, err := st.ListOrganisations(ctx)
+	if err != nil {
+		t.Fatalf("list orgs: %v", err)
+	}
+	if len(orgs) != 1 {
+		t.Errorf("orgs = %d, want 1", len(orgs))
+	}
+
+	o, err := st.GetOrganisationBySlug(ctx, "default")
+	if err != nil {
+		t.Fatalf("get default: %v", err)
+	}
+	targets, err := st.ListTargetsByOrganisation(ctx, o.ID)
+	if err != nil {
+		t.Fatalf("list targets: %v", err)
+	}
+	if len(targets) != 1 || targets[0].Domain != "solo.nl" {
+		t.Errorf("targets = %+v, want [solo.nl]", targets)
 	}
 }
 

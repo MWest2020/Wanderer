@@ -179,7 +179,7 @@ type doorView struct {
 	OrgSlug            string                 // active org for nav-link scope persistence
 	AllowScan          bool                   // signed-in user: render the door's scan input
 	AgentHosts         []string               // enrolled, non-revoked agent hostnames — selectable from the same input
-	FleetManageURL     string                 // /ui/orgs/{slug}/fleet — "" when unscoped (task 2.3: management stays where it is)
+	FleetManageURL     string                 // /ui/orgs/{slug}/fleet — set unscoped too when there is exactly one organisation (vloot-beheren-bereikbaar), "" otherwise
 
 	HasFleet bool // at least one domain with a scan to show
 
@@ -519,18 +519,27 @@ func renderDoor(w http.ResponseWriter, r *http.Request, st *store.Store, tmpl *t
 			URL:  "/ui/orgs/" + org.Slug,
 		}
 		view.FleetManageURL = "/ui/orgs/" + org.Slug + "/fleet"
-	} else if orgs, listErr := st.ListOrganisations(ctx); listErr == nil && len(orgs) > 1 {
-		// spec.md task 1.6: the Organisations table leaves the Tourist
-		// layer when there is only one organisation — nothing to pick
-		// between, so the table would be pure noise.
-		for _, o := range orgs {
-			targets, _ := st.ListTargetsByOrganisation(ctx, o.ID)
-			view.OrganisationsList = append(view.OrganisationsList, organisationLinkView{
-				Slug:        o.Slug,
-				Name:        o.Name,
-				URL:         "/ui/orgs/" + o.Slug,
-				TargetCount: len(targets),
-			})
+	} else if orgs, listErr := st.ListOrganisations(ctx); listErr == nil {
+		if len(orgs) > 1 {
+			// spec.md task 1.6: the Organisations table leaves the Tourist
+			// layer when there is only one organisation — nothing to pick
+			// between, so the table would be pure noise.
+			for _, o := range orgs {
+				targets, _ := st.ListTargetsByOrganisation(ctx, o.ID)
+				view.OrganisationsList = append(view.OrganisationsList, organisationLinkView{
+					Slug:        o.Slug,
+					Name:        o.Name,
+					URL:         "/ui/orgs/" + o.Slug,
+					TargetCount: len(targets),
+				})
+			}
+		} else if len(orgs) == 1 {
+			// vloot-beheren-bereikbaar: the Organisations table's one
+			// remaining route to the fleet manager disappears along with
+			// it (task 1.6 above) — with nothing else on the door page to
+			// take its place, this is the sole way in. Reuses the same
+			// FleetManageURL the scoped door builds, just unscoped.
+			view.FleetManageURL = "/ui/orgs/" + orgs[0].Slug + "/fleet"
 		}
 	}
 	render(w, tmpl, "dashboard.tmpl", view)

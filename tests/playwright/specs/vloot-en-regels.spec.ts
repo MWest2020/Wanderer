@@ -68,6 +68,31 @@ test.describe("Het vlootscherm sorteren", () => {
   });
 });
 
+// vloot-beheren-bereikbaar: /ui/ links straight to the fleet manager
+// when it shows exactly one organisation's fleet — none of the
+// scan-dev project's baseline-derived fixtures qualify (they all
+// carry voorbeeld + acme alongside the migration's default org), so
+// this describe block talks to the single-org fixture directly
+// (playwright.config.ts's singleOrgPort, port 8286) instead of the
+// project's default baseURL.
+test.describe("Vlootbeheer bereikbaar vanaf /ui/ (één organisatie)", () => {
+  test.use({ baseURL: "http://127.0.0.1:8286" });
+
+  test("vloot beheren linkt rechtstreeks naar de vloot, en een domein is te verwijderen", async ({
+    page,
+  }) => {
+    await page.goto("/ui/");
+
+    await page.locator("a", { hasText: "vloot beheren" }).click();
+    await expect(page).toHaveURL(/\/ui\/orgs\/default\/fleet$/);
+
+    const row = page.locator("table tbody tr", { hasText: "solo.nl" });
+    await expect(row).toBeVisible();
+    await row.getByRole("button", { name: "Verwijderen" }).click();
+    await expect(page.locator("table tbody tr", { hasText: "solo.nl" })).toHaveCount(0);
+  });
+});
+
 test.describe("De regelpagina toont een grens en een handeling", () => {
   test("wand.operationeel.domain_expiry toont de drempel en de handeling bij afhankelijk", async ({
     page,
