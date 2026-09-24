@@ -27,5 +27,7 @@ mobiel) lieten vier dingen zien:
 ## 2. Uit
 - [x] 2.1 `make playwright`, lint nul, screenshot vóór/na op een kopie van de
       prod-data.
-- [ ] 2.2 Release, deploy, nagekeken op de live instantie.
-- [ ] 2.3 ADR-0018 bijwerken (rendered surface); archiveren.
+- [x] 2.2 Release, deploy, nagekeken op de live instantie. (v0.11.0; live
+      serveert de nieuwe CSS; de pagina zelf nagekeken met dezelfde binary op
+      een kopie van de prod-data, want /ui/ zit achter Marks login.)
+- [x] 2.3 ADR-0018 bijwerken (rendered surface); archiveren.
