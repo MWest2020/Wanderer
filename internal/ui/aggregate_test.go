@@ -401,8 +401,8 @@ func TestDashboardTemplate_TopRulesShowsFlowAndHandelingNotRationale(t *testing.
 	if !strings.Contains(body, "Certificaat") {
 		t.Errorf("expected the flow label 'Certificaat'; body:\n%s", body)
 	}
-	if !strings.Contains(body, "Vraag het TLS-certificaat van aan bij een certificaatautoriteit die in de EER is gevestigd.") {
-		t.Errorf("expected the handeling with {domein} left out; body:\n%s", body)
+	if !strings.Contains(body, "Vraag het TLS-certificaat van elk getroffen domein aan bij een certificaatautoriteit die in de EER is gevestigd.") {
+		t.Errorf("expected the handeling spoken about the fleet; body:\n%s", body)
 	}
 	if !strings.Contains(body, "2 van 3 domeinen") {
 		t.Errorf("expected '2 van 3 domeinen'; body:\n%s", body)

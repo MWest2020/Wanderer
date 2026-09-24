@@ -5,11 +5,11 @@ import (
 	"testing"
 )
 
-// TestBuildTopRuleViews_FlowAndHandelingWithoutDomain pins design.md
+// TestBuildTopRuleViews_FlowAndHandelingForTheFleet pins design.md
 // "The top 3 without the rationale": a rule that is one of the seven
-// flow rules and has a handeling renders as flow + handeling, with
-// {domein} left out (not filled with a placeholder or a real domain).
-func TestBuildTopRuleViews_FlowAndHandelingWithoutDomain(t *testing.T) {
+// flow rules and has a handeling renders as flow + handeling, spoken
+// about the fleet rather than one domain.
+func TestBuildTopRuleViews_FlowAndHandelingForTheFleet(t *testing.T) {
 	rows := []ConcernRow{{
 		Framework:   "wand",
 		CriteriumID: "wand.juridisch.apex_ip_eea",
@@ -30,8 +30,11 @@ func TestBuildTopRuleViews_FlowAndHandelingWithoutDomain(t *testing.T) {
 	if v.Handeling == "" {
 		t.Fatal("Handeling is empty, want a non-empty sentence")
 	}
-	if want := "{domein}"; strings.Contains(v.Handeling, want) {
-		t.Errorf("Handeling = %q, must not carry the raw {domein} placeholder", v.Handeling)
+	// The whole sentence, not just "no placeholder left": run 01 dropped
+	// {domein} and shipped "Verhuis de hosting van naar een provider",
+	// which passed a placeholder-only check.
+	if want := "Verhuis de hosting van elk getroffen domein naar een provider met een AS dat in de EER is geregistreerd."; v.Handeling != want {
+		t.Errorf("Handeling = %q, want %q", v.Handeling, want)
 	}
 	if v.BarLabel != "7 van 11 domeinen" {
 		t.Errorf("BarLabel = %q, want %q", v.BarLabel, "7 van 11 domeinen")
@@ -77,5 +80,26 @@ func TestBuildTopRuleViews_FlowWithoutHandelingFallsBackToRuleID(t *testing.T) {
 	v := views[0]
 	if v.Fallback != "wand.juridisch.does_not_exist" {
 		t.Errorf("Fallback = %q, want the rule ID", v.Fallback)
+	}
+}
+
+// TestHandelingForFleet_EverySentenceKeepsItsSubject walks every handeling
+// that exists: each one must come out with its {domein} replaced by the
+// fleet subject, not deleted, so no sentence is left with a gap where its
+// object was ("van naar", "voor ,").
+func TestHandelingForFleet_EverySentenceKeepsItsSubject(t *testing.T) {
+	n := 0
+	for _, fr := range flowRules {
+		h, ok := handelingForFleet(fr.id)
+		if !ok {
+			continue
+		}
+		n++
+		if strings.Contains(h, "{domein}") || !strings.Contains(h, fleetSubject) {
+			t.Errorf("%s: %q, want {domein} replaced by %q", fr.id, h, fleetSubject)
+		}
+	}
+	if n == 0 {
+		t.Fatal("no flow rule has a handeling; the test checked nothing")
 	}
 }

@@ -388,7 +388,7 @@ func BuildFlowBars(rollup []FlowRollup) []FlowBarView {
 		out = append(out, FlowBarView{
 			Label:       r.Label,
 			Segments:    flowBarSegments(inEEA, r.Afhankelijk, r.Onbekend),
-			SummaryText: flowBarSummary(inEEA, r.Afhankelijk, r.Onbekend, r.Total),
+			SummaryText: flowBarSummary(r.Afhankelijk, r.Onbekend, r.Total),
 		})
 	}
 	return out
@@ -421,7 +421,7 @@ func flowBarSegments(inEEA, outside, unknown int) []FlowBarSegment {
 // with the counts"), in the same Dutch phrasing the per-stroom table
 // used before this change, extended with the onbekend count when there
 // is one.
-func flowBarSummary(inEEA, outside, unknown, total int) string {
+func flowBarSummary(outside, unknown, total int) string {
 	switch {
 	case outside == 0 && unknown == 0:
 		return fmt.Sprintf("alle %d in de EER", total)

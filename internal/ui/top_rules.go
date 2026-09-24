@@ -2,7 +2,6 @@ package ui
 
 import (
 	"fmt"
-	"regexp"
 	"strings"
 
 	"github.com/MWest2020/wanderer/internal/assessor/wand"
@@ -29,24 +28,24 @@ type TopRuleView struct {
 	BarLabel     string
 }
 
-// domeinParamRe matches the {domein} placeholder in a handeling
-// sentence — the same placeholder fillParams substitutes, but here it
-// is left out rather than filled, since the top 3 speaks about the
-// fleet, not one domain (design.md "the rule's handeling with {domein}
-// left out").
-var domeinParamRe = regexp.MustCompile(`\{domein\}`)
+// fleetSubject replaces the {domein} placeholder in a handeling when the
+// top 3 speaks about the fleet instead of one domain. Every handeling uses
+// {domein} as a singular noun ("de hosting van {domein}", "die {domein}
+// inlaadt"), so the replacement must be singular too: "elk getroffen
+// domein" reads right in all of them, next to the bar that says how many
+// that is. Dropping the placeholder instead left "de hosting van naar een
+// provider" — not a sentence.
+const fleetSubject = "elk getroffen domein"
 
-// handelingWithoutDomain returns ruleID's Dutch remediation sentence
-// with its {domein} placeholder removed and the resulting double space
-// collapsed, so the sentence still reads as one sentence rather than
-// leaving a visible gap. ok is false when ruleID has no handeling entry.
-func handelingWithoutDomain(ruleID string) (string, bool) {
+// handelingForFleet returns ruleID's Dutch remediation sentence with
+// {domein} filled by fleetSubject. ok is false when ruleID has no
+// handeling entry.
+func handelingForFleet(ruleID string) (string, bool) {
 	h, ok := wand.HandelingFor(ruleID)
 	if !ok {
 		return "", false
 	}
-	blanked := domeinParamRe.ReplaceAllString(h, "")
-	return strings.Join(strings.Fields(blanked), " "), true
+	return strings.ReplaceAll(h, "{domein}", fleetSubject), true
 }
 
 // flowLabelForRule returns the Dutch stroom label for ruleID — the same
@@ -81,7 +80,7 @@ func BuildTopRuleViews(rows []ConcernRow) []TopRuleView {
 			v.WidthPercent = fmt.Sprintf("%.2f%%", float64(r.TargetCount)/float64(r.Total)*100)
 		}
 		flowLabel := flowLabelForRule(r.CriteriumID)
-		handeling, hasHandeling := handelingWithoutDomain(r.CriteriumID)
+		handeling, hasHandeling := handelingForFleet(r.CriteriumID)
 		if flowLabel == "" || !hasHandeling {
 			v.Fallback = r.CriteriumID
 		} else {
