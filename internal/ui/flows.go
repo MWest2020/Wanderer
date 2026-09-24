@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/MWest2020/wanderer/internal/assessor/wand"
@@ -297,7 +298,12 @@ type FlowRollup struct {
 	Label       string
 	Total       int
 	Afhankelijk int
-	Worst       string
+	// Onbekend is how many targets scored onbekend for this flow — kept
+	// apart from Afhankelijk so BuildFlowBars can draw it as its own,
+	// never-colour-coded-as-bad segment (design.md "Onbekend is grey,
+	// never a colour that reads as fine or bad").
+	Onbekend int
+	Worst    string
 }
 
 // SovereigntyFlowRollup aggregates the per-target flows across a set of
@@ -305,8 +311,8 @@ type FlowRollup struct {
 // category. Categories no target was assessed for are omitted.
 func SovereigntyFlowRollup(snaps []TargetSnapshot) []FlowRollup {
 	type acc struct {
-		total, afh int
-		worst      models.Score
+		total, afh, onbekend int
+		worst                models.Score
 	}
 	byLabel := map[string]*acc{}
 	for _, s := range snaps {
@@ -322,8 +328,11 @@ func SovereigntyFlowRollup(snaps []TargetSnapshot) []FlowRollup {
 			}
 			a.total++
 			score := models.Score(f.Score)
-			if score == models.ScoreAfhankelijk {
+			switch score {
+			case models.ScoreAfhankelijk:
 				a.afh++
+			case models.ScoreOnbekend, "":
+				a.onbekend++
 			}
 			if worseScore(score, a.worst) {
 				a.worst = score
@@ -340,10 +349,87 @@ func SovereigntyFlowRollup(snaps []TargetSnapshot) []FlowRollup {
 			Label:       fr.label,
 			Total:       a.total,
 			Afhankelijk: a.afh,
+			Onbekend:    a.onbekend,
 			Worst:       string(a.worst),
 		})
 	}
 	return out
+}
+
+// FlowBarSegment is one coloured slice of a flow's stacked bar
+// (design.md "Bars: divs with widths as percentages, computed in Go").
+// WidthPercent is pre-formatted for a CSS width (e.g. "42.86%").
+type FlowBarSegment struct {
+	Class        string
+	Count        int
+	WidthPercent string
+}
+
+// FlowBarView is one flow's stacked bar on the door page (proposal.md
+// "Per stroom becomes seven bars: per flow, how many domains are in the
+// EEA, outside it, or unknown, as one stacked bar"). SummaryText carries
+// the same counts as text (design.md "each bar a label with the
+// counts"), so the bar is never the only place the numbers live.
+type FlowBarView struct {
+	Label       string
+	Segments    []FlowBarSegment
+	SummaryText string
+}
+
+// BuildFlowBars turns a fleet's per-flow rollup into stacked bars. InEEA
+// (soeverein/voldoende) is derived as Total minus the Afhankelijk and
+// Onbekend counts FlowRollup already tracks — the same three-way split
+// classifyFlows uses elsewhere, so the bar can't disagree with the ring
+// or the grid on what counts as "in the EEA".
+func BuildFlowBars(rollup []FlowRollup) []FlowBarView {
+	out := make([]FlowBarView, 0, len(rollup))
+	for _, r := range rollup {
+		inEEA := r.Total - r.Afhankelijk - r.Onbekend
+		out = append(out, FlowBarView{
+			Label:       r.Label,
+			Segments:    flowBarSegments(inEEA, r.Afhankelijk, r.Onbekend),
+			SummaryText: flowBarSummary(inEEA, r.Afhankelijk, r.Onbekend, r.Total),
+		})
+	}
+	return out
+}
+
+func flowBarSegments(inEEA, outside, unknown int) []FlowBarSegment {
+	total := inEEA + outside + unknown
+	if total <= 0 {
+		return nil
+	}
+	var out []FlowBarSegment
+	add := func(class string, count int) {
+		if count <= 0 {
+			return
+		}
+		pct := float64(count) / float64(total) * 100
+		out = append(out, FlowBarSegment{
+			Class:        class,
+			Count:        count,
+			WidthPercent: fmt.Sprintf("%.2f%%", pct),
+		})
+	}
+	add("score-soeverein", inEEA)
+	add("score-afhankelijk", outside)
+	add("score-onbekend", unknown)
+	return out
+}
+
+// flowBarSummary is the bar's text label (design.md "each bar a label
+// with the counts"), in the same Dutch phrasing the per-stroom table
+// used before this change, extended with the onbekend count when there
+// is one.
+func flowBarSummary(inEEA, outside, unknown, total int) string {
+	switch {
+	case outside == 0 && unknown == 0:
+		return fmt.Sprintf("alle %d in de EER", total)
+	case unknown == 0:
+		return fmt.Sprintf("%d van %d buiten de EER", outside, total)
+	default:
+		return fmt.Sprintf("%d van %d buiten de EER, %d onbekend", outside, total, unknown)
+	}
 }
 
 // worseScore reports whether candidate is a worse (less sovereign)

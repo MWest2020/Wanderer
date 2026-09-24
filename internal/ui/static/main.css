@@ -402,4 +402,56 @@ tr.retired td { opacity: 0.7; font-style: italic; }
 .pill-accountability-onbekend    { background: rgba(73, 80, 87, 0.08); color: var(--onbekend); }
 .pill-accountability-nvt         { background: rgba(11, 94, 215, 0.08); color: var(--nvt); }
 .pill-accountability-unassessed  { background: #eee; color: var(--muted); }
+
+/* De vloot in beeld (run 01): ring, per-stroom bars, domain grid, top-3
+   bar — all geometry computed in Go, this file only colours and lays
+   the elements out. */
+.fleet-ring-row { display: flex; align-items: center; gap: 1.5rem; flex-wrap: wrap; }
+.fleet-ring { flex: 0 0 auto; }
+.ring-track { stroke: #e9ecef; }
+.ring-segment { transition: none; }
+.ring-segment.score-soeverein   { stroke: var(--soeverein); }
+.ring-segment.score-voldoende   { stroke: var(--voldoende); }
+.ring-segment.score-afhankelijk { stroke: var(--afhankelijk); }
+.ring-segment.score-onbekend    { stroke: var(--onbekend); }
+.ring-center-label { font-size: 1.3rem; font-weight: 600; fill: var(--fg); }
+.fleet-score-headline { margin: 0; }
+.fleet-score-headline .small { display: block; margin-top: 0.15rem; }
+
+.flow-bars { list-style: none; margin: 0; padding: 0; }
+.flow-bar-row {
+  display: grid;
+  grid-template-columns: 8rem 1fr auto;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.3rem 0;
+}
+.flow-bar-label { font-weight: 500; }
+.flow-bar {
+  display: flex;
+  height: 0.9rem;
+  border-radius: 0.25rem;
+  overflow: hidden;
+  background: #eee;
+}
+.flow-bar-segment { display: block; height: 100%; }
+.flow-bar-segment.score-soeverein   { background: var(--soeverein); }
+.flow-bar-segment.score-voldoende   { background: var(--voldoende); }
+.flow-bar-segment.score-afhankelijk { background: var(--afhankelijk); }
+.flow-bar-segment.score-onbekend    { background: var(--onbekend); }
+.flow-bar-summary { white-space: nowrap; }
+
+.top-rule-bar-row { display: flex; align-items: center; gap: 0.5rem; margin-top: 0.2rem; }
+.top-rule-bar { flex: 1 1 200px; height: 0.5rem; border-radius: 0.25rem; background: #eee; overflow: hidden; max-width: 240px; }
+.top-rule-bar-fill { display: block; height: 100%; background: var(--afhankelijk); }
+
+.domain-grid .grid-cell {
+  text-align: center;
+  font-weight: 600;
+  width: 2.2rem;
+}
+.domain-grid .grid-cell.score-soeverein   { background: rgba(20, 108, 67, 0.08); color: var(--soeverein); }
+.domain-grid .grid-cell.score-voldoende   { background: rgba(69, 112, 13, 0.08); color: var(--voldoende); }
+.domain-grid .grid-cell.score-afhankelijk { background: rgba(176, 42, 55, 0.08); color: var(--afhankelijk); }
+.domain-grid .grid-cell.score-onbekend    { background: rgba(73, 80, 87, 0.06); color: var(--muted); }
 .covers { margin-left: 0.35rem; }

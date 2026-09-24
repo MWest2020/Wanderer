@@ -190,8 +190,15 @@ type doorView struct {
 	Unanswered         int
 	NotSovereign       int
 	DomainsWithoutScan int
-	TopRules           []ConcernRow
-	Flows              []FlowRollup
+	Ring               FleetRing
+	FlowBars           []FlowBarView
+	TopRules           []TopRuleView
+
+	// FlowColumns is the domain grid's fixed header row — the same
+	// flowRules order gridCellsForDomain uses for every row's cells, so
+	// the template never has to reach into a domain row to know the
+	// column labels.
+	FlowColumns []string
 
 	Domains []doorDomainView
 }
@@ -206,11 +213,13 @@ type doorDomainView struct {
 	LastScanAt string
 	AnswerURL  string // /ui/scans/{id}/answer
 
-	HasScore     bool
-	X, N         int
-	Unanswered   int
-	WorstFlow    string
-	WorstVerdict string
+	HasScore   bool
+	X, N       int
+	Unanswered int
+	// Grid is this domain's row of the door's raster (proposal.md
+	// "Domains become a grid"): one cell per flow, fixed order, coloured
+	// and titled — replaces the former "zwaarste: ..." sentence.
+	Grid []GridCell
 }
 
 // buildDoorDomains turns an organisation's (or the whole instance's)
@@ -239,6 +248,7 @@ func buildDoorDomains(snaps []TargetSnapshot) []doorDomainView {
 		switch models.ScanStatus(s.LastStatus) {
 		case models.ScanStatusComplete, models.ScanStatusPartial:
 		default:
+			row.Grid = gridCellsForDomain(nil)
 			unscanned = append(unscanned, row)
 			continue
 		}
@@ -249,7 +259,7 @@ func buildDoorDomains(snaps []TargetSnapshot) []doorDomainView {
 		fs := BuildFleetScore(assessments, nil)
 		row.HasScore = true
 		row.X, row.N, row.Unanswered = fs.X, fs.N, fs.Unanswered
-		row.WorstFlow, row.WorstVerdict = fs.WorstFlow, fs.WorstVerdict
+		row.Grid = gridCellsForDomain(assessments)
 		scored = append(scored, scoredRow{view: row, score: fs})
 	}
 
@@ -492,8 +502,10 @@ func renderDoor(w http.ResponseWriter, r *http.Request, st *store.Store, tmpl *t
 		Unanswered:         summary.Unanswered,
 		NotSovereign:       summary.NotSovereign,
 		DomainsWithoutScan: summary.DomainsWithoutScan,
-		TopRules:           summary.TopRules,
-		Flows:              summary.Flows,
+		Ring:               BuildFleetRing(summary.X, summary.N, summary.Unanswered),
+		FlowBars:           BuildFlowBars(summary.Flows),
+		TopRules:           BuildTopRuleViews(summary.TopRules),
+		FlowColumns:        flowColumnLabels(),
 		Domains:            buildDoorDomains(snaps),
 	}
 	view.HasFleet = len(view.Domains) > 0
@@ -507,7 +519,10 @@ func renderDoor(w http.ResponseWriter, r *http.Request, st *store.Store, tmpl *t
 			URL:  "/ui/orgs/" + org.Slug,
 		}
 		view.FleetManageURL = "/ui/orgs/" + org.Slug + "/fleet"
-	} else if orgs, listErr := st.ListOrganisations(ctx); listErr == nil {
+	} else if orgs, listErr := st.ListOrganisations(ctx); listErr == nil && len(orgs) > 1 {
+		// spec.md task 1.6: the Organisations table leaves the Tourist
+		// layer when there is only one organisation — nothing to pick
+		// between, so the table would be pure noise.
 		for _, o := range orgs {
 			targets, _ := st.ListTargetsByOrganisation(ctx, o.ID)
 			view.OrganisationsList = append(view.OrganisationsList, organisationLinkView{

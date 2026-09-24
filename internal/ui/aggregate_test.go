@@ -366,18 +366,18 @@ func TestTopConcerns_MergesSameConcernAcrossFrameworks(t *testing.T) {
 	}
 }
 
-func TestDashboardTemplate_TopRulesShowsProblemNotGoal(t *testing.T) {
-	// run 03 task 2.4/2.5: the rendered top-3 list must read "faalt op
-	// X van Y domeinen" (the defect, with a denominator) rather than
-	// the rule's goal-state Description with a bare count, and a
-	// concern merged across two frameworks must name both once.
+func TestDashboardTemplate_TopRulesShowsFlowAndHandelingNotRationale(t *testing.T) {
+	// spec.md "De top-3 zonder onderbouwing": the vloot's top 3 SHALL
+	// speak the flow + handeling, with the count of affected domains —
+	// never the rule's English Description/Rationale, which stays one
+	// click away on the rule's reporting page.
 	tmpl, err := Templates()
 	if err != nil {
 		t.Fatalf("Templates: %v", err)
 	}
 	view := doorView{
 		HasFleet: true,
-		TopRules: []ConcernRow{{
+		TopRules: BuildTopRuleViews([]ConcernRow{{
 			Framework:   "wand",
 			CriteriumID: "wand.juridisch.cert_issuer_eea",
 			Description: "TLS certificate issued by an authority in the EEA.",
@@ -385,7 +385,7 @@ func TestDashboardTemplate_TopRulesShowsProblemNotGoal(t *testing.T) {
 			TargetCount: 2,
 			Total:       3,
 			Frameworks:  []string{"wand", "eucsf"},
-		}},
+		}}),
 	}
 	var buf bytes.Buffer
 	if err := tmpl.ExecuteTemplate(&buf, "dashboard.tmpl", view); err != nil {
@@ -395,14 +395,53 @@ func TestDashboardTemplate_TopRulesShowsProblemNotGoal(t *testing.T) {
 	if strings.Contains(body, "TLS certificate issued by an authority in the EEA.") {
 		t.Errorf("goal-state Description must not render; body:\n%s", body)
 	}
-	if !strings.Contains(body, "Certificate Authorities can revoke or refuse to renew certificates.") {
-		t.Errorf("problem-framed Rationale must render; body:\n%s", body)
+	if strings.Contains(body, "Certificate Authorities can revoke or refuse to renew certificates.") {
+		t.Errorf("English rationale must not render on the vloot layer; body:\n%s", body)
 	}
-	if !strings.Contains(body, "faalt op 2 van 3 domeinen") {
-		t.Errorf("expected 'faalt op 2 van 3 domeinen'; body:\n%s", body)
+	if !strings.Contains(body, "Certificaat") {
+		t.Errorf("expected the flow label 'Certificaat'; body:\n%s", body)
 	}
-	if !strings.Contains(body, "(wand, eucsf)") {
-		t.Errorf("expected both frameworks named once; body:\n%s", body)
+	if !strings.Contains(body, "Vraag het TLS-certificaat van aan bij een certificaatautoriteit die in de EER is gevestigd.") {
+		t.Errorf("expected the handeling with {domein} left out; body:\n%s", body)
+	}
+	if !strings.Contains(body, "2 van 3 domeinen") {
+		t.Errorf("expected '2 van 3 domeinen'; body:\n%s", body)
+	}
+}
+
+// TestDashboardTemplate_RingAriaLabelAndGridTitleCarryTheFacts pins
+// spec.md's scenario "Elk beeld heeft zijn woorden": the ring's
+// aria-label reads "24 van 46 vragen soeverein, 31 onbeantwoord", and
+// every grid cell's title carries its flow and verdict.
+func TestDashboardTemplate_RingAriaLabelAndGridTitleCarryTheFacts(t *testing.T) {
+	tmpl, err := Templates()
+	if err != nil {
+		t.Fatalf("Templates: %v", err)
+	}
+	a := models.Assessment{Framework: "wand", Dimensions: []models.DimensionScore{{
+		Rationale: []models.Rationale{rationale("wand.juridisch.apex_ip_eea", "apex in NL", models.ScoreSoeverein)},
+	}}}
+	view := doorView{
+		HasFleet:    true,
+		Ring:        BuildFleetRing(24, 46, 31),
+		FlowColumns: flowColumnLabels(),
+		Domains: []doorDomainView{{
+			Domain:   "voorbeeld.nl",
+			HasScore: true,
+			X:        1, N: 1,
+			Grid: gridCellsForDomain([]models.Assessment{a}),
+		}},
+	}
+	var buf bytes.Buffer
+	if err := tmpl.ExecuteTemplate(&buf, "dashboard.tmpl", view); err != nil {
+		t.Fatalf("execute: %v", err)
+	}
+	body := buf.String()
+	if !strings.Contains(body, `aria-label="24 van 46 vragen soeverein, 31 onbeantwoord"`) {
+		t.Errorf("ring aria-label missing; body:\n%s", body)
+	}
+	if !strings.Contains(body, `title="Hosting: soeverein"`) {
+		t.Errorf("grid cell title missing; body:\n%s", body)
 	}
 }
 

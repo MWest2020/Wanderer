@@ -1107,6 +1107,184 @@ func TestDoor_ShowsFleetScoreAndAgentHost(t *testing.T) {
 	}
 }
 
+// seedDoorDomain adds domain to org's fleet with a completed scan and a
+// single-flow assessment — the door page (buildDoorDomains) only counts
+// a domain toward the vlootscore once its latest scan is
+// Complete/Partial, unlike the fleet page which scores whatever scan it
+// finds regardless of status.
+func seedDoorDomain(t *testing.T, st *store.Store, orgID, domain string, rs ...models.Rationale) {
+	t.Helper()
+	tgt, err := st.AddFleetDomain(context.Background(), orgID, domain)
+	if err != nil {
+		t.Fatalf("AddFleetDomain(%s): %v", domain, err)
+	}
+	sc, err := st.CreateScan(context.Background(), tgt.ID)
+	if err != nil {
+		t.Fatalf("create scan: %v", err)
+	}
+	if err := st.FinishScan(context.Background(), sc.ID, models.ScanStatusComplete, ""); err != nil {
+		t.Fatalf("finish scan: %v", err)
+	}
+	a := &models.Assessment{
+		ScanID:    sc.ID,
+		Framework: "wand",
+		Dimensions: []models.DimensionScore{{
+			Dimension:    models.DimensionJuridisch,
+			Score:        models.ScoreSoeverein,
+			Completeness: models.CompletenessComplete,
+			Rationale:    rs,
+		}},
+	}
+	if err := st.CreateAssessment(context.Background(), a); err != nil {
+		t.Fatalf("create assessment: %v", err)
+	}
+}
+
+// TestDoor_CISOSeesOneScoreAndWorstDomainFirst pins spec.md's scenario
+// "CISO opent de tool": a organisation with five scanned domains shows
+// one score for the fleet, how many domains are not sovereign, and the
+// worst domain on top.
+func TestDoor_CISOSeesOneScoreAndWorstDomainFirst(t *testing.T) {
+	srv, st := newServer(t, "")
+	o := &models.Organisation{Slug: "acme", Name: "ACME"}
+	if err := st.UpsertOrganisation(context.Background(), o); err != nil {
+		t.Fatal(err)
+	}
+	for i := 1; i <= 4; i++ {
+		seedDoorDomain(t, st, o.ID, "acme-"+string(rune('0'+i))+".nl",
+			models.Rationale{CriteriumID: "wand.juridisch.apex_ip_eea", Verdict: "apex in NL", Score: models.ScoreSoeverein})
+	}
+	seedDoorDomain(t, st, o.ID, "worst.nl",
+		models.Rationale{CriteriumID: "wand.juridisch.apex_ip_eea", Verdict: "apex in US", Score: models.ScoreAfhankelijk})
+
+	resp, err := http.Get(srv.URL + "/ui/orgs/acme")
+	if err != nil {
+		t.Fatalf("get: %v", err)
+	}
+	defer resp.Body.Close()
+	body, _ := io.ReadAll(resp.Body)
+	bodyStr := string(body)
+	if !strings.Contains(bodyStr, "4/5") {
+		t.Errorf("expected the fleet-wide 4/5 score; body:\n%s", bodyStr)
+	}
+	if !strings.Contains(bodyStr, "1 domein niet soeverein") {
+		t.Errorf("expected '1 domein niet soeverein'; body:\n%s", bodyStr)
+	}
+	if i, j := strings.Index(bodyStr, "worst.nl"), strings.Index(bodyStr, "acme-1.nl"); i == -1 || j == -1 || i > j {
+		t.Errorf("worst.nl (index %d) must render before acme-1.nl (index %d); body:\n%s", i, j, bodyStr)
+	}
+}
+
+// TestDoor_GoodScoreNeverHidesFailingDomain pins spec.md's scenario
+// "Een goede score verbergt geen slecht domein": nine sovereign domains
+// and one failing domain must still surface the one not-sovereign count
+// and put the failing domain on top.
+func TestDoor_GoodScoreNeverHidesFailingDomain(t *testing.T) {
+	srv, st := newServer(t, "")
+	o := &models.Organisation{Slug: "acme", Name: "ACME"}
+	if err := st.UpsertOrganisation(context.Background(), o); err != nil {
+		t.Fatal(err)
+	}
+	for i := 1; i <= 9; i++ {
+		seedDoorDomain(t, st, o.ID, "goed-"+string(rune('0'+i))+".nl",
+			models.Rationale{CriteriumID: "wand.juridisch.apex_ip_eea", Verdict: "apex in NL", Score: models.ScoreSoeverein})
+	}
+	seedDoorDomain(t, st, o.ID, "erger.nl",
+		models.Rationale{CriteriumID: "wand.juridisch.apex_ip_eea", Verdict: "apex in US", Score: models.ScoreAfhankelijk})
+
+	resp, err := http.Get(srv.URL + "/ui/orgs/acme")
+	if err != nil {
+		t.Fatalf("get: %v", err)
+	}
+	defer resp.Body.Close()
+	body, _ := io.ReadAll(resp.Body)
+	bodyStr := string(body)
+	if !strings.Contains(bodyStr, "1 domein niet soeverein") {
+		t.Errorf("a good fleet score must still name the one failing domain; body:\n%s", bodyStr)
+	}
+	if i, j := strings.Index(bodyStr, "erger.nl"), strings.Index(bodyStr, "goed-1.nl"); i == -1 || j == -1 || i > j {
+		t.Errorf("erger.nl (index %d) must render before goed-1.nl (index %d) — worst first; body:\n%s", i, j, bodyStr)
+	}
+}
+
+// TestDoor_ScanFieldPrecedesFleetScore pins spec.md's scenario "Het
+// invoerveld staat bovenaan": a signed-in user's scan input SHALL
+// render before the vlootscore in the page.
+func TestDoor_ScanFieldPrecedesFleetScore(t *testing.T) {
+	dir := t.TempDir()
+	htpasswd := filepath.Join(dir, "passwd")
+	hash, _ := bcrypt.GenerateFromPassword([]byte("correct horse battery staple"), bcrypt.MinCost)
+	if err := os.WriteFile(htpasswd, []byte("op:"+string(hash)+"\n"), 0o600); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+	st := newTestStore(t)
+	_, scanID := seed(t, st)
+	if err := st.FinishScan(context.Background(), scanID, models.ScanStatusComplete, ""); err != nil {
+		t.Fatalf("finish scan: %v", err)
+	}
+	seedAssessment(t, st, scanID, "wand")
+
+	h, err := ui.Handler(st, ui.Options{HtpasswdPath: htpasswd, Scanner: stubScanner{st: st}})
+	if err != nil {
+		t.Fatalf("handler: %v", err)
+	}
+	mux := http.NewServeMux()
+	mux.Handle("/ui/", http.StripPrefix("/ui", h))
+	srv := httptest.NewServer(mux)
+	t.Cleanup(srv.Close)
+
+	client := basicAuthClient("op", "correct horse battery staple")
+	resp, err := client.Get(srv.URL + "/ui/")
+	if err != nil {
+		t.Fatalf("get: %v", err)
+	}
+	defer resp.Body.Close()
+	body, _ := io.ReadAll(resp.Body)
+	bodyStr := string(body)
+	scanIdx := strings.Index(bodyStr, `class="scan-form"`)
+	fleetIdx := strings.Index(bodyStr, `class="dashboard-section fleet-summary"`)
+	if scanIdx == -1 || fleetIdx == -1 || scanIdx > fleetIdx {
+		t.Errorf("scan-form (index %d) must precede the fleet-summary (index %d); body:\n%s", scanIdx, fleetIdx, bodyStr)
+	}
+}
+
+// TestDoor_OrganisationsTableHiddenWithOneOrganisation pins task 1.6:
+// the Organisations table leaves the Tourist layer when there is only
+// one organisation (the seeded "default" one) — nothing to pick
+// between, so it would be pure noise.
+func TestDoor_OrganisationsTableHiddenWithOneOrganisation(t *testing.T) {
+	srv, _ := newServer(t, "")
+	resp, err := http.Get(srv.URL + "/ui/")
+	if err != nil {
+		t.Fatalf("get: %v", err)
+	}
+	defer resp.Body.Close()
+	body, _ := io.ReadAll(resp.Body)
+	if strings.Contains(string(body), "<h2>Organisations</h2>") {
+		t.Errorf("Organisations table must not render with a single organisation; body:\n%s", string(body))
+	}
+}
+
+// TestDoor_OrganisationsTableShownWithMultipleOrganisations is the
+// complement: once a second organisation exists, the door still needs a
+// way to reach it.
+func TestDoor_OrganisationsTableShownWithMultipleOrganisations(t *testing.T) {
+	srv, st := newServer(t, "")
+	o := &models.Organisation{Slug: "acme", Name: "ACME"}
+	if err := st.UpsertOrganisation(context.Background(), o); err != nil {
+		t.Fatal(err)
+	}
+	resp, err := http.Get(srv.URL + "/ui/")
+	if err != nil {
+		t.Fatalf("get: %v", err)
+	}
+	defer resp.Body.Close()
+	body, _ := io.ReadAll(resp.Body)
+	if !strings.Contains(string(body), "<h2>Organisations</h2>") {
+		t.Errorf("Organisations table must render with more than one organisation; body:\n%s", string(body))
+	}
+}
+
 // mustEnrolmentToken issues a fresh enrolment token for the enrol
 // helper tests; the plain token is the only return value they need.
 func mustEnrolmentToken(t *testing.T, st *store.Store) string {

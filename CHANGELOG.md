@@ -9,6 +9,21 @@ once a first release is cut. Until then every entry lives under
 
 ## [Unreleased]
 
+### Changed
+
+- **`/ui/` en `/ui/orgs/{slug}` tonen de vloot in beeld, niet in tekst.**
+  Het scan-invoerveld staat nu bovenaan, direct onder de kop. De
+  vlootscore rendert als ring (soeverein / niet-soeverein / onbeantwoord,
+  `x/n` in het midden), de verdeling per stroom als gestapelde balk per
+  stroom, en de domeinen als raster (domein × stroom, één gekleurde cel
+  per stroom, slechtste eerst) — de "zwaarste: …"-zin per domein
+  vervalt. De top-3 duurste regels spreken nu de stroom + handeling
+  (met `{domein}` weggelaten) in plaats van de Engelse rationale. De
+  Organisations-tabel verschijnt alleen nog met meer dan één
+  organisatie. Alles inline SVG/CSS vanuit Go, geen JavaScript, geen
+  nieuwe dependency; elk beeld draagt dezelfde feiten ook als tekst
+  (aria-label, titel, label). (`openspec/changes/2026-09-24-vloot-in-beeld`)
+
 ## [0.10.1] - 2026-09-23
 
 ### Fixed

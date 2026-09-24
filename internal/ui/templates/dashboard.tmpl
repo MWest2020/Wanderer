@@ -17,37 +17,61 @@
   <p class="meta">Generated {{.GeneratedAt}}</p>
   {{end}}
 </header>
+
 <main>
+
+{{if .AllowScan}}
+<section class="dashboard-section">
+<form class="scan-form" method="post" action="/ui/scan">
+  <label for="scan-domain">Domein of host scannen</label>
+  <input id="scan-domain" name="domain" type="text" list="agent-hosts" placeholder="voorbeeld.nl of jouw-host" required>
+  {{if .AgentHosts}}
+  <datalist id="agent-hosts">
+    {{range .AgentHosts}}<option value="{{.}}">{{end}}
+  </datalist>
+  {{end}}
+  <button type="submit">Scan</button>
+  <span class="meta">start een scan en land direct op het antwoord</span>
+</form>
+</section>
+{{end}}
 
 {{if .HasFleet}}
 <section class="dashboard-section fleet-summary">
-  <p class="fleet-score-headline">
-    <span class="fleet-score-total badge score-{{if .NotSovereign}}afhankelijk{{else}}soeverein{{end}}">{{.X}}/{{.N}}</span>
-    {{if .Unanswered}}<span class="muted">· {{.Unanswered}} onbeantwoord</span>{{end}}
-    {{if .NotSovereign}}
-    <strong class="not-sovereign-count">{{.NotSovereign}} domein{{if ne .NotSovereign 1}}en{{end}} niet soeverein</strong>
-    {{else}}
-    <span class="muted">geen domein niet-soeverein</span>
-    {{end}}
-  </p>
-  {{if .DomainsWithoutScan}}<p class="muted small">{{.DomainsWithoutScan}} domein{{if ne .DomainsWithoutScan 1}}en{{end}} nog niet gescand.</p>{{end}}
+  <div class="fleet-ring-row">
+    <svg class="fleet-ring" width="{{.Ring.Size}}" height="{{.Ring.Size}}" viewBox="0 0 {{.Ring.Size}} {{.Ring.Size}}" role="img" aria-label="{{.Ring.AriaLabel}}">
+      <circle class="ring-track" cx="{{.Ring.Center}}" cy="{{.Ring.Center}}" r="{{.Ring.Radius}}" fill="none" stroke-width="{{.Ring.StrokeWidth}}"/>
+      {{range .Ring.Segments}}
+      <circle class="ring-segment {{.Class}}" cx="{{$.Ring.Center}}" cy="{{$.Ring.Center}}" r="{{$.Ring.Radius}}" fill="none" stroke-width="{{$.Ring.StrokeWidth}}" stroke-dasharray="{{.Dasharray}}" stroke-dashoffset="{{.Dashoffset}}" transform="rotate(-90 {{$.Ring.Center}} {{$.Ring.Center}})"/>
+      {{end}}
+      <text x="{{.Ring.Center}}" y="{{.Ring.Center}}" class="ring-center-label" text-anchor="middle" dominant-baseline="middle">{{.Ring.CenterLabel}}</text>
+    </svg>
+    <p class="fleet-score-headline">
+      {{if .NotSovereign}}
+      <strong class="not-sovereign-count">{{.NotSovereign}} domein{{if ne .NotSovereign 1}}en{{end}} niet soeverein</strong>
+      {{else}}
+      <span class="muted">geen domein niet-soeverein</span>
+      {{end}}
+      {{if .DomainsWithoutScan}}<span class="muted small">· {{.DomainsWithoutScan}} domein{{if ne .DomainsWithoutScan 1}}en{{end}} nog niet gescand</span>{{end}}
+    </p>
+  </div>
   {{if .ScopedOrganisation}}<p class="meta"><a href="{{.FleetManageURL}}">vloot beheren (toevoegen/verwijderen) →</a></p>{{end}}
 </section>
 
-{{if .Flows}}
+{{if .FlowBars}}
 <section class="dashboard-section sovereignty-rollup">
   <h2>Per stroom <span class="scope-label">waar staat wat</span></h2>
-  <table class="flows">
-    <tbody>
-    {{range .Flows}}
-      <tr>
-        <th scope="row">{{.Label}}</th>
-        <td><span class="badge score-{{.Worst}}">{{.Worst}}</span></td>
-        <td>{{if gt .Afhankelijk 0}}{{.Afhankelijk}} van {{.Total}} buiten de EER{{else}}alle {{.Total}} in de EER{{end}}</td>
-      </tr>
+  <ul class="flow-bars">
+    {{range .FlowBars}}
+    <li class="flow-bar-row">
+      <span class="flow-bar-label">{{.Label}}</span>
+      <span class="flow-bar" role="img" aria-label="{{.Label}}: {{.SummaryText}}">
+        {{range .Segments}}<span class="flow-bar-segment {{.Class}}" style="width: {{.WidthPercent}}" title="{{.Count}}"></span>{{end}}
+      </span>
+      <span class="flow-bar-summary muted small">{{.SummaryText}}</span>
+    </li>
     {{end}}
-    </tbody>
-  </table>
+  </ul>
 </section>
 {{end}}
 
@@ -57,11 +81,13 @@
   <ol class="top-rules">
     {{range .TopRules}}
     <li>
-      <a href="/ui/reporting/{{.Framework}}/{{.CriteriumID}}{{if $.OrgSlug}}?org={{$.OrgSlug}}{{end}}">{{.Rationale}}</a>
-      <span class="muted">
-        — faalt op {{.TargetCount}} van {{.Total}} domein{{if ne .Total 1}}en{{end}}
-        {{if gt (len .Frameworks) 1}}({{range $i, $f := .Frameworks}}{{if $i}}, {{end}}{{$f}}{{end}}){{end}}
-      </span>
+      <a href="{{.Link}}{{if $.OrgSlug}}?org={{$.OrgSlug}}{{end}}">
+        {{if .FlowLabel}}{{.FlowLabel}} — {{.Handeling}}{{else}}{{.Fallback}}{{end}}
+      </a>
+      <div class="top-rule-bar-row">
+        <span class="top-rule-bar"><span class="top-rule-bar-fill" style="width: {{.WidthPercent}}"></span></span>
+        <span class="muted small">{{.BarLabel}}</span>
+      </div>
     </li>
     {{end}}
   </ol>
@@ -70,9 +96,14 @@
 
 <section class="dashboard-section">
   <h2>Domeinen <span class="scope-label">slechtste eerst</span></h2>
-  <table class="targets">
+  <table class="targets domain-grid">
     <thead>
-      <tr><th>Domein</th><th>Score</th><th>Laatste scan</th></tr>
+      <tr>
+        <th>Domein</th>
+        {{range .FlowColumns}}<th scope="col">{{.}}</th>{{end}}
+        <th>Score</th>
+        <th>Laatste scan</th>
+      </tr>
     </thead>
     <tbody>
       {{range .Domains}}
@@ -81,10 +112,10 @@
           {{if .AnswerURL}}<a href="{{.AnswerURL}}">{{.Domain}}</a>{{else}}{{.Domain}}{{end}}
           {{if eq .Kind "host"}}<span class="badge kind-host">host</span>{{end}}
         </td>
+        {{range .Grid}}<td class="grid-cell {{.Class}}" title="{{.Title}}">{{.Label}}</td>{{end}}
         <td>
           {{if .HasScore}}
           <span class="fleet-score">{{.X}}/{{.N}}{{if .Unanswered}} · {{.Unanswered}} onbekend{{end}}</span>
-          {{if .WorstFlow}}<div class="muted small">zwaarste: {{.WorstFlow}} — {{.WorstVerdict}}</div>{{end}}
           {{else}}
           <span class="muted">nog geen oordeel</span>
           {{end}}
@@ -98,7 +129,7 @@
 {{else}}
 <p class="empty-state">
   No scans yet. Run <code>wanderer scan &lt;domain&gt;</code> against a
-  target{{if .AllowScan}}, or use the form below,{{end}} to get an answer.
+  target{{if .AllowScan}}, or use the form above,{{end}} to get an answer.
 </p>
 {{end}}
 
@@ -119,22 +150,6 @@
       {{end}}
     </tbody>
   </table>
-</section>
-{{end}}
-
-{{if .AllowScan}}
-<section class="dashboard-section">
-<form class="scan-form" method="post" action="/ui/scan">
-  <label for="scan-domain">Domein of host scannen</label>
-  <input id="scan-domain" name="domain" type="text" list="agent-hosts" placeholder="voorbeeld.nl of jouw-host" required>
-  {{if .AgentHosts}}
-  <datalist id="agent-hosts">
-    {{range .AgentHosts}}<option value="{{.}}">{{end}}
-  </datalist>
-  {{end}}
-  <button type="submit">Scan</button>
-  <span class="meta">start een scan en land direct op het antwoord</span>
-</form>
 </section>
 {{end}}
 

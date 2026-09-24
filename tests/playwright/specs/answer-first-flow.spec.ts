@@ -1,7 +1,8 @@
 // Answer-first UI (openspec/changes/2026-09-20-answer-first-ui), updated
-// for 2026-09-22-drie-lagen-ciso: /ui/ is now the fleet overview (the
-// vloot is the first layer), with the scan form as a page-bottom action
-// rather than the sole entry surface.
+// for 2026-09-22-drie-lagen-ciso and 2026-09-24-vloot-in-beeld: /ui/ is
+// the fleet overview (the vloot is the first layer) with the scan form
+// as a compact action at the top of the page, directly under the
+// header — where a person looks for it — not the page's headline.
 //
 // Covers spec.md's four ADDED requirements end to end:
 //   - "The entry surface asks for a domain and answers it" — now folded
@@ -47,17 +48,30 @@ async function voorbeeldAnswerURL(page: Page): Promise<string> {
 }
 
 test.describe("Het vlootoverzicht", () => {
-  test("de vlootscore en domeinenlijst staan boven het scanformulier, zonder losse rule-ID's", async ({
+  test("het scanveld staat bovenaan, de vlootscore en domeinenlijst tonen geen losse rule-ID's", async ({
     page,
   }) => {
     await page.goto("/ui/");
 
-    // De vloot is de eerste laag (specs/web-ui/spec.md "De vloot is de
-    // eerste laag", change 2026-09-22-drie-lagen-ciso): score en
-    // domeinenlijst vóór het scanformulier, niet een kale invoer zonder
-    // data (de fixture's baseline scenario seedt voorbeeld.nl en
-    // acme.example.com met afgeronde assessments).
-    await expect(page.locator(".fleet-score-total")).toBeVisible();
+    // spec.md "Het invoerveld staat bovenaan": het scanveld staat vóór
+    // de vlootscore in de pagina (2026-09-24-vloot-in-beeld task 1.1),
+    // niet — zoals vóór deze change — eronder.
+    const scanForm = page.locator("form.scan-form");
+    const fleetSummary = page.locator("section.fleet-summary");
+    await expect(scanForm).toBeVisible();
+    await expect(fleetSummary).toBeVisible();
+    const scanBox = await scanForm.boundingBox();
+    const fleetBox = await fleetSummary.boundingBox();
+    expect(scanBox).not.toBeNull();
+    expect(fleetBox).not.toBeNull();
+    expect(scanBox!.y).toBeLessThan(fleetBox!.y);
+    await expect(page.locator('form.scan-form input[name="domain"]')).toBeVisible();
+
+    // De vlootscore rendert als ring (proposal.md "de vlootscore wordt
+    // een ring"), niet meer als tekstbadge — met domeinenlijst en zonder
+    // losse rule-ID's (de fixture's baseline scenario seedt voorbeeld.nl
+    // en acme.example.com met afgeronde assessments).
+    await expect(page.locator("svg.fleet-ring")).toBeVisible();
     const row = page.locator("table.targets tr", { hasText: "voorbeeld.nl" });
     await expect(row).toBeVisible();
 
@@ -65,11 +79,6 @@ test.describe("Het vlootoverzicht", () => {
     // top-3 "kost de vloot de meeste punten").
     await expect(page.locator("body")).not.toContainText("wand.juridisch");
     await expect(page.locator("body")).not.toContainText("wand.transit");
-
-    // Het scanformulier blijft aanwezig, sinds run 02 onderaan de
-    // vlootpagina met class="scan-form" (niet meer "door-form").
-    await expect(page.locator("form.scan-form")).toBeVisible();
-    await expect(page.locator('form.scan-form input[name="domain"]')).toBeVisible();
   });
 });
 

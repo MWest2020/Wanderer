@@ -152,3 +152,64 @@ func TestSovereigntyFlowRollup_CountsAndWorst(t *testing.T) {
 		t.Errorf("order = %q,%q", roll[0].Label, roll[1].Label)
 	}
 }
+
+// TestSovereigntyFlowRollup_CountsOnbekendSeparately pins the Onbekend
+// count BuildFlowBars needs: a flow that fired but scored onbekend must
+// neither count as Afhankelijk nor silently vanish into "in de EER".
+func TestSovereigntyFlowRollup_CountsOnbekendSeparately(t *testing.T) {
+	snaps := []TargetSnapshot{
+		snapWithFlows("t1", rationale("wand.juridisch.mx_vendor_jurisdiction", "?", models.ScoreOnbekend)),
+		snapWithFlows("t2", rationale("wand.juridisch.mx_vendor_jurisdiction", "nl", models.ScoreSoeverein)),
+	}
+	roll := SovereigntyFlowRollup(snaps)
+	if len(roll) != 1 || roll[0].Label != "Mail" {
+		t.Fatalf("roll = %+v, want one Mail row", roll)
+	}
+	if roll[0].Total != 2 || roll[0].Afhankelijk != 0 || roll[0].Onbekend != 1 {
+		t.Errorf("Mail rollup = %+v, want total2 afh0 onbekend1", roll[0])
+	}
+}
+
+// TestBuildFlowBars_SegmentsCarryCountsAsPercentAndText covers
+// proposal.md "Per stroom becomes seven bars: per flow, how many
+// domains are in the EEA, outside it, or unknown, as one stacked bar"
+// and design.md "each bar a label with the counts": the three segments'
+// widths must sum to 100% and the SummaryText must name every count.
+func TestBuildFlowBars_SegmentsCarryCountsAsPercentAndText(t *testing.T) {
+	bars := BuildFlowBars([]FlowRollup{{Label: "Mail", Total: 4, Afhankelijk: 1, Onbekend: 1, Worst: "afhankelijk"}})
+	if len(bars) != 1 {
+		t.Fatalf("bars = %d, want 1", len(bars))
+	}
+	bar := bars[0]
+	if len(bar.Segments) != 3 {
+		t.Fatalf("Segments = %+v, want 3 (2 in de EER, 1 afhankelijk, 1 onbekend)", bar.Segments)
+	}
+	byClass := map[string]FlowBarSegment{}
+	for _, s := range bar.Segments {
+		byClass[s.Class] = s
+	}
+	if got := byClass["score-soeverein"]; got.Count != 2 || got.WidthPercent != "50.00%" {
+		t.Errorf("in-EEA segment = %+v, want count2 50.00%%", got)
+	}
+	if got := byClass["score-afhankelijk"]; got.Count != 1 || got.WidthPercent != "25.00%" {
+		t.Errorf("afhankelijk segment = %+v, want count1 25.00%%", got)
+	}
+	if got := byClass["score-onbekend"]; got.Count != 1 || got.WidthPercent != "25.00%" {
+		t.Errorf("onbekend segment = %+v, want count1 25.00%%", got)
+	}
+	if bar.SummaryText != "1 van 4 buiten de EER, 1 onbekend" {
+		t.Errorf("SummaryText = %q", bar.SummaryText)
+	}
+}
+
+// TestBuildFlowBars_AllInEEAReadsAsOneSentence pins the common case's
+// wording stays exactly what the old per-stroom table already said.
+func TestBuildFlowBars_AllInEEAReadsAsOneSentence(t *testing.T) {
+	bars := BuildFlowBars([]FlowRollup{{Label: "Hosting", Total: 3, Afhankelijk: 0, Onbekend: 0, Worst: "soeverein"}})
+	if bars[0].SummaryText != "alle 3 in de EER" {
+		t.Errorf("SummaryText = %q, want %q", bars[0].SummaryText, "alle 3 in de EER")
+	}
+	if len(bars[0].Segments) != 1 || bars[0].Segments[0].Class != "score-soeverein" {
+		t.Errorf("Segments = %+v, want a single score-soeverein segment", bars[0].Segments)
+	}
+}
