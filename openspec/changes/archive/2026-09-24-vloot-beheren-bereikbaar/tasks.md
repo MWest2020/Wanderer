@@ -6,6 +6,8 @@
       klikt de link en verwijdert een domein; elk één keer rood gezien.
 
 ## 2. Uit
-- [ ] 2.1 Release, deploy; `schiphol.nk` eruit (Mark), nagekeken op een kopie
-      van de prod-data.
-- [ ] 2.2 Archiveren.
+- [x] 2.1 Release, deploy; `schiphol.nk` eruit (Mark), nagekeken op een kopie
+      van de prod-data. (v0.11.1 live; op een kopie van de prod-data staat
+      "vloot beheren" op /ui/ met een link naar /ui/orgs/default/fleet. Het
+      verwijderen zelf is Marks klik.)
+- [x] 2.2 Archiveren.
