@@ -46,7 +46,7 @@
     {{range .Domains}}
     <tr>
       <td>
-        {{.Domain}}
+        <span class="fleet-domain">{{.Domain}}</span>
         {{if $.AllowEdit}}{{template "remove-domain.tmpl" dict "OrgSlug" $.OrgSlug "Domain" .Domain "ReturnTo" $.ReturnTo}}{{end}}
       </td>
       <td>

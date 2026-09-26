@@ -20,6 +20,11 @@ type Selectors struct {
 	OrganisationID string // limits ListScans to scans whose Target belongs to this org
 	Since          time.Time
 	Until          time.Time
+	// ActiveTargetsOnly limits ListScans to scans whose Target has not
+	// been removed from the fleet (targets.removed_at IS NULL). History
+	// pages (exports, Trends, drift, the scan page, MCP) leave this
+	// unset — a removed domain's scans stay reachable there.
+	ActiveTargetsOnly bool
 }
 
 // whereAndArgs turns a Selectors into a SQL fragment and the matching
@@ -140,6 +145,13 @@ func (s *Store) ListScans(ctx context.Context, sel Selectors) ([]ScanRow, error)
 			where += " AND targets.organisation_id = ?"
 		}
 		args = append(args, sel.OrganisationID)
+	}
+	if sel.ActiveTargetsOnly {
+		if where == "" {
+			where = " WHERE targets.removed_at IS NULL"
+		} else {
+			where += " AND targets.removed_at IS NULL"
+		}
 	}
 	q := `SELECT scans.id, scans.target_id, targets.domain, scans.started_at, scans.ended_at, scans.status, COALESCE(scans.error,''),
 	             (SELECT COUNT(*) FROM findings WHERE findings.scan_id = scans.id),

@@ -52,7 +52,7 @@ test.describe("Het vlootscherm sorteren", () => {
     await expect(page.locator("p.fleet-sort strong", { hasText: "Score" })).toBeVisible();
 
     const firstRow = page.locator("table tbody tr").first();
-    await expect(firstRow.locator("td").first()).toHaveText("tweede.nl");
+    await expect(firstRow.locator(".fleet-domain").first()).toHaveText("tweede.nl");
     await expect(firstRow).toContainText("4/5");
   });
 
@@ -64,7 +64,7 @@ test.describe("Het vlootscherm sorteren", () => {
     await expect(page.locator("p.fleet-sort strong", { hasText: "Laatste scan" })).toBeVisible();
 
     const firstRow = page.locator("table tbody tr").first();
-    await expect(firstRow.locator("td").first()).toHaveText("voorbeeld.nl");
+    await expect(firstRow.locator(".fleet-domain").first()).toHaveText("voorbeeld.nl");
   });
 });
 

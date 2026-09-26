@@ -500,7 +500,7 @@ func renderDoor(w http.ResponseWriter, r *http.Request, st *store.Store, tmpl *t
 	if org != nil {
 		orgID = org.ID
 	}
-	snaps, _, err := buildSnapshots(ctx, st, orgID)
+	snaps, _, err := buildSnapshots(ctx, st, orgID, true)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -577,8 +577,13 @@ func renderDoor(w http.ResponseWriter, r *http.Request, st *store.Store, tmpl *t
 // orgID, when non-empty, filters scans to those whose Target
 // belongs to that organisation. Used by /ui/orgs/{slug} and the
 // `?org=` query parameter on /ui/reporting.
-func buildSnapshots(ctx context.Context, st *store.Store, orgID string) (snaps []TargetSnapshot, scans []store.ScanRow, err error) {
-	sel := store.Selectors{}
+//
+// activeOnly excludes removed domains from the snapshot set — set by
+// the door (overview) only, per spec.md "Domeinen zijn bij te houden
+// als vloot": Trends and the regelpagina, the other two callers, keep
+// history reachable, so they pass false.
+func buildSnapshots(ctx context.Context, st *store.Store, orgID string, activeOnly bool) (snaps []TargetSnapshot, scans []store.ScanRow, err error) {
+	sel := store.Selectors{ActiveTargetsOnly: activeOnly}
 	if orgID != "" {
 		sel.OrganisationID = orgID
 	}
@@ -1629,7 +1634,7 @@ func trendsHandler(st *store.Store, tmpl *template.Template) http.HandlerFunc {
 		if !ok {
 			return
 		}
-		snaps, scans, err := buildSnapshots(ctx, st, orgID)
+		snaps, scans, err := buildSnapshots(ctx, st, orgID, false)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -1842,7 +1847,7 @@ func reportingRuleHandler(st *store.Store, tmpl *template.Template) http.Handler
 		if !ok {
 			return
 		}
-		snaps, _, err := buildSnapshots(ctx, st, orgID)
+		snaps, _, err := buildSnapshots(ctx, st, orgID, false)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return

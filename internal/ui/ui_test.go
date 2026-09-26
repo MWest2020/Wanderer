@@ -1207,6 +1207,44 @@ func TestDoor_GoodScoreNeverHidesFailingDomain(t *testing.T) {
 	}
 }
 
+// TestDoor_RemovedDomainLeavesTheOverview pins spec.md's scenario
+// "Verwijderen laat de geschiedenis staan" from the fleet-manager's
+// side: a domain whose Target has been removed from the fleet no
+// longer counts toward the door's snapshots — habitat run 02, task
+// 1b.1 — the door builds off ListScans (buildSnapshots), which only
+// ListFleetDomains used to filter on removed_at.
+func TestDoor_RemovedDomainLeavesTheOverview(t *testing.T) {
+	srv, st := newServer(t, "")
+	o := &models.Organisation{Slug: "acme", Name: "ACME"}
+	if err := st.UpsertOrganisation(context.Background(), o); err != nil {
+		t.Fatal(err)
+	}
+	seedDoorDomain(t, st, o.ID, "blijft.nl",
+		models.Rationale{CriteriumID: "wand.juridisch.apex_ip_eea", Verdict: "apex in NL", Score: models.ScoreSoeverein})
+	seedDoorDomain(t, st, o.ID, "weg.nl",
+		models.Rationale{CriteriumID: "wand.juridisch.apex_ip_eea", Verdict: "apex in NL", Score: models.ScoreSoeverein})
+	if err := st.RemoveFleetDomain(context.Background(), o.ID, "weg.nl"); err != nil {
+		t.Fatalf("RemoveFleetDomain: %v", err)
+	}
+
+	resp, err := http.Get(srv.URL + "/ui/orgs/acme")
+	if err != nil {
+		t.Fatalf("get: %v", err)
+	}
+	defer resp.Body.Close()
+	body, _ := io.ReadAll(resp.Body)
+	bodyStr := string(body)
+	if strings.Contains(bodyStr, "weg.nl") {
+		t.Errorf("removed domain still in the overview; body:\n%s", bodyStr)
+	}
+	if !strings.Contains(bodyStr, "blijft.nl") {
+		t.Errorf("remaining domain missing from the overview; body:\n%s", bodyStr)
+	}
+	if !strings.Contains(bodyStr, "1/1") {
+		t.Errorf("fleet score should count only the one remaining domain; body:\n%s", bodyStr)
+	}
+}
+
 // TestDoor_ScanFieldPrecedesFleetScore pins spec.md's scenario "Het
 // invoerveld staat bovenaan": a signed-in user's scan input SHALL
 // render before the vlootscore in the page.

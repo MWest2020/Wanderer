@@ -24,6 +24,14 @@ once a first release is cut. Until then every entry lives under
   genegeerd. Het vlootscherm scrolt nu ook zelf op een smal scherm
   (`.table-scroll`), zoals het overzicht al deed.
   (`openspec/changes/2026-09-26-verwijderen-waar-je-kijkt`)
+- **Het overzicht (`/ui/`, `/ui/orgs/{slug}`) toonde een verwijderd domein
+  nog.** De pagina bouwt uit scans, niet uit `ListFleetDomains` — alleen die
+  laatste filterde op `removed_at`, dus een verwijderd domein bleef in het
+  raster staan en telde nog mee in de vlootscore. `ListScans` accepteert nu
+  een `ActiveTargetsOnly`-selector die het overzicht zet en verder niemand:
+  exports, Trends, de regelpagina, drift, de scanpagina en MCP blijven de
+  volledige geschiedenis tonen.
+  (`openspec/changes/2026-09-26-verwijderen-waar-je-kijkt`)
 
 ## [0.11.1] - 2026-09-24
 

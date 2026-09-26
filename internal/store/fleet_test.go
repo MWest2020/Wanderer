@@ -76,6 +76,36 @@ func TestRemoveFleetDomain_HidesFromListButKeepsHistory(t *testing.T) {
 	}
 }
 
+func TestListScans_ActiveTargetsOnlyExcludesRemovedDomain(t *testing.T) {
+	st := newOrgTestStore(t)
+	tgt, err := st.AddFleetDomain(context.Background(), models.DefaultOrganisationID, "voorbeeld.nl")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := st.CreateScan(context.Background(), tgt.ID); err != nil {
+		t.Fatal(err)
+	}
+	if err := st.RemoveFleetDomain(context.Background(), models.DefaultOrganisationID, "voorbeeld.nl"); err != nil {
+		t.Fatalf("RemoveFleetDomain: %v", err)
+	}
+
+	withFilter, err := st.ListScans(context.Background(), store.Selectors{ActiveTargetsOnly: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(withFilter) != 0 {
+		t.Errorf("ActiveTargetsOnly: got %d scans, want 0 (removed target's scans should be left out)", len(withFilter))
+	}
+
+	withoutFilter, err := st.ListScans(context.Background(), store.Selectors{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(withoutFilter) != 1 {
+		t.Errorf("without the selector: got %d scans, want 1 (history stays reachable)", len(withoutFilter))
+	}
+}
+
 func TestRemoveFleetDomain_UnknownReturnsErrNotFound(t *testing.T) {
 	st := newOrgTestStore(t)
 	err := st.RemoveFleetDomain(context.Background(), models.DefaultOrganisationID, "nope.nl")
