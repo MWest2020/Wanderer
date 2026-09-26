@@ -9,6 +9,8 @@ once a first release is cut. Until then every entry lives under
 
 ## [Unreleased]
 
+## [0.12.0] - 2026-09-26
+
 ### Changed
 
 - **Oordeelkleuren zijn nu ook zonder kleurzien te onderscheiden.**
@@ -26,7 +28,11 @@ once a first release is cut. Until then every entry lives under
   gestippelde grijze omlijning in plaats van blauw, zodat het niet voor
   soeverein of voldoende kan worden aangezien. De eigenschap staat nu in
   `internal/ui/palette_test.go`, die de variabelen uit `main.css` leest
-  in plaats van de cijfers alleen in een commentaarblok te laten staan.
+  in plaats van de cijfers alleen in een commentaarblok te laten staan,
+  en een tweede test loopt elke CSS-regel af die een oordeelkleur als
+  tekst gebruikt en meet het contrast tegen de eigen achtergrond van die
+  regel — ook de antwoordbadges, de accountability-pillen en de
+  rasterlegenda staan nu op een vol vlak.
   (`openspec/changes/2026-09-26-kleuren-voor-iedereen`)
 
 ## [0.11.2] - 2026-09-26
@@ -1325,7 +1331,8 @@ ExApp) can pin a reproducible version instead of `@main`.
   deferred (see `docs/observability.md`).
   (`openspec/changes/archive/2026-04-24-init-mvp-scanners`)
 
-[Unreleased]: https://github.com/MWest2020/wanderer/compare/v0.11.2...main
+[Unreleased]: https://github.com/MWest2020/wanderer/compare/v0.12.0...main
+[0.12.0]: https://github.com/MWest2020/wanderer/compare/v0.11.2...v0.12.0
 [0.11.2]: https://github.com/MWest2020/wanderer/compare/v0.11.1...v0.11.2
 [0.11.1]: https://github.com/MWest2020/wanderer/compare/v0.11.0...v0.11.1
 [0.11.0]: https://github.com/MWest2020/wanderer/compare/v0.10.1...v0.11.0

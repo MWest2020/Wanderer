@@ -304,3 +304,42 @@ func TestOldPaletteFailsAccessibilitySpec(t *testing.T) {
 		t.Fatalf("kleinste ΔE onder deutan = %.1f (%s/%s), wil rond %.1f (zie proposal.md)", de, a, b, want)
 	}
 }
+
+// TestVerdictTextClearsContrastWhereItIsUsed walks every rule in main.css that
+// sets a verdict colour as TEXT and checks it against that rule's own
+// background: the fill if the rule sets one, otherwise the page. Run 01 of
+// kleuren-voor-iedereen converted the selectors its brief listed and left
+// three families on the old pattern (tint + coloured text), where voldoende
+// measured 3.5:1. A check on the four variables alone could not see that; this
+// one reads the rules that actually render.
+func TestVerdictTextClearsContrastWhereItIsUsed(t *testing.T) {
+	css := readMainCSS(t)
+	vars := extractCSSVars(css)
+	rule := regexp.MustCompile(`([^{}]+)\{([^{}]*)\}`)
+	textVar := regexp.MustCompile(`(?:^|;)\s*color:\s*var\(--(soeverein|voldoende|afhankelijk|onbekend)\)`)
+	bgVar := regexp.MustCompile(`background(?:-color)?:\s*var\(--([a-z-]+)\)`)
+	bgTint := regexp.MustCompile(`background(?:-color)?:\s*rgba\(`)
+	checked := 0
+	for _, m := range rule.FindAllStringSubmatch(css, -1) {
+		sel, body := strings.TrimSpace(m[1]), m[2]
+		tm := textVar.FindStringSubmatch(body)
+		if tm == nil {
+			continue
+		}
+		checked++
+		if bgTint.MatchString(body) {
+			t.Errorf("%s: verdict colour --%s as text on a tint; use a solid fill with --%s-tekst", sel, tm[1], tm[1])
+			continue
+		}
+		bg := vars["bg"]
+		if bm := bgVar.FindStringSubmatch(body); bm != nil {
+			bg = vars[bm[1]]
+		}
+		if r := contrastRatio(hexToRGB(t, vars[tm[1]]), hexToRGB(t, bg)); r < 4.5 {
+			t.Errorf("%s: --%s on #%s is %.2f:1, want >= 4.5", sel, tm[1], bg, r)
+		}
+	}
+	if checked == 0 {
+		t.Fatal("no rule uses a verdict colour as text; the test checked nothing")
+	}
+}

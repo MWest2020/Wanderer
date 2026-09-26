@@ -389,9 +389,9 @@ tr.retired td { opacity: 0.7; font-style: italic; }
 }
 .answer-question { font-weight: 600; margin: 0 0 0.35rem 0; }
 .answer-verdict { margin: 0; }
-.answer-badge-ja       { background: rgba(20, 108, 67, 0.08); color: var(--soeverein); }
-.answer-badge-nee      { background: rgba(176, 42, 55, 0.08); color: var(--afhankelijk); }
-.answer-badge-onbekend { background: rgba(73, 80, 87, 0.08); color: var(--onbekend); }
+.answer-badge-ja       { background: var(--soeverein); color: var(--soeverein-tekst); }
+.answer-badge-nee      { background: var(--afhankelijk); color: var(--afhankelijk-tekst); }
+.answer-badge-onbekend { background: var(--onbekend); color: var(--onbekend-tekst); }
 .answer-badge-nvt      { background: #fff; border: 1px dashed var(--muted); color: var(--muted); }
 .answer-row.answer-nee { border-left: 3px solid var(--afhankelijk); }
 .answer-row.answer-onbekend { border-left: 3px solid var(--onbekend); }
@@ -414,10 +414,10 @@ tr.retired td { opacity: 0.7; font-style: italic; }
 .flow-state-niet_gemeten { background: #eee; color: var(--muted); }
 
 /* Overview accountability pill (run 08). */
-.pill-accountability-soeverein   { background: rgba(20, 108, 67, 0.08); color: var(--soeverein); }
-.pill-accountability-voldoende   { background: rgba(69, 112, 13, 0.08); color: var(--voldoende); }
-.pill-accountability-afhankelijk { background: rgba(176, 42, 55, 0.08); color: var(--afhankelijk); }
-.pill-accountability-onbekend    { background: rgba(73, 80, 87, 0.08); color: var(--onbekend); }
+.pill-accountability-soeverein   { background: var(--soeverein); color: var(--soeverein-tekst); }
+.pill-accountability-voldoende   { background: var(--voldoende); color: var(--voldoende-tekst); }
+.pill-accountability-afhankelijk { background: var(--afhankelijk); color: var(--afhankelijk-tekst); }
+.pill-accountability-onbekend    { background: var(--onbekend); color: var(--onbekend-tekst); }
 .pill-accountability-nvt         { background: #fff; border: 1px dashed var(--muted); color: var(--muted); }
 .pill-accountability-unassessed  { background: #eee; color: var(--muted); }
 
@@ -503,9 +503,9 @@ tr.retired td { opacity: 0.7; font-style: italic; }
   font-weight: 700;
   border-radius: 0.2rem;
 }
-.grid-legend-item.score-soeverein   { background: rgba(20, 108, 67, 0.08); color: var(--soeverein); }
-.grid-legend-item.score-voldoende   { background: rgba(69, 112, 13, 0.08); color: var(--voldoende); }
-.grid-legend-item.score-afhankelijk { background: rgba(176, 42, 55, 0.08); color: var(--afhankelijk); }
+.grid-legend-item.score-soeverein   { background: var(--soeverein); color: var(--soeverein-tekst); }
+.grid-legend-item.score-voldoende   { background: var(--voldoende); color: var(--voldoende-tekst); }
+.grid-legend-item.score-afhankelijk { background: var(--afhankelijk); color: var(--afhankelijk-tekst); }
 .grid-legend-item.score-onbekend    { background: rgba(73, 80, 87, 0.06); color: var(--muted); }
 
 /* Mobile (run 02, task 1b.4): at narrow widths the per-stroom bars'
