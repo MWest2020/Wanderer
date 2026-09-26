@@ -9,6 +9,26 @@ once a first release is cut. Until then every entry lives under
 
 ## [Unreleased]
 
+### Changed
+
+- **Oordeelkleuren zijn nu ook zonder kleurzien te onderscheiden.**
+  Soeverein/voldoende/afhankelijk/onbekend liepen bij deuteranopie (de
+  meest voorkomende vorm van kleurenblindheid) tot op ΔE 4,2 in elkaar
+  over — "voldoende" en "afhankelijk" waren nagenoeg dezelfde kleur — en
+  de rastercellen waren daarbovenop een 8%-tint, praktisch wit. Het
+  nieuwe palet (`#004c8c`, `#3d8fd1`, `#c85200`, `#767676`) verschilt
+  minstens ΔE 20 onder normaal zien én gesimuleerde protanopie,
+  deuteranopie en tritanopie (Machado et al. 2009), en elke oordeelkleur
+  rendert als volle kleur — rastercellen, badges, legenda-stippen,
+  balken en de ring — met een tekstkleur die 4,5:1 contrast haalt op dat
+  vlak (wit, behalve near-black op het middenblauw van voldoende).
+  "Niet van toepassing" draagt geen van de vier oordeelkleuren meer: een
+  gestippelde grijze omlijning in plaats van blauw, zodat het niet voor
+  soeverein of voldoende kan worden aangezien. De eigenschap staat nu in
+  `internal/ui/palette_test.go`, die de variabelen uit `main.css` leest
+  in plaats van de cijfers alleen in een commentaarblok te laten staan.
+  (`openspec/changes/2026-09-26-kleuren-voor-iedereen`)
+
 ## [0.11.2] - 2026-09-26
 
 ### Fixed

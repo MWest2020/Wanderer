@@ -1,11 +1,11 @@
 # Tasks: kleuren-voor-iedereen
 
 ## 1. Code — habitat run 01
-- [ ] 1.1 Palet in `:root` van `internal/ui/static/main.css`.
-- [ ] 1.2 Volle vlakken met de juiste tekstkleur: rastercellen, badges,
+- [x] 1.1 Palet in `:root` van `internal/ui/static/main.css`.
+- [x] 1.2 Volle vlakken met de juiste tekstkleur: rastercellen, badges,
       legenda, ring, balken.
-- [ ] 1.3 `--nvt` als neutrale omlijning.
-- [ ] 1.4 Go-test die de eigenschap uit de spec controleert op de variabelen in
+- [x] 1.3 `--nvt` als neutrale omlijning.
+- [x] 1.4 Go-test die de eigenschap uit de spec controleert op de variabelen in
       `main.css`; één keer rood gezien met het oude palet.
 
 ## 2. Uit

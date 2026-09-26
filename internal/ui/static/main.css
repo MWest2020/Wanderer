@@ -4,23 +4,34 @@
   --muted: #666;
   --border: #ddd;
   --accent: #1558b0;
-  /* Verdict/status colours below are chosen so foreground-on-white AND
-     foreground-on-their-own-tinted-badge-background both clear 4.5:1
-     (WCAG 2.1 AA) at the badges' real size (13.6px, normal weight).
-     Computed with the WCAG relative-luminance formula, not eyeballed —
-     see run 02 report for the numbers. --accent was darkened from
-     #1a73e8 in a follow-up pass: the evidence links on the assessment
+  /* Status colours below (info/observation/concern/finding) are chosen so
+     foreground-on-white AND foreground-on-their-own-tinted-badge-background
+     both clear 4.5:1 (WCAG 2.1 AA) at the badges' real size (13.6px, normal
+     weight). Computed with the WCAG relative-luminance formula, not
+     eyeballed — see run 02 report for the numbers. --accent was darkened
+     from #1a73e8 in a follow-up pass: the evidence links on the assessment
      page sit on #fafafa (.dimension-card) and #f9f3f3 (afhankelijk row
-     tint over that), where #1a73e8 only cleared 4.32/4.11. */
+     tint over that), where #1a73e8 only cleared 4.32/4.11.
+     Verdict colours (soeverein/voldoende/afhankelijk/onbekend) and their
+     -tekst pairs are not hand-picked: internal/ui/palette_test.go reads
+     them from this file and checks the property in
+     openspec/changes/2026-09-26-kleuren-voor-iedereen/specs/web-ui/spec.md
+     — CIEDE2000 >= 20 between every pair, under normal vision and
+     simulated protanopia/deuteranopia/tritanopia (Machado et al. 2009,
+     severity 1.0), >= 3:1 contrast against --bg, and each -tekst variant
+     >= 4.5:1 against its own fill. */
   --info: #495057;
   --observation: #7a5b00;
   --concern: #fd7e14;
   --finding: #b02a37;
-  --soeverein: #146c43;
-  --voldoende: #45700d;
-  --afhankelijk: #b02a37;
-  --onbekend: #495057;
-  --nvt: #0b5ed7;
+  --soeverein: #004c8c;
+  --soeverein-tekst: #ffffff;
+  --voldoende: #3d8fd1;
+  --voldoende-tekst: #1a1a1a;
+  --afhankelijk: #c85200;
+  --afhankelijk-tekst: #ffffff;
+  --onbekend: #767676;
+  --onbekend-tekst: #ffffff;
 }
 
 * { box-sizing: border-box; }
@@ -202,10 +213,10 @@ code {
   background: #eef;
   margin-right: 0.25rem;
 }
-.score-soeverein   { background: rgba(20, 108, 67, 0.08); color: var(--soeverein); }
-.score-voldoende   { background: rgba(69, 112, 13, 0.08); color: var(--voldoende); }
-.score-afhankelijk { background: rgba(176, 42, 55, 0.08); color: var(--afhankelijk); }
-.score-onbekend    { background: rgba(73, 80, 87, 0.08); color: var(--onbekend); }
+.score-soeverein   { background: var(--soeverein);   color: var(--soeverein-tekst); }
+.score-voldoende   { background: var(--voldoende);   color: var(--voldoende-tekst); }
+.score-afhankelijk { background: var(--afhankelijk); color: var(--afhankelijk-tekst); }
+.score-onbekend    { background: var(--onbekend);    color: var(--onbekend-tekst); }
 
 .links a { font-size: 0.875rem; }
 
@@ -381,10 +392,10 @@ tr.retired td { opacity: 0.7; font-style: italic; }
 .answer-badge-ja       { background: rgba(20, 108, 67, 0.08); color: var(--soeverein); }
 .answer-badge-nee      { background: rgba(176, 42, 55, 0.08); color: var(--afhankelijk); }
 .answer-badge-onbekend { background: rgba(73, 80, 87, 0.08); color: var(--onbekend); }
-.answer-badge-nvt      { background: rgba(11, 94, 215, 0.08); color: var(--nvt); }
+.answer-badge-nvt      { background: #fff; border: 1px dashed var(--muted); color: var(--muted); }
 .answer-row.answer-nee { border-left: 3px solid var(--afhankelijk); }
 .answer-row.answer-onbekend { border-left: 3px solid var(--onbekend); }
-.answer-row.answer-nvt { border-left: 3px solid var(--nvt); }
+.answer-row.answer-nvt { border-left: 3px dashed var(--muted); }
 .answer-remediation { margin: 0.35rem 0 0 0; color: var(--muted); }
 .answer-evidence { margin-top: 0.5rem; font-size: 0.85rem; }
 .answer-evidence summary { cursor: pointer; color: var(--muted); }
@@ -407,7 +418,7 @@ tr.retired td { opacity: 0.7; font-style: italic; }
 .pill-accountability-voldoende   { background: rgba(69, 112, 13, 0.08); color: var(--voldoende); }
 .pill-accountability-afhankelijk { background: rgba(176, 42, 55, 0.08); color: var(--afhankelijk); }
 .pill-accountability-onbekend    { background: rgba(73, 80, 87, 0.08); color: var(--onbekend); }
-.pill-accountability-nvt         { background: rgba(11, 94, 215, 0.08); color: var(--nvt); }
+.pill-accountability-nvt         { background: #fff; border: 1px dashed var(--muted); color: var(--muted); }
 .pill-accountability-unassessed  { background: #eee; color: var(--muted); }
 
 /* De vloot in beeld (run 01): ring, per-stroom bars, domain grid, top-3
@@ -475,10 +486,10 @@ tr.retired td { opacity: 0.7; font-style: italic; }
   font-weight: 600;
   width: 2.2rem;
 }
-.domain-grid .grid-cell.score-soeverein   { background: rgba(20, 108, 67, 0.08); color: var(--soeverein); }
-.domain-grid .grid-cell.score-voldoende   { background: rgba(69, 112, 13, 0.08); color: var(--voldoende); }
-.domain-grid .grid-cell.score-afhankelijk { background: rgba(176, 42, 55, 0.08); color: var(--afhankelijk); }
-.domain-grid .grid-cell.score-onbekend    { background: rgba(73, 80, 87, 0.06); color: var(--muted); }
+.domain-grid .grid-cell.score-soeverein   { background: var(--soeverein);   color: var(--soeverein-tekst); }
+.domain-grid .grid-cell.score-voldoende   { background: var(--voldoende);   color: var(--voldoende-tekst); }
+.domain-grid .grid-cell.score-afhankelijk { background: var(--afhankelijk); color: var(--afhankelijk-tekst); }
+.domain-grid .grid-cell.score-onbekend    { background: var(--onbekend);    color: var(--onbekend-tekst); }
 .covers { margin-left: 0.35rem; }
 
 /* Grid legend (run 02): the raster's S/V/N/? letters spelled out once,
