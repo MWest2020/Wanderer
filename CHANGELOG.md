@@ -9,6 +9,26 @@ once a first release is cut. Until then every entry lives under
 
 ## [Unreleased]
 
+### Fixed
+
+- **Een nieuwe stylesheet kwam pas na uren aan bij de gebruiker.** v0.12.0
+  ging live en de publieke edge (Cloudflare) bleef `main.css` teruggeven met
+  `cache-control: max-age=14400` en `cf-cache-status: HIT` — gemeten op
+  `age: 4046` terwijl de pod al de nieuwe versie serveerde. Alle tien
+  templates linkten naar hetzelfde vaste adres
+  (`/ui/static/main.css`), waardoor geen cache — browser of edge — kon weten
+  dat de inhoud veranderd was. Het adres bevat nu de eerste 12 hex-tekens
+  van de sha256 van de ingebedde `main.css`
+  (`/ui/static/main.css?v=<hash>`), eenmalig berekend bij het opstarten via
+  de nieuwe `stylesheet`-templatefunctie. Een gewijzigd bestand krijgt zo
+  een nieuw adres; een ongewijzigd bestand houdt het zijne en blijft
+  gecached. `internal/ui/stylesheet_test.go` rendert elk van de tien
+  templates en toetst het adres tegen de hash van het huidige bestand, en
+  scant `internal/ui/templates/*.tmpl` op elke kale verwijzing naar
+  `/ui/static/main.css"` zodat een nieuwe template het probleem niet kan
+  terugbrengen.
+  (`openspec/changes/2026-09-26-stylesheet-versie`)
+
 ## [0.12.0] - 2026-09-26
 
 ### Changed

@@ -8,8 +8,10 @@ package ui
 
 import (
 	"context"
+	"crypto/sha256"
 	"crypto/subtle"
 	"embed"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"html/template"
@@ -20,6 +22,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/MWest2020/wanderer/internal/assessor"
@@ -33,6 +36,20 @@ import (
 
 //go:embed templates/*.tmpl static/*
 var assets embed.FS
+
+// stylesheetHash is the first 12 hex characters of the embedded
+// main.css's sha256, computed once and reused for every request
+// (proposal.md: "an old copy from Cloudflare's edge, while the pod
+// served the new file" — a changed stylesheet needs a changed address
+// so no cache, browser or edge, can hand back stale CSS).
+var stylesheetHash = sync.OnceValue(func() string {
+	data, err := assets.ReadFile("static/main.css")
+	if err != nil {
+		panic(fmt.Sprintf("ui: read embedded main.css: %v", err))
+	}
+	sum := sha256.Sum256(data)
+	return hex.EncodeToString(sum[:])[:12]
+})
 
 // Templates parses the UI's embedded templates standalone. It is the
 // seam a caller outside the login-gated Handler (the public /demo
@@ -65,6 +82,12 @@ func Templates() (*template.Template, error) {
 		// a rule's rendered Verdict text, without a dedicated page for
 		// it (run 04 task 4.1).
 		"linkify": linkifyVerdict,
+		// stylesheet returns the CSS link's address, versioned by
+		// content so a release with a changed main.css gets a new
+		// address and an unchanged one keeps its cached one.
+		"stylesheet": func() string {
+			return "/ui/static/main.css?v=" + stylesheetHash()
+		},
 	}).ParseFS(assets, "templates/*.tmpl")
 	if err != nil {
 		return nil, fmt.Errorf("ui: parse templates: %w", err)
