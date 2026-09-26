@@ -9,6 +9,8 @@ once a first release is cut. Until then every entry lives under
 
 ## [Unreleased]
 
+## [0.11.2] - 2026-09-26
+
 ### Fixed
 
 - **Een domein verwijderen kon alleen vanaf een kolom die op een telefoon
@@ -1303,7 +1305,8 @@ ExApp) can pin a reproducible version instead of `@main`.
   deferred (see `docs/observability.md`).
   (`openspec/changes/archive/2026-04-24-init-mvp-scanners`)
 
-[Unreleased]: https://github.com/MWest2020/wanderer/compare/v0.11.1...main
+[Unreleased]: https://github.com/MWest2020/wanderer/compare/v0.11.2...main
+[0.11.2]: https://github.com/MWest2020/wanderer/compare/v0.11.1...v0.11.2
 [0.11.1]: https://github.com/MWest2020/wanderer/compare/v0.11.0...v0.11.1
 [0.11.0]: https://github.com/MWest2020/wanderer/compare/v0.10.1...v0.11.0
 [0.10.1]: https://github.com/MWest2020/wanderer/compare/v0.10.0...v0.10.1
