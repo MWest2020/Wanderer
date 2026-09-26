@@ -1049,7 +1049,7 @@ func resolveFleetReturnTo(raw, orgSlug string) string {
 		return fallback
 	}
 	switch u.Path {
-	case "/ui/", "/ui/orgs/"+orgSlug, "/ui/orgs/"+orgSlug+"/fleet":
+	case "/ui/", "/ui/orgs/" + orgSlug, "/ui/orgs/" + orgSlug + "/fleet":
 		return u.Path
 	default:
 		return fallback
