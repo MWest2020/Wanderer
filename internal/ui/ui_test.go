@@ -1327,6 +1327,59 @@ func TestDoor_NoDirectFleetManageLinkWithMultipleOrganisations(t *testing.T) {
 	}
 }
 
+// TestDoor_RemoveControlPointsToDomainsOwnOrganisation covers
+// verwijderen-waar-je-kijkt task 1.1 on the unscoped door: /ui/ can
+// list domains from more than one organisation side by side, so each
+// row's remove form must post to that domain's own org, not a
+// hardcoded one — the risk in threading OrganisationSlug through
+// TargetSnapshot / doorDomainView.
+func TestDoor_RemoveControlPointsToDomainsOwnOrganisation(t *testing.T) {
+	dir := t.TempDir()
+	htpasswd := filepath.Join(dir, "passwd")
+	hash, _ := bcrypt.GenerateFromPassword([]byte("correct horse battery staple"), bcrypt.MinCost)
+	if err := os.WriteFile(htpasswd, []byte("op:"+string(hash)+"\n"), 0o600); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+	st := newTestStore(t)
+	_, _ = seed(t, st) // "example.nl" on the default org
+	acme := &models.Organisation{Slug: "acme", Name: "ACME"}
+	if err := st.UpsertOrganisation(context.Background(), acme); err != nil {
+		t.Fatal(err)
+	}
+	tgt := &models.Target{Domain: "acme.example", OrganisationID: acme.ID}
+	if err := st.UpsertTarget(context.Background(), tgt); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := st.CreateScan(context.Background(), tgt.ID); err != nil {
+		t.Fatal(err)
+	}
+	h, err := ui.Handler(st, ui.Options{HtpasswdPath: htpasswd})
+	if err != nil {
+		t.Fatalf("handler: %v", err)
+	}
+	mux := http.NewServeMux()
+	mux.Handle("/ui/", http.StripPrefix("/ui", h))
+	srv := httptest.NewServer(mux)
+	t.Cleanup(srv.Close)
+	client := basicAuthClient("op", "correct horse battery staple")
+
+	resp, err := client.Get(srv.URL + "/ui/")
+	if err != nil {
+		t.Fatalf("get: %v", err)
+	}
+	defer resp.Body.Close()
+	body, _ := io.ReadAll(resp.Body)
+	bodyStr := string(body)
+	for _, want := range []string{
+		`action="/ui/orgs/default/fleet/domains/example.nl/remove"`,
+		`action="/ui/orgs/acme/fleet/domains/acme.example/remove"`,
+	} {
+		if !strings.Contains(bodyStr, want) {
+			t.Errorf("door page missing %q; body:\n%s", want, bodyStr)
+		}
+	}
+}
+
 // mustEnrolmentToken issues a fresh enrolment token for the enrol
 // helper tests; the plain token is the only return value they need.
 func mustEnrolmentToken(t *testing.T, st *store.Store) string {
@@ -1507,6 +1560,71 @@ func TestFleetRemove_SignedInUser_RemovesDomainButKeepsHistory(t *testing.T) {
 	defer scanResp.Body.Close()
 	if scanResp.StatusCode != 200 {
 		t.Errorf("scan history no longer reachable after removal: status = %d", scanResp.StatusCode)
+	}
+}
+
+// TestFleetRemove_ReturnToWhitelist covers spec.md's "Geen open
+// doorverwijzing" scenario and task 1.2's whitelist: only "/ui/",
+// "/ui/orgs/{slug}" and "/ui/orgs/{slug}/fleet" for the org the
+// request's own URL names are honoured; anything else — an absolute
+// URL, a scheme-relative "//host" URL, or another organisation's
+// page — falls back to this org's fleet page. Without the fix
+// (resolveFleetReturnTo), the handler redirected to r.FormValue
+// unchecked, so this test failed red on every rejected case.
+func TestFleetRemove_ReturnToWhitelist(t *testing.T) {
+	dir := t.TempDir()
+	htpasswd := filepath.Join(dir, "passwd")
+	hash, _ := bcrypt.GenerateFromPassword([]byte("correct horse battery staple"), bcrypt.MinCost)
+	if err := os.WriteFile(htpasswd, []byte("op:"+string(hash)+"\n"), 0o600); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+	st := newTestStore(t)
+	acme := &models.Organisation{Slug: "acme", Name: "ACME"}
+	if err := st.UpsertOrganisation(context.Background(), acme); err != nil {
+		t.Fatal(err)
+	}
+	h, err := ui.Handler(st, ui.Options{HtpasswdPath: htpasswd})
+	if err != nil {
+		t.Fatalf("handler: %v", err)
+	}
+	mux := http.NewServeMux()
+	mux.Handle("/ui/", http.StripPrefix("/ui", h))
+	srv := httptest.NewServer(mux)
+	t.Cleanup(srv.Close)
+	client := basicAuthClient("op", "correct horse battery staple")
+
+	cases := []struct {
+		name     string
+		returnTo string
+		want     string
+	}{
+		{"empty falls back to the fleet page", "", "/ui/orgs/default/fleet"},
+		{"root overview accepted", "/ui/", "/ui/"},
+		{"scoped overview accepted", "/ui/orgs/default", "/ui/orgs/default"},
+		{"own fleet page accepted", "/ui/orgs/default/fleet", "/ui/orgs/default/fleet"},
+		{"absolute URL rejected", "https://elders.example/", "/ui/orgs/default/fleet"},
+		{"scheme-relative URL rejected", "//elders.example/", "/ui/orgs/default/fleet"},
+		{"another org's fleet page rejected", "/ui/orgs/acme/fleet", "/ui/orgs/default/fleet"},
+		{"another org's overview rejected", "/ui/orgs/acme", "/ui/orgs/default/fleet"},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if _, err := st.AddFleetDomain(context.Background(), models.DefaultOrganisationID, "return-to.nl"); err != nil {
+				t.Fatalf("AddFleetDomain: %v", err)
+			}
+			resp, err := client.PostForm(srv.URL+"/ui/orgs/default/fleet/domains/return-to.nl/remove", url.Values{"return_to": {tc.returnTo}})
+			if err != nil {
+				t.Fatalf("post: %v", err)
+			}
+			defer resp.Body.Close()
+			if resp.StatusCode != http.StatusSeeOther {
+				t.Fatalf("status = %d, want 303", resp.StatusCode)
+			}
+			if loc := resp.Header.Get("Location"); loc != tc.want {
+				t.Errorf("Location = %q, want %q", loc, tc.want)
+			}
+		})
 	}
 }
 

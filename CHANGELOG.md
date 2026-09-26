@@ -9,6 +9,22 @@ once a first release is cut. Until then every entry lives under
 
 ## [Unreleased]
 
+### Fixed
+
+- **Een domein verwijderen kon alleen vanaf een kolom die op een telefoon
+  buiten beeld viel.** Op `/ui/orgs/{slug}/fleet` stond "Verwijderen" in de
+  laatste kolom van een brede tabel — op 390px zichtbaar noch bereikbaar
+  (x = 776), en `/ui/` bood helemaal geen weg om een domein te verwijderen.
+  De verwijderhandeling staat nu naast de domeinnaam, zowel in het
+  overzicht (`/ui/`, `/ui/orgs/{slug}`) als op het vlootscherm, en vraagt
+  één keer om bevestiging zonder JavaScript (`<details>` met "Ja, haal
+  {domein} uit de vloot"). Na het verwijderen komt de gebruiker terug op de
+  pagina waar die klikte; een terugadres buiten `/ui/`,
+  `/ui/orgs/{slug}` of het vlootscherm van dezelfde organisatie wordt
+  genegeerd. Het vlootscherm scrolt nu ook zelf op een smal scherm
+  (`.table-scroll`), zoals het overzicht al deed.
+  (`openspec/changes/2026-09-26-verwijderen-waar-je-kijkt`)
+
 ## [0.11.1] - 2026-09-24
 
 ### Fixed

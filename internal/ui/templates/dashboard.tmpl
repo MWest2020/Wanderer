@@ -125,6 +125,7 @@
         <td>
           {{if .AnswerURL}}<a href="{{.AnswerURL}}">{{.Domain}}</a>{{else}}{{.Domain}}{{end}}
           {{if eq .Kind "host"}}<span class="badge kind-host">host</span>{{end}}
+          {{if $.AllowEdit}}{{template "remove-domain.tmpl" dict "OrgSlug" .OrgSlug "Domain" .Domain "ReturnTo" $.ReturnTo}}{{end}}
         </td>
         {{range .Grid}}<td class="grid-cell {{.Class}}" title="{{.Title}}">{{.Label}}</td>{{end}}
         <td>

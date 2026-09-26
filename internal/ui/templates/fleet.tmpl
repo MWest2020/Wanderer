@@ -31,6 +31,7 @@
   Sorteer op:
   {{range $i, $sl := .SortLinks}}{{if $i}} · {{end}}{{if $sl.Active}}<strong>{{$sl.Label}}</strong>{{else}}<a href="{{$sl.URL}}">{{$sl.Label}}</a>{{end}}{{end}}
 </p>
+<div class="table-scroll">
 <table>
   <thead>
     <tr>
@@ -39,13 +40,15 @@
       <th>Verschil sinds vorige scan</th>
       <th>Laatste scan</th>
       <th>Schema</th>
-      {{if .AllowEdit}}<th></th>{{end}}
     </tr>
   </thead>
   <tbody>
     {{range .Domains}}
     <tr>
-      <td>{{.Domain}}</td>
+      <td>
+        {{.Domain}}
+        {{if $.AllowEdit}}{{template "remove-domain.tmpl" dict "OrgSlug" $.OrgSlug "Domain" .Domain "ReturnTo" $.ReturnTo}}{{end}}
+      </td>
       <td>
         {{if .HasScore}}
         {{if or .N .Unanswered}}
@@ -76,17 +79,11 @@
       </td>
       <td>{{if .LastScanAt}}<code>{{.LastScanAt}}</code>{{else}}<span class="muted">nog niet gescand</span>{{end}}</td>
       <td>{{if .ScheduleName}}{{.ScheduleName}} <span class="muted">(<code>{{.ScheduleCron}}</code>)</span>{{else}}<span class="muted">geen schema</span>{{end}}</td>
-      {{if $.AllowEdit}}
-      <td>
-        <form method="post" action="/ui/orgs/{{$.OrgSlug}}/fleet/domains/{{.Domain}}/remove">
-          <button type="submit" class="danger">Verwijderen</button>
-        </form>
-      </td>
-      {{end}}
     </tr>
     {{end}}
   </tbody>
 </table>
+</div>
 {{else}}
 <p class="empty-state">Nog geen domeinen in deze vloot.{{if .AllowEdit}} Voeg er hierboven een toe.{{end}}</p>
 {{end}}

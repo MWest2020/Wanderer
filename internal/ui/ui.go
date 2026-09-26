@@ -118,21 +118,24 @@ func Handler(st *store.Store, opts Options) (http.Handler, error) {
 		// scan runs; redirects to the assessment once it lands.
 		r.Get("/scan-status", scanStatusHandler(st, tmpl))
 	}
-	r.Get("/", dashboardHandler(st, tmpl, allowScan))
-	r.Get("/orgs/{slug}", dashboardOrgHandler(st, tmpl, allowScan))
+	// The fleet page (spec.md "Domeinen zijn bij te houden als vloot")
+	// is read-only for everyone, same as the rest of the UI. Adding
+	// and removing a domain is gated the same way as scanning: a
+	// signed-in user, not a dev-mode flag — gate != nil is exactly the
+	// "authentication is configured" half of allowScan's condition
+	// above (there is no Scanner-equivalent dependency here). The door
+	// pages (/ui/, /ui/orgs/{slug}) render the same remove control
+	// next to each domain (verwijderen-waar-je-kijkt), so they share
+	// this gate too.
+	allowFleetEdit := gate != nil
+	r.Get("/", dashboardHandler(st, tmpl, allowScan, allowFleetEdit))
+	r.Get("/orgs/{slug}", dashboardOrgHandler(st, tmpl, allowScan, allowFleetEdit))
 	r.Get("/targets", targetsHandler(st, tmpl))
 	r.Get("/scans/{id}", scanHandler(st, tmpl))
 	r.Get("/scans/{id}/answer", answerHandler(st, tmpl))
 	r.Get("/scans/{id}/assessment", assessmentHandler(st, tmpl))
 	r.Get("/targets/{id}/drift", driftHandler(st, tmpl))
 	r.Get("/trends", trendsHandler(st, tmpl))
-	// The fleet page (spec.md "Domeinen zijn bij te houden als vloot")
-	// is read-only for everyone, same as the rest of the UI. Adding
-	// and removing a domain is gated the same way as scanning: a
-	// signed-in user, not a dev-mode flag — gate != nil is exactly the
-	// "authentication is configured" half of allowScan's condition
-	// above (there is no Scanner-equivalent dependency here).
-	allowFleetEdit := gate != nil
 	r.Get("/orgs/{slug}/fleet", fleetHandler(st, tmpl, allowFleetEdit, opts.Schedules))
 	if allowFleetEdit {
 		// Two more sanctioned mutating routes, alongside /scan. Both
@@ -181,6 +184,16 @@ type doorView struct {
 	AgentHosts         []string               // enrolled, non-revoked agent hostnames — selectable from the same input
 	FleetManageURL     string                 // /ui/orgs/{slug}/fleet — set unscoped too when there is exactly one organisation (vloot-beheren-bereikbaar), "" otherwise
 
+	// AllowEdit gates the remove control on each domain row — same
+	// signed-in-user condition as the fleet page's AllowEdit
+	// (verwijderen-waar-je-kijkt: a domain is removable from every
+	// list it appears in, not only the fleet page).
+	AllowEdit bool
+	// ReturnTo is this page's own URL ("/ui/" unscoped, "/ui/orgs/{slug}"
+	// scoped) — posted back as the remove form's hidden return_to field
+	// so the user lands back here, not on the fleet page.
+	ReturnTo string
+
 	HasFleet bool // at least one domain with a scan to show
 
 	// The vloot score itself (fleet_score.go's FleetSummary) —
@@ -212,6 +225,11 @@ type doorDomainView struct {
 	Kind       string
 	LastScanAt string
 	AnswerURL  string // /ui/scans/{id}/answer
+	// OrgSlug is the domain's owning organisation — the unscoped
+	// door (/ui/) can list domains from more than one organisation,
+	// so the remove control needs each row's own slug to build its
+	// POST target.
+	OrgSlug string
 
 	HasScore   bool
 	X, N       int
@@ -238,7 +256,7 @@ func buildDoorDomains(snaps []TargetSnapshot) []doorDomainView {
 	var unscanned []doorDomainView
 
 	for _, s := range snaps {
-		row := doorDomainView{Domain: s.Domain, Kind: string(s.Kind)}
+		row := doorDomainView{Domain: s.Domain, Kind: string(s.Kind), OrgSlug: s.OrganisationSlug}
 		if !s.LastScanAt.IsZero() {
 			row.LastScanAt = s.LastScanAt.UTC().Format(time.RFC3339)
 		}
@@ -429,16 +447,16 @@ func scanStatusHandler(st *store.Store, tmpl *template.Template) http.HandlerFun
 	}
 }
 
-func dashboardHandler(st *store.Store, tmpl *template.Template, allowScan bool) http.HandlerFunc {
+func dashboardHandler(st *store.Store, tmpl *template.Template, allowScan, allowFleetEdit bool) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		renderDoor(w, r, st, tmpl, nil, allowScan)
+		renderDoor(w, r, st, tmpl, nil, allowScan, allowFleetEdit)
 	}
 }
 
 // dashboardOrgHandler renders the per-organisation door at
 // /ui/orgs/{slug}: the recently-answered list filters to that
 // organisation's targets and the header rebadges with the org name.
-func dashboardOrgHandler(st *store.Store, tmpl *template.Template, allowScan bool) http.HandlerFunc {
+func dashboardOrgHandler(st *store.Store, tmpl *template.Template, allowScan, allowFleetEdit bool) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		slug := chi.URLParam(r, "slug")
 		o, err := st.GetOrganisationBySlug(r.Context(), slug)
@@ -446,7 +464,7 @@ func dashboardOrgHandler(st *store.Store, tmpl *template.Template, allowScan boo
 			http.NotFound(w, r)
 			return
 		}
-		renderDoor(w, r, st, tmpl, o, allowScan)
+		renderDoor(w, r, st, tmpl, o, allowScan, allowFleetEdit)
 	}
 }
 
@@ -476,7 +494,7 @@ func enrolledAgentHostnames(ctx context.Context, st *store.Store) []string {
 // the organisation list alongside so a multi-org instance can still
 // reach a single vloot); when org is set, the view is that
 // organisation's vloot alone.
-func renderDoor(w http.ResponseWriter, r *http.Request, st *store.Store, tmpl *template.Template, org *models.Organisation, allowScan bool) {
+func renderDoor(w http.ResponseWriter, r *http.Request, st *store.Store, tmpl *template.Template, org *models.Organisation, allowScan, allowFleetEdit bool) {
 	ctx := r.Context()
 	orgID := ""
 	if org != nil {
@@ -488,8 +506,10 @@ func renderDoor(w http.ResponseWriter, r *http.Request, st *store.Store, tmpl *t
 		return
 	}
 	orgSlug := ""
+	returnTo := "/ui/"
 	if org != nil {
 		orgSlug = org.Slug
+		returnTo = "/ui/orgs/" + org.Slug
 	}
 	summary := BuildFleetSummary(snaps, lookupRule)
 	view := doorView{
@@ -497,6 +517,8 @@ func renderDoor(w http.ResponseWriter, r *http.Request, st *store.Store, tmpl *t
 		HasReporting:       true,
 		OrgSlug:            orgSlug,
 		AllowScan:          allowScan,
+		AllowEdit:          allowFleetEdit,
+		ReturnTo:           returnTo,
 		X:                  summary.X,
 		N:                  summary.N,
 		Unanswered:         summary.Unanswered,
@@ -578,20 +600,33 @@ func buildSnapshots(ctx context.Context, st *store.Store, orgID string) (snaps [
 			byTarget[s.TargetID] = latest{scan: s, when: s.StartedAt}
 		}
 	}
+	// orgSlugByID resolves a Target's OrganisationID to its slug for
+	// the domain-remove URL below — one query for the whole snapshot
+	// set rather than one per target.
+	orgSlugByID := map[string]string{}
+	if orgs, lerr := st.ListOrganisations(ctx); lerr == nil {
+		for _, o := range orgs {
+			orgSlugByID[o.ID] = o.Slug
+		}
+	}
+
 	snaps = make([]TargetSnapshot, 0, len(byTarget))
 	for _, l := range byTarget {
 		var kind models.TargetKind
+		var orgSlug string
 		if t, terr := st.GetTarget(ctx, l.scan.TargetID); terr == nil && t != nil {
 			kind = t.Kind
+			orgSlug = orgSlugByID[t.OrganisationID]
 		}
 		snap := TargetSnapshot{
-			TargetID:    l.scan.TargetID,
-			Domain:      l.scan.Domain,
-			Kind:        kind,
-			LastScanID:  l.scan.ID,
-			LastScanAt:  l.when,
-			LastStatus:  l.scan.Status,
-			Assessments: map[string]models.Assessment{},
+			TargetID:         l.scan.TargetID,
+			Domain:           l.scan.Domain,
+			Kind:             kind,
+			LastScanID:       l.scan.ID,
+			LastScanAt:       l.when,
+			LastStatus:       l.scan.Status,
+			Assessments:      map[string]models.Assessment{},
+			OrganisationSlug: orgSlug,
 		}
 		if list, lerr := st.ListAssessmentsForScan(ctx, l.scan.ID); lerr == nil {
 			for _, a := range list {
@@ -659,6 +694,9 @@ type fleetView struct {
 	SortKey            string
 	SortLinks          []fleetSortLinkView
 	Domains            []fleetDomainView
+	// ReturnTo is this page's own URL ("/ui/orgs/{slug}/fleet"),
+	// posted back as the remove form's hidden return_to field.
+	ReturnTo string
 }
 
 // fleetSortLinkView is one of the "sort by" links fleet.tmpl renders —
@@ -806,6 +844,7 @@ func fleetHandler(st *store.Store, tmpl *template.Template, allowEdit bool, sche
 			OrgSlug:      org.Slug,
 			AllowEdit:    allowEdit,
 			SortKey:      sortKey,
+			ReturnTo:     "/ui/orgs/" + org.Slug + "/fleet",
 			ScopedOrganisation: &organisationLinkView{
 				Slug: org.Slug,
 				Name: org.Name,
@@ -990,7 +1029,30 @@ func fleetRemoveHandler(st *store.Store) http.HandlerFunc {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		http.Redirect(w, r, "/ui/orgs/"+org.Slug+"/fleet", http.StatusSeeOther)
+		http.Redirect(w, r, resolveFleetReturnTo(r.FormValue("return_to"), org.Slug), http.StatusSeeOther)
+	}
+}
+
+// resolveFleetReturnTo validates the posted return_to hidden field
+// (run 01's task 1.2) against the exact whitelist of pages that carry
+// a remove control for orgSlug: "/ui/", "/ui/orgs/{slug}", and
+// "/ui/orgs/{slug}/fleet". Anything else — an absolute URL, a
+// scheme-relative "//host" URL, or another organisation's page —
+// falls back to this org's fleet page. The value is parsed with
+// net/url and matched on the resulting Path, not string-prefixed, so
+// neither a foreign host nor a same-prefix-different-org path (e.g.
+// "/ui/orgs/acme-evil") can pass as one of the three exact pages.
+func resolveFleetReturnTo(raw, orgSlug string) string {
+	fallback := "/ui/orgs/" + orgSlug + "/fleet"
+	u, err := url.Parse(raw)
+	if err != nil || u.Scheme != "" || u.Host != "" || u.Opaque != "" {
+		return fallback
+	}
+	switch u.Path {
+	case "/ui/", "/ui/orgs/"+orgSlug, "/ui/orgs/"+orgSlug+"/fleet":
+		return u.Path
+	default:
+		return fallback
 	}
 }
 

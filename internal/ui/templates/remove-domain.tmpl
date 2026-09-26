@@ -1,0 +1,11 @@
+{{/* remove-domain.tmpl — the domain-remove control (verwijderen-waar-je-kijkt):
+     asks once, without JavaScript, via a <details> holding the POST form.
+     Params: OrgSlug, Domain, ReturnTo. */}}
+{{define "remove-domain.tmpl"}}<details class="remove">
+  <summary>verwijderen</summary>
+  <form method="post" action="/ui/orgs/{{.OrgSlug}}/fleet/domains/{{.Domain}}/remove">
+    <input type="hidden" name="return_to" value="{{.ReturnTo}}">
+    <button type="submit" class="danger">Ja, haal {{.Domain}} uit de vloot</button>
+    <p class="muted small">de scans blijven bewaard</p>
+  </form>
+</details>{{end}}

@@ -19,6 +19,13 @@ type TargetSnapshot struct {
 	LastScanAt  time.Time
 	LastStatus  string
 	Assessments map[string]models.Assessment
+
+	// OrganisationSlug is the owning organisation's slug — the door
+	// page (unscoped /ui/) can list domains from more than one
+	// organisation side by side, so each row needs its own slug to
+	// build a domain-remove URL that resolves to the right org
+	// (verwijderen-waar-je-kijkt run 01).
+	OrganisationSlug string
 }
 
 // Headline is the pontificaal-section data shape: what coverage

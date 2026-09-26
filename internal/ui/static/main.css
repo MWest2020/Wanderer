@@ -141,6 +141,13 @@ a:hover { text-decoration: underline; }
 .rule-catalogue details.why { margin-top: 0.25rem; }
 .rule-catalogue details.why summary { cursor: pointer; }
 
+/* Domain-remove control (verwijderen-waar-je-kijkt): sits next to the
+   domain name in every list, not in a wide last column, so it stays
+   on screen at any width. */
+details.remove { margin-top: 0.25rem; }
+details.remove summary { cursor: pointer; color: var(--muted); font-size: 0.875rem; }
+details.remove form { margin-top: 0.375rem; }
+
 /* Wraps a wide table so it scrolls within its own frame instead of
    pushing the whole page into horizontal scroll on narrow viewports. */
 .table-scroll {

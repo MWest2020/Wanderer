@@ -78,18 +78,62 @@ test.describe("Het vlootscherm sorteren", () => {
 test.describe("Vlootbeheer bereikbaar vanaf /ui/ (één organisatie)", () => {
   test.use({ baseURL: "http://127.0.0.1:8286" });
 
-  test("vloot beheren linkt rechtstreeks naar de vloot, en een domein is te verwijderen", async ({
-    page,
-  }) => {
+  test("vloot beheren linkt rechtstreeks naar de vloot", async ({ page }) => {
     await page.goto("/ui/");
 
     await page.locator("a", { hasText: "vloot beheren" }).click();
     await expect(page).toHaveURL(/\/ui\/orgs\/default\/fleet$/);
+  });
+});
 
-    const row = page.locator("table tbody tr", { hasText: "solo.nl" });
+// verwijderen-waar-je-kijkt: the remove control sits next to the
+// domain name on the overview itself, not only on the fleet page —
+// Mark's report was specifically about /ui/ offering no way to
+// remove a domain. Runs before the "vloot beheren" test above only
+// by file order, but doesn't depend on it: the two touch the same
+// single-org fixture, so removal here must be the last thing this
+// project does with solo.nl.
+test.describe("Verwijderen vanaf het overzicht (één organisatie)", () => {
+  test.use({ baseURL: "http://127.0.0.1:8286" });
+
+  test("verwijderen op /ui/ landt weer op /ui/ zonder dat domein", async ({ page }) => {
+    await page.goto("/ui/");
+
+    const row = page.locator("table.domain-grid tbody tr", { hasText: "solo.nl" });
     await expect(row).toBeVisible();
-    await row.getByRole("button", { name: "Verwijderen" }).click();
-    await expect(page.locator("table tbody tr", { hasText: "solo.nl" })).toHaveCount(0);
+    await row.locator("details.remove summary").click();
+    await row.getByRole("button", { name: "Ja, haal solo.nl uit de vloot" }).click();
+
+    await expect(page).toHaveURL(/\/ui\/$/);
+    await expect(page.locator("table.domain-grid tbody tr", { hasText: "solo.nl" })).toHaveCount(0);
+  });
+});
+
+// verwijderen-waar-je-kijkt scenario "Zichtbaar op een telefoon":
+// the fleet page's table scrolls inside its own frame (.table-scroll)
+// so the remove control for every domain stays reachable at 390px,
+// instead of sitting in a wide last column off the right edge of the
+// screen (proposal.md's measured bug: x = 776 at 390px wide).
+test.describe("Het vlootscherm op een telefoon", () => {
+  test("op 390px blijft elke verwijderhandeling in beeld en scrollt de pagina niet horizontaal", async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto("/ui/orgs/voorbeeld/fleet");
+
+    const summaries = page.locator("details.remove summary");
+    const count = await summaries.count();
+    expect(count).toBeGreaterThan(0);
+    for (let i = 0; i < count; i++) {
+      const box = await summaries.nth(i).boundingBox();
+      expect(box).not.toBeNull();
+      expect(box!.x).toBeGreaterThanOrEqual(0);
+      expect(box!.x + box!.width).toBeLessThanOrEqual(390);
+    }
+
+    const scrollWidth = await page.evaluate(() => document.documentElement.scrollWidth);
+    const innerWidth = await page.evaluate(() => window.innerWidth);
+    expect(scrollWidth).toBeLessThanOrEqual(innerWidth);
   });
 });
 
