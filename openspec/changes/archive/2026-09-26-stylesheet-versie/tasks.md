@@ -7,4 +7,5 @@
       template linkt nog kaal naar `/ui/static/main.css"`.
 
 ## 2. Uit
-- [ ] 2.1 Release, deploy, nagemeten via het publieke adres; archiveren.
+- [x] 2.1 Release, deploy, nagemeten via het publieke adres; archiveren.
+      (v0.12.1; drie keer via wanderer.westerweel.work de nieuwe CSS.)

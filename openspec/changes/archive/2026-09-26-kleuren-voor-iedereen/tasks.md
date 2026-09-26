@@ -9,5 +9,7 @@
       `main.css`; één keer rood gezien met het oude palet.
 
 ## 2. Uit
-- [ ] 2.1 `make playwright`, screenshots normaal en gesimuleerd
+- [x] 2.1 `make playwright`, screenshots normaal en gesimuleerd
       (deuteranopie) op een kopie van de prod-data; release, deploy; archiveren.
+      (v0.12.0; 50/50; screenshots voor/na met Chrome's deuteranopie-emulatie.
+      De edge gaf daarna nog de oude CSS — opgelost in stylesheet-versie, v0.12.1.)
