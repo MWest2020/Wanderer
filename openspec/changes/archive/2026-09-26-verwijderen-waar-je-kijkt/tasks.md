@@ -19,4 +19,7 @@
       daar staat nu ook de verwijderhandeling in.
 
 ## 2. Uit
-- [ ] 2.1 Release, deploy, nagekeken op prod-data; archiveren.
+- [x] 2.1 Release, deploy, nagekeken op prod-data; archiveren. (v0.11.2 live;
+      op een kopie van de prod-data staat bij schiphol.nk op 390 px een
+      verwijderhandeling binnen beeld, op /ui/ en op het vlootscherm, en
+      scrollt geen van beide pagina's horizontaal.)
