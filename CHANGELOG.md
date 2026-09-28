@@ -9,6 +9,8 @@ once a first release is cut. Until then every entry lives under
 
 ## [Unreleased]
 
+## [0.12.2] - 2026-09-28
+
 ### Fixed
 
 - **`drift.ip.country_changed` meldde landwissels die er niet waren voor
@@ -1373,7 +1375,8 @@ ExApp) can pin a reproducible version instead of `@main`.
   deferred (see `docs/observability.md`).
   (`openspec/changes/archive/2026-04-24-init-mvp-scanners`)
 
-[Unreleased]: https://github.com/MWest2020/wanderer/compare/v0.12.1...main
+[Unreleased]: https://github.com/MWest2020/wanderer/compare/v0.12.2...main
+[0.12.2]: https://github.com/MWest2020/wanderer/compare/v0.12.1...v0.12.2
 [0.12.1]: https://github.com/MWest2020/wanderer/compare/v0.12.0...v0.12.1
 [0.12.0]: https://github.com/MWest2020/wanderer/compare/v0.11.2...v0.12.0
 [0.11.2]: https://github.com/MWest2020/wanderer/compare/v0.11.1...v0.11.2
