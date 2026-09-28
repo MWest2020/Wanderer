@@ -7,5 +7,7 @@
       eerste nieuwe test één keer rood gezien met de oude code.
 
 ## 2. Uit
-- [ ] 2.1 Nagemeten op een kopie van de prod-data: de scans van 2026-09-28
+- [x] 2.1 Nagemeten op een kopie van de prod-data: de scans van 2026-09-28
       opnieuw door `Diff` → 0 landwissels. Release, deploy, archiveren.
+      (westerweel.work 7 → 0, rijksoverheid.nl 1 → 0, beide drift.no_changes;
+      de oude binary geeft op hetzelfde paar de 7 terug. v0.12.2 live.)
