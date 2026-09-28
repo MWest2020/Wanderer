@@ -229,21 +229,73 @@ func dnsNSSetChanged(prev, curr *models.Scan) []models.Finding {
 	)}
 }
 
+// ipCountryChanged reports a country change per address: an address
+// that appears in both scans with a different, non-empty country. A
+// host with several addresses (IPv4 + IPv6, anycast) does not drift
+// just because its addresses sit in different countries — each
+// address is compared against itself, not against the host's other
+// addresses. An address that only appears in one of the two scans is
+// not a country change (that is a different question, and the NS/MX
+// set rules already cover the host's address set).
+//
+// ip.asn findings that carry no address attribute fall back to the
+// old host-level comparison, but only when the host has exactly one
+// ip.asn finding in both scans — with more than one, there is no way
+// to tell which address a given country belongs to, and guessing
+// would reintroduce the same false positives this rule exists to
+// avoid.
 func ipCountryChanged(prev, curr *models.Scan) []models.Finding {
-	prevByHost := map[string]string{}
+	type addrKey struct{ subject, address string }
+
+	prevByAddr := map[addrKey]string{}
+	prevCountByHost := map[string]int{}
+	prevHostCountry := map[string]string{}
 	for _, f := range prev.Findings {
 		if f.ProbeID != "ip.asn" || f.Subject == "" {
 			continue
 		}
-		prevByHost[f.Subject] = attrString(f, "country")
+		prevCountByHost[f.Subject]++
+		country := attrString(f, "country")
+		prevHostCountry[f.Subject] = country
+		if addr := attrString(f, "address"); addr != "" {
+			prevByAddr[addrKey{f.Subject, addr}] = country
+		}
 	}
+
+	curCountByHost := map[string]int{}
+	for _, f := range curr.Findings {
+		if f.ProbeID != "ip.asn" || f.Subject == "" {
+			continue
+		}
+		curCountByHost[f.Subject]++
+	}
+
 	var out []models.Finding
 	for _, f := range curr.Findings {
 		if f.ProbeID != "ip.asn" || f.Subject == "" {
 			continue
 		}
 		curC := attrString(f, "country")
-		prevC, hadPrev := prevByHost[f.Subject]
+		addr := attrString(f, "address")
+
+		if addr != "" {
+			prevC, hadPrev := prevByAddr[addrKey{f.Subject, addr}]
+			if !hadPrev || prevC == "" || curC == "" || prevC == curC {
+				continue
+			}
+			out = append(out, emit(
+				prev, curr,
+				"drift.ip.country_changed", models.DimensionJuridisch,
+				models.SeverityFinding, f.Subject,
+				map[string]any{"address": addr, "prev_country": prevC, "curr_country": curC},
+			))
+			continue
+		}
+
+		if curCountByHost[f.Subject] != 1 || prevCountByHost[f.Subject] != 1 {
+			continue
+		}
+		prevC, hadPrev := prevHostCountry[f.Subject]
 		if !hadPrev || prevC == "" || curC == "" || prevC == curC {
 			continue
 		}

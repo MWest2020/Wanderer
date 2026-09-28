@@ -9,6 +9,26 @@ once a first release is cut. Until then every entry lives under
 
 ## [Unreleased]
 
+### Fixed
+
+- **`drift.ip.country_changed` meldde landwissels die er niet waren voor
+  hosts met meerdere adressen.** De regel sleutelde de `ip.asn`-meldingen
+  van de vorige scan op hostnaam alleen, dus een host met verschillende
+  adressen (IPv4 + IPv6, anycast) hield enkel het land van de laatst
+  ingelezen melding, en elk adres van de nieuwe scan werd daartegen
+  afgezet. `lennox.ns.cloudflare.com` heeft zes adressen in CA, US, CR en
+  GB en "wisselde van land" bij vrijwel elke scan — 11 van de 11
+  `drift.ip.country_changed`-meldingen tot nu toe waren vals, gemeten op
+  een kopie van de prod-data (47 scans, 118 vergelijkingen: het land van
+  een host veranderde nooit). `ipCountryChanged` vergelijkt nu per adres
+  (sleutel: host + adres); het adres staat mee in de attributen naast
+  `prev_country`/`curr_country`. Een host waarvan elk adres zijn land
+  houdt, levert geen landwissel meer op; een adres dat erbij komt of
+  wegvalt ook niet. Meldingen zonder `address`-attribuut vallen terug op
+  de oude hostvergelijking, maar alleen als de host in beide scans
+  precies één `ip.asn`-melding heeft — anders wordt niets gemeld.
+  (`openspec/changes/2026-09-28-drift-land-per-adres`)
+
 ## [0.12.1] - 2026-09-26
 
 ### Fixed

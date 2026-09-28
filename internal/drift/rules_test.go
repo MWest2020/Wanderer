@@ -129,6 +129,83 @@ func TestIPCountryChanged(t *testing.T) {
 	}
 }
 
+// lennoxAddresses is the real prod shape: six addresses for
+// lennox.ns.cloudflare.com across four countries.
+func lennoxAddresses() []models.Finding {
+	rows := []struct{ address, country string }{
+		{"108.162.195.214", "CA"},
+		{"162.159.44.214", "US"},
+		{"172.64.35.214", "CA"},
+		{"2606:4700:58::a29f:2cd6", "CA"},
+		{"2803:f800:50::6ca2:c3d6", "CR"},
+		{"2a06:98c1:50::ac40:23d6", "GB"},
+	}
+	out := make([]models.Finding, 0, len(rows))
+	for _, r := range rows {
+		out = append(out, models.Finding{
+			ProbeID: "ip.asn",
+			Subject: "lennox.ns.cloudflare.com",
+			Attributes: map[string]any{
+				"address": r.address,
+				"country": r.country,
+			},
+		})
+	}
+	return out
+}
+
+func TestIPCountryChanged_MultiAddressHostUnchanged(t *testing.T) {
+	prev := makeScan("s_a", lennoxAddresses())
+	curr := makeScan("s_b", lennoxAddresses())
+	got := Diff(prev, curr)
+	for _, f := range got {
+		if f.ProbeID == "drift.ip.country_changed" {
+			t.Errorf("unexpected country_changed for unchanged multi-address host: %v", f)
+		}
+	}
+	if len(got) != 1 || got[0].ProbeID != "drift.no_changes" {
+		t.Fatalf("want exactly one drift.no_changes, got %v", got)
+	}
+}
+
+func TestIPCountryChanged_SameAddressDifferentCountry(t *testing.T) {
+	prev := makeScan("s_a", []models.Finding{
+		{ProbeID: "ip.asn", Subject: "example.nl", Attributes: map[string]any{"address": "192.0.2.10", "country": "NL"}},
+	})
+	curr := makeScan("s_b", []models.Finding{
+		{ProbeID: "ip.asn", Subject: "example.nl", Attributes: map[string]any{"address": "192.0.2.10", "country": "US"}},
+	})
+	got := Diff(prev, curr)
+	if len(got) != 1 || got[0].ProbeID != "drift.ip.country_changed" {
+		t.Fatalf("want ip.country_changed, got %v", got)
+	}
+	if got[0].Attributes["address"] != "192.0.2.10" {
+		t.Errorf("address = %v, want 192.0.2.10", got[0].Attributes["address"])
+	}
+	if got[0].Attributes["prev_country"] != "NL" {
+		t.Errorf("prev_country = %v, want NL", got[0].Attributes["prev_country"])
+	}
+	if got[0].Attributes["curr_country"] != "US" {
+		t.Errorf("curr_country = %v, want US", got[0].Attributes["curr_country"])
+	}
+}
+
+func TestIPCountryChanged_NewAddressNoCountryChange(t *testing.T) {
+	prev := makeScan("s_a", []models.Finding{
+		{ProbeID: "ip.asn", Subject: "example.nl", Attributes: map[string]any{"address": "192.0.2.10", "country": "NL"}},
+	})
+	curr := makeScan("s_b", []models.Finding{
+		{ProbeID: "ip.asn", Subject: "example.nl", Attributes: map[string]any{"address": "192.0.2.10", "country": "NL"}},
+		{ProbeID: "ip.asn", Subject: "example.nl", Attributes: map[string]any{"address": "198.51.100.20", "country": "US"}},
+	})
+	got := Diff(prev, curr)
+	for _, f := range got {
+		if f.ProbeID == "drift.ip.country_changed" {
+			t.Errorf("unexpected country_changed for added address: %v", f)
+		}
+	}
+}
+
 func TestHTTPThirdPartyChanged(t *testing.T) {
 	prev := makeScan("s_a", []models.Finding{
 		{ProbeID: "http.third_party", Subject: "cdn.example.nl"},
